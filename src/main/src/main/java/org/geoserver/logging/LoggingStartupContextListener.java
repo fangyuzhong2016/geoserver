@@ -30,15 +30,22 @@ import org.geotools.util.logging.Logging;
  * Listens for GeoServer startup and tries to configure logging redirection to LOG4J, then
  * configures LOG4J according to the GeoServer configuration files (provided logging control hasn't
  * been disabled)
+ * <p><p/>
+ * GeoServer的日志监听初始化：尝试将GeoServer的日志重定向到LOG4J日志
+ * 然后根据GeoServer的日志配置文件进行相关日志配置
+ *
  */
 public class LoggingStartupContextListener implements ServletContextListener {
     private static Logger LOGGER;
 
     public void contextDestroyed(ServletContextEvent event) {}
 
+    /**
+     * 重写监听，进行日志初始化
+     * @param event
+     */
     public void contextInitialized(ServletContextEvent event) {
-        // setup GeoTools logging redirection (to log4j by default, but so that it can be
-        // overridden)
+        //初始化GeoTools的日志重定向，默认使用log4j日志，也可以使用其他日志库进行覆盖
         final ServletContext context = event.getServletContext();
         GeoToolsLoggingRedirection logging =
                 GeoToolsLoggingRedirection.findValue(
@@ -56,6 +63,7 @@ public class LoggingStartupContextListener implements ServletContextListener {
             getLogger().log(Level.SEVERE, "Could not configure log4j logging redirection", e);
         }
 
+        // 是否关闭GeoServer的日志
         String relinquishLoggingControl =
                 GeoServerExtensions.getProperty(LoggingUtils.RELINQUISH_LOG4J_CONTROL, context);
         if (Boolean.valueOf(relinquishLoggingControl)) {
@@ -64,19 +72,23 @@ public class LoggingStartupContextListener implements ServletContextListener {
                             "RELINQUISH_LOG4J_CONTROL on, won't attempt to reconfigure LOG4J loggers");
         } else {
             try {
-                File baseDir =
-                        new File(GeoServerResourceLoader.lookupGeoServerDataDirectory(context));
+                // 获取GeoServer的数据目录
+                File baseDir = new File(GeoServerResourceLoader.lookupGeoServerDataDirectory(context));
+                // 加载GeoServer的数据资源
                 GeoServerResourceLoader loader = new GeoServerResourceLoader(baseDir);
-
+                // 从数据资源中获取GeoServer的日志配置信息(日志配置是放在数据目录中的)
                 LoggingInfo loginfo = getLogging(loader);
                 if (loginfo != null) {
+                    // 获取日志位置
                     final String location =
                             LoggingUtils.getLogFileLocation(
                                     loginfo.getLocation(), event.getServletContext());
+                    // 进行GeoServer的日志初始化
                     LoggingUtils.initLogging(
                             loader, loginfo.getLevel(), !loginfo.isStdOutLogging(), location);
                 } else {
                     // check for old style data directory
+                    // 如果数据目录中没有找到相关日志配置信息，检查一下旧版本的数据目录中是否有“service.xml”
                     File f = loader.find("services.xml");
                     if (f != null) {
                         LegacyLoggingImporter loggingImporter = new LegacyLoggingImporter();

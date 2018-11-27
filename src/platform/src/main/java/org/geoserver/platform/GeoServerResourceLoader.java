@@ -561,32 +561,59 @@ public class GeoServerResourceLoader extends DefaultResourceLoader
      *     be found.
      */
     public static String lookupGeoServerDataDirectory(ServletContext servContext) {
+        final String[] varStrs = {"GEOSERVER_DATA_DIR", "GEOSERVER_DATA_ROOT"};
+        String dataDirStr = lookupGeoServerDirectory(servContext, varStrs);
+        // fall back to embedded data dir
+        if (dataDirStr == null) {
+            dataDirStr = servContext.getRealPath("/data");
+            LOGGER.info("Falling back to embedded data directory: " + dataDirStr);
+        }
+        return dataDirStr;
+    }
 
+    /**
+     * 获取GeoServer的日志配置目录
+     * @param servletContext
+     * @return
+     */
+    public static String lookupGeoServerLogConfigDirectory(ServletContext servletContext){
+        final String[] varStrs = {"GEOSERVER_LOGCONFIG_DIR"};
+        String logConfigDirStr = lookupGeoServerDirectory(servletContext, varStrs);
+        if (logConfigDirStr == null) {
+            logConfigDirStr = servletContext.getRealPath("/config/logs");
+            LOGGER.info("Falling back to embedded data directory: " + logConfigDirStr);
+        }
+        return logConfigDirStr;
+    }
+
+    /**
+     * 获取GeoServer的相关目录（数据或者日志）
+     * <p>根据以下机制确定查找GeoServer的数据目录位置：java环境变量-->Servlet 上下文环境变量 --> 系统环境变量
+     *      * 对每一个环境变量实现方法检查：路径是否存在 --> 是否是目录 --> 是否可写
+     * @param servContext
+     * @param varStrs
+     * @return
+     */
+    private static String lookupGeoServerDirectory(ServletContext servContext,String[] varStrs){
+        // 定义数据目录查找优先级
         final String[] typeStrs = {
-            "Java environment variable ",
-            "Servlet context parameter ",
-            "System environment variable "
+                "Java environment variable ",
+                "Servlet context parameter ",
+                "System environment variable "
         };
-
         String requireFileVar = "GEOSERVER_REQUIRE_FILE";
         requireFile(System.getProperty(requireFileVar), typeStrs[0] + requireFileVar);
         requireFile(servContext.getInitParameter(requireFileVar), typeStrs[1] + requireFileVar);
         requireFile(System.getenv(requireFileVar), typeStrs[2] + requireFileVar);
-
-        final String[] varStrs = {"GEOSERVER_DATA_DIR", "GEOSERVER_DATA_ROOT"};
-
         String dataDirStr = null;
         String msgPrefix = null;
-
         // Loop over variable names
         for (int i = 0; i < varStrs.length && dataDirStr == null; i++) {
-
             // Loop over variable access methods
             for (int j = 0; j < typeStrs.length && dataDirStr == null; j++) {
                 String value = null;
                 String varStr = varStrs[i];
                 String typeStr = typeStrs[j];
-
                 // Lookup section
                 switch (j) {
                     case 0:
@@ -599,18 +626,14 @@ public class GeoServerResourceLoader extends DefaultResourceLoader
                         value = System.getenv(varStr);
                         break;
                 }
-
                 if (value == null || value.equalsIgnoreCase("")) {
                     LOGGER.finer("Found " + typeStr + varStr + " to be unset");
                     continue;
                 }
-
                 // Verify section
                 File fh = new File(value);
-
                 // Being a bit pessimistic here
                 msgPrefix = "Found " + typeStr + varStr + " set to " + value;
-
                 if (!fh.exists()) {
                     LOGGER.warning(msgPrefix + " , but this path does not exist");
                     continue;
@@ -623,26 +646,19 @@ public class GeoServerResourceLoader extends DefaultResourceLoader
                     LOGGER.warning(msgPrefix + " , which is not writeable");
                     continue;
                 }
-
                 // Sweet, we can work with this
                 dataDirStr = value;
             }
         }
-
-        // fall back to embedded data dir
-        if (dataDirStr == null) {
-            dataDirStr = servContext.getRealPath("/data");
-            LOGGER.info("Falling back to embedded data directory: " + dataDirStr);
-        }
-
-        return dataDirStr;
+        return  dataDirStr;
     }
+
 
     /**
      * Check that required files exist and throw {@link IllegalArgumentException} if they do not.
-     *
-     * @param files either a single file name or a list of file names separated by {@link
-     *     File#pathSeparator}
+     *<p>
+     *     检查所需文件是否存在，如果没有，则抛出Ill.ArgumentException。
+     * @param files 单个文件名或由{@link File#pathSeparator}分隔的文件名列表
      * @param source description of source from which file name(s) obtained
      */
     static void requireFile(String files, String source) {

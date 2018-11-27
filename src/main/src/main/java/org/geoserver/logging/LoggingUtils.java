@@ -26,17 +26,40 @@ import org.geoserver.platform.resource.Resource;
 import org.geoserver.platform.resource.Resource.Type;
 import org.vfny.geoserver.global.ConfigurationException;
 
+/**
+ * 平台日志工具类
+ */
 public class LoggingUtils {
 
+    /**
+     * RELINQUISH_LOG4J_CONTROL 配置
+     */
     public static final String RELINQUISH_LOG4J_CONTROL = "RELINQUISH_LOG4J_CONTROL";
+    /**
+     * GeoTools日志配置
+     */
     public static final String GT2_LOGGING_REDIRECTION = "GT2_LOGGING_REDIRECTION";
+    /**
+     * GeoServer的日志位置
+     */
     public static final String GEOSERVER_LOG_LOCATION = "GEOSERVER_LOG_LOCATION";
 
+    /**
+     * GeoTools的日志重定向枚举类
+     */
     public static enum GeoToolsLoggingRedirection {
+        /**
+         * Java 日志类
+         */
         JavaLogging,
+        /**
+         * Commons日志类
+         */
         CommonsLogging,
+        /**
+         * Log4J 日志类
+         */
         Log4J;
-
         /**
          * Returns the enum value corresponding to the name (using case insensitive comparison) or
          * Log4j if no match is found
@@ -128,19 +151,25 @@ public class LoggingUtils {
                 "FINISHED CONFIGURING GEOSERVER LOGGING -------------------------");
     }
 
+    /**
+     * 初始化GeoServer的日志配置
+     * @param resourceLoader
+     * @param configFileName
+     * @param suppressStdOutLogging
+     * @param logFileName
+     * @throws Exception
+     */
     public static void initLogging(
             GeoServerResourceLoader resourceLoader,
             String configFileName,
             boolean suppressStdOutLogging,
             String logFileName)
             throws Exception {
-        // to initialize logging we need to do a couple of things:
-        // 1)  Figure out whether the user has 'overridden' some configuration settings
-        // in the logging system (not using log4j in commons-logging.properties or perhaps
-        // has set up their own 'custom' log4j.properties file.
-        // 2)  If they *have*, then we don't worry about configuring logging
-        // 3)  If they haven't, then we configure logging to use the log4j config file
-        // specified, and remove console appenders if the suppressstdoutlogging is true.
+        // 为了初始化GeoServer的日志信息，我们需要做以下的事情
+        // 1） 确定用户在日志记录系统中是否已经重写了一些配置
+        //     (用户是否在commons-logging.properties中使用log4j配置或者自定义了log4j.properites)
+        // 2)  如果用户已经重写了相关日志配置,那就不用配置了
+        // 3)  如果用户没有重写配置，那系统就会使用指定的Log4j配置文件来配置日志信息，并且看是否需要将日志显示的输出到控制台
         LoggingInitializer.LOGGER.fine("CONFIGURING GEOSERVER LOGGING -------------------------");
 
         if (configFileName == null) {
@@ -148,6 +177,7 @@ public class LoggingUtils {
             LoggingInitializer.LOGGER.warning(
                     "No log4jConfigFile defined in services.xml:  using 'DEFAULT_LOGGING.properties'");
         }
+        // 读取GeoServer的日志默认的配置(Data_dri/logs/...)
         Resource resource = resourceLoader.get(Paths.path("logs", configFileName));
         if (resource == null || resource.getType() == Type.UNDEFINED) {
             // hmm, well, we don't have a log4j config file and this could be due to the fact
