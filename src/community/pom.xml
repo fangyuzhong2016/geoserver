@@ -613,5 +613,9 @@
         <module>monitor-hibernate</module>
       </modules>
     </profile>
-  </profiles>  
+  </profiles>
+
+  <modules>
+    <module>security</module>
+  </modules>
 </project>

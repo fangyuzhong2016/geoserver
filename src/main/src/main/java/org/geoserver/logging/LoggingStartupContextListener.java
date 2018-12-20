@@ -30,10 +30,10 @@ import org.geotools.util.logging.Logging;
  * Listens for GeoServer startup and tries to configure logging redirection to LOG4J, then
  * configures LOG4J according to the GeoServer configuration files (provided logging control hasn't
  * been disabled)
- * <p><p/>
- * GeoServer的日志监听初始化：尝试将GeoServer的日志重定向到LOG4J日志
- * 然后根据GeoServer的日志配置文件进行相关日志配置
  *
+ * <p>
+ *
+ * <p>GeoServer的日志监听初始化：尝试将GeoServer的日志重定向到LOG4J日志 然后根据GeoServer的日志配置文件进行相关日志配置
  */
 public class LoggingStartupContextListener implements ServletContextListener {
     private static Logger LOGGER;
@@ -42,10 +42,11 @@ public class LoggingStartupContextListener implements ServletContextListener {
 
     /**
      * 重写监听，进行日志初始化
+     *
      * @param event
      */
     public void contextInitialized(ServletContextEvent event) {
-        //初始化GeoTools的日志重定向，默认使用log4j日志，也可以使用其他日志库进行覆盖
+        // 初始化GeoTools的日志重定向，默认使用log4j日志，也可以使用其他日志库进行覆盖
         final ServletContext context = event.getServletContext();
         GeoToolsLoggingRedirection logging =
                 GeoToolsLoggingRedirection.findValue(
@@ -73,9 +74,14 @@ public class LoggingStartupContextListener implements ServletContextListener {
         } else {
             try {
                 // 获取GeoServer的数据目录
-                File baseDir = new File(GeoServerResourceLoader.lookupGeoServerDataDirectory(context));
+                //                 File baseLogConfigDir = new
+                //
+                // File(GeoServerResourceLoader.lookupGeoServerDataDirectory(context));
+                File baseLogConfigDir =
+                        new File(
+                                GeoServerResourceLoader.lookupGeoServerLogConfigDirectory(context));
                 // 加载GeoServer的数据资源
-                GeoServerResourceLoader loader = new GeoServerResourceLoader(baseDir);
+                GeoServerResourceLoader loader = new GeoServerResourceLoader(baseLogConfigDir);
                 // 从数据资源中获取GeoServer的日志配置信息(日志配置是放在数据目录中的)
                 LoggingInfo loginfo = getLogging(loader);
                 if (loginfo != null) {
@@ -92,7 +98,7 @@ public class LoggingStartupContextListener implements ServletContextListener {
                     File f = loader.find("services.xml");
                     if (f != null) {
                         LegacyLoggingImporter loggingImporter = new LegacyLoggingImporter();
-                        loggingImporter.imprt(baseDir);
+                        loggingImporter.imprt(baseLogConfigDir);
                         final String location =
                                 LoggingUtils.getLogFileLocation(loggingImporter.getLogFile(), null);
                         LoggingUtils.initLogging(

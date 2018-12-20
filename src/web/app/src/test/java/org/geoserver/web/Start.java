@@ -54,11 +54,17 @@ public class Start {
         final Server jettyServer = new Server();
 
         try {
+            System.setProperty(
+                    "GEOSERVER_DATA_DIR",
+                    "E:\\\\Project\\\\OpenSource\\\\GIS-GeoServer-fangyuzhong\\\\DebugGeoServerData\\\\data_dir");
+            System.setProperty(
+                    "GEOSERVER_LOGCONFIG_DIR",
+                    "E:\\\\Project\\\\OpenSource\\\\GIS-GeoServer-fangyuzhong\\\\DebugGeoServerData\\\\config\\\\logs");
             HttpConfiguration httpConfig = new HttpConfiguration();
 
             ServerConnector http =
                     new ServerConnector(jettyServer, new HttpConnectionFactory(httpConfig));
-            http.setPort(Integer.getInteger("jetty.port", 8080));
+            http.setPort(Integer.getInteger("jetty.port", 8088));
             http.setAcceptQueueSize(100);
             http.setIdleTimeout(1000 * 60 * 60);
             http.setSoLingerTime(-1);

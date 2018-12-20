@@ -26,39 +26,23 @@ import org.geoserver.platform.resource.Resource;
 import org.geoserver.platform.resource.Resource.Type;
 import org.vfny.geoserver.global.ConfigurationException;
 
-/**
- * 平台日志工具类
- */
+/** 平台日志工具类 */
 public class LoggingUtils {
 
-    /**
-     * RELINQUISH_LOG4J_CONTROL 配置
-     */
+    /** RELINQUISH_LOG4J_CONTROL 配置 */
     public static final String RELINQUISH_LOG4J_CONTROL = "RELINQUISH_LOG4J_CONTROL";
-    /**
-     * GeoTools日志配置
-     */
+    /** GeoTools日志配置 */
     public static final String GT2_LOGGING_REDIRECTION = "GT2_LOGGING_REDIRECTION";
-    /**
-     * GeoServer的日志位置
-     */
+    /** GeoServer的日志位置 */
     public static final String GEOSERVER_LOG_LOCATION = "GEOSERVER_LOG_LOCATION";
 
-    /**
-     * GeoTools的日志重定向枚举类
-     */
+    /** GeoTools的日志重定向枚举类 */
     public static enum GeoToolsLoggingRedirection {
-        /**
-         * Java 日志类
-         */
+        /** Java 日志类 */
         JavaLogging,
-        /**
-         * Commons日志类
-         */
+        /** Commons日志类 */
         CommonsLogging,
-        /**
-         * Log4J 日志类
-         */
+        /** Log4J 日志类 */
         Log4J;
         /**
          * Returns the enum value corresponding to the name (using case insensitive comparison) or
@@ -153,6 +137,7 @@ public class LoggingUtils {
 
     /**
      * 初始化GeoServer的日志配置
+     *
      * @param resourceLoader
      * @param configFileName
      * @param suppressStdOutLogging

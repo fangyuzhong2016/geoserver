@@ -573,10 +573,11 @@ public class GeoServerResourceLoader extends DefaultResourceLoader
 
     /**
      * 获取GeoServer的日志配置目录
+     *
      * @param servletContext
      * @return
      */
-    public static String lookupGeoServerLogConfigDirectory(ServletContext servletContext){
+    public static String lookupGeoServerLogConfigDirectory(ServletContext servletContext) {
         final String[] varStrs = {"GEOSERVER_LOGCONFIG_DIR"};
         String logConfigDirStr = lookupGeoServerDirectory(servletContext, varStrs);
         if (logConfigDirStr == null) {
@@ -588,18 +589,20 @@ public class GeoServerResourceLoader extends DefaultResourceLoader
 
     /**
      * 获取GeoServer的相关目录（数据或者日志）
-     * <p>根据以下机制确定查找GeoServer的数据目录位置：java环境变量-->Servlet 上下文环境变量 --> 系统环境变量
-     *      * 对每一个环境变量实现方法检查：路径是否存在 --> 是否是目录 --> 是否可写
+     *
+     * <p>根据以下机制确定查找GeoServer的数据目录位置：java环境变量-->Servlet 上下文环境变量 --> 系统环境变量 * 对每一个环境变量实现方法检查：路径是否存在
+     * --> 是否是目录 --> 是否可写
+     *
      * @param servContext
      * @param varStrs
      * @return
      */
-    private static String lookupGeoServerDirectory(ServletContext servContext,String[] varStrs){
+    private static String lookupGeoServerDirectory(ServletContext servContext, String[] varStrs) {
         // 定义数据目录查找优先级
         final String[] typeStrs = {
-                "Java environment variable ",
-                "Servlet context parameter ",
-                "System environment variable "
+            "Java environment variable ",
+            "Servlet context parameter ",
+            "System environment variable "
         };
         String requireFileVar = "GEOSERVER_REQUIRE_FILE";
         requireFile(System.getProperty(requireFileVar), typeStrs[0] + requireFileVar);
@@ -650,14 +653,14 @@ public class GeoServerResourceLoader extends DefaultResourceLoader
                 dataDirStr = value;
             }
         }
-        return  dataDirStr;
+        return dataDirStr;
     }
-
 
     /**
      * Check that required files exist and throw {@link IllegalArgumentException} if they do not.
-     *<p>
-     *     检查所需文件是否存在，如果没有，则抛出Ill.ArgumentException。
+     *
+     * <p>检查所需文件是否存在，如果没有，则抛出Ill.ArgumentException。
+     *
      * @param files 单个文件名或由{@link File#pathSeparator}分隔的文件名列表
      * @param source description of source from which file name(s) obtained
      */
