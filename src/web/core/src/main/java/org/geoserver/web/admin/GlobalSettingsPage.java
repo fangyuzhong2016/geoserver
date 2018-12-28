@@ -59,7 +59,7 @@ public class GlobalSettingsPage extends ServerAdminPage {
     public GlobalSettingsPage() {
         final IModel<GeoServerInfo> globalInfoModel = getGlobalInfoModel();
         final IModel<LoggingInfo> loggingInfoModel = getLoggingInfoModel();
-
+        LoggingInfo loggingInfo= loggingInfoModel.getObject();
         CompoundPropertyModel<GeoServerInfo> compoundPropertyModel =
                 new CompoundPropertyModel<GeoServerInfo>(globalInfoModel);
         Form<GeoServerInfo> form = new Form<GeoServerInfo>("form", compoundPropertyModel);
@@ -88,7 +88,7 @@ public class GlobalSettingsPage extends ServerAdminPage {
                 new TextField<String>(
                         "loggingLocation",
                         new PropertyModel<String>(loggingInfoModel, "location")));
-
+         loggingInfo= loggingInfoModel.getObject();
         TextField<String> xmlPostRequestLogBufferSize =
                 new TextField<String>(
                         "xmlPostRequestLogBufferSize",
@@ -196,7 +196,7 @@ public class GlobalSettingsPage extends ServerAdminPage {
         }
         // if none is found use the default set
         if (logProfiles == null || logProfiles.size() == 0) logProfiles = DEFAULT_LOG_PROFILES;
-
+        LoggingInfo loggingInfo= loggingInfoModel.getObject();
         form.add(
                 new ListChoice<String>(
                         "log4jConfigFile",

@@ -871,16 +871,18 @@ public abstract class GeoServerLoader {
             }
 
             // load logging
-            f = resourceLoader.get("logging.xml");
-            if (Resources.exists(f)) {
-                try {
-                    LoggingInfo logging = depersist(xp, f, LoggingInfo.class);
-                    geoServer.setLogging(logging);
-                } catch (Exception e) {
-                    LOGGER.log(
-                            Level.WARNING,
-                            "Failed to load logging configuration file '" + f.name() + "'",
-                            e);
+            if(GeoServerResourceLoader.getLogResourcesLoader()!=null) {
+                f = GeoServerResourceLoader.getLogResourcesLoader().get("logging.xml");
+                if (Resources.exists(f)) {
+                    try {
+                        LoggingInfo logging = depersist(xp, f, LoggingInfo.class);
+                        geoServer.setLogging(logging);
+                    } catch (Exception e) {
+                        LOGGER.log(
+                                Level.WARNING,
+                                "Failed to load logging configuration file '" + f.name() + "'",
+                                e);
+                    }
                 }
             }
 

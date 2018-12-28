@@ -33,7 +33,7 @@ public class LoggingInitializer implements GeoServerInitializer, ApplicationCont
     Boolean relinquishLoggingControl;
 
     public void setResourceLoader(GeoServerResourceLoader resourceLoader) {
-        this.resourceLoader = resourceLoader;
+        this.resourceLoader = GeoServerResourceLoader.getLogResourcesLoader();
     }
 
     public void initialize(GeoServer geoServer) throws Exception {

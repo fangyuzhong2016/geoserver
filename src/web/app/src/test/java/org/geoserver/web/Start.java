@@ -56,10 +56,10 @@ public class Start {
         try {
             System.setProperty(
                     "GEOSERVER_DATA_DIR",
-                    "E:\\\\Project\\\\OpenSource\\\\GIS-GeoServer-fangyuzhong\\\\DebugGeoServerData\\\\data_dir");
+                    "E:\\Project\\OpenSource\\GeoServer\\GIS-GeoServer-fangyuzhong\\DebugGeoServerData\\data_dir");
             System.setProperty(
                     "GEOSERVER_LOGCONFIG_DIR",
-                    "E:\\\\Project\\\\OpenSource\\\\GIS-GeoServer-fangyuzhong\\\\DebugGeoServerData\\\\config\\\\logs");
+                    "E:\\Project\\OpenSource\\GeoServer\\GIS-GeoServer-fangyuzhong\\DebugGeoServerData\\config");
             HttpConfiguration httpConfig = new HttpConfiguration();
 
             ServerConnector http =

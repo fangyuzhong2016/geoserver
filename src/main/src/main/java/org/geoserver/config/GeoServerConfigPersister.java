@@ -286,7 +286,8 @@ public class GeoServerConfigPersister implements CatalogListener, ConfigurationL
 
     public void handlePostLoggingChange(LoggingInfo logging) {
         try {
-            persist(logging, dd.config(logging));
+           // dd.config(logging);
+            persist(logging, GeoServerResourceLoader.getLogResourcesLoader().get("logging.xml"));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

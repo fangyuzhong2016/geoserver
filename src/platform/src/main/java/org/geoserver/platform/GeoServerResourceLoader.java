@@ -63,6 +63,7 @@ public class GeoServerResourceLoader extends DefaultResourceLoader
     private static final Logger LOGGER =
             org.geotools.util.logging.Logging.getLogger("org.geoserver.platform");
 
+    private static GeoServerResourceLoader logResourcesLoader = null;
     /**
      * ResourceStore used for configuration resources.
      *
@@ -96,6 +97,14 @@ public class GeoServerResourceLoader extends DefaultResourceLoader
     }
 
     /**
+     * 获取日志配置加载器
+     * @return
+     */
+    public static GeoServerResourceLoader getLogResourcesLoader() {
+        return logResourcesLoader;
+    }
+
+    /**
      * Creates a new resource loader.
      *
      * @param resourceStore resource store for artifact storage
@@ -117,6 +126,16 @@ public class GeoServerResourceLoader extends DefaultResourceLoader
         if (resources == ResourceStore.EMPTY && baseDirectory != null) {
             // lookup the configuration resources
             resources = new FileSystemResourceStore(baseDirectory);
+        }
+        // 创建一个日志配置加载器
+        String log = lookupGeoServerLogConfigDirectory(servletContext);
+        if(logResourcesLoader==null){
+            try {
+                logResourcesLoader = new GeoServerResourceLoader(new File(log));
+            }
+            catch (Exception ex){
+                logResourcesLoader=null;
+            }
         }
     }
 
