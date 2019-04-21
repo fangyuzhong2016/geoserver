@@ -49,11 +49,31 @@ public class WFSLayerConfig extends PublishedConfigurationPanel<LayerInfo> {
         Border mdb = new FormComponentFeedbackBorder("maxDecimalsBorder");
         mdb.add(maxDecimals);
         add(mdb);
+        CheckBox padWithZeros =
+                new CheckBox(
+                        "padWithZeros", new PropertyModel<Boolean>(model, "resource.padWithZeros"));
+        Border pwzb = new FormComponentFeedbackBorder("padWithZerosBorder");
+        pwzb.add(padWithZeros);
+        add(pwzb);
+
+        CheckBox forcedDecimal =
+                new CheckBox(
+                        "forcedDecimal",
+                        new PropertyModel<Boolean>(model, "resource.forcedDecimal"));
+        Border fdb = new FormComponentFeedbackBorder("forcedDecimalBorder");
+        fdb.add(forcedDecimal);
+        add(fdb);
         CheckBox skipNumberMatched =
                 new CheckBox(
                         "skipNumberMatched",
                         new PropertyModel<Boolean>(model, "resource.skipNumberMatched"));
         add(skipNumberMatched);
+
+        // coordinates measures encoding
+        CheckBox encodeMeasures =
+                new CheckBox(
+                        "encodeMeasures", new PropertyModel<>(model, "resource.encodeMeasures"));
+        add(encodeMeasures);
 
         // other srs list
         dialog = new GeoServerDialog("wfsDialog");
@@ -110,6 +130,22 @@ public class WFSLayerConfig extends PublishedConfigurationPanel<LayerInfo> {
                                 new StringResourceModel("otherSRS", WFSLayerConfig.this, null),
                                 new StringResourceModel(
                                         "otherSRS.message", WFSLayerConfig.this, null));
+                    }
+                });
+        add(
+                new AjaxLink<String>("coordinatesEncodingHelp") {
+                    private static final long serialVersionUID = 926171216768726057L;
+
+                    @Override
+                    public void onClick(AjaxRequestTarget target) {
+                        dialog.showInfo(
+                                target,
+                                new StringResourceModel(
+                                        "coordinatesEncodingTitle", WFSLayerConfig.this, null),
+                                new StringResourceModel(
+                                        "coordinatesEncodingHelp.message",
+                                        WFSLayerConfig.this,
+                                        null));
                     }
                 });
     }

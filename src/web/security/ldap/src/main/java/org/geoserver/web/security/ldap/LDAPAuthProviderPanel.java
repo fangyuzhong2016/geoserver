@@ -194,7 +194,7 @@ public class LDAPAuthProviderPanel extends AuthenticationProviderPanel<LDAPSecur
                                     (LDAPSecurityServiceConfig) getForm().getModelObject();
                             doTest(ldapConfig, username, password);
 
-                            target.add(getPage().get("feedback"));
+                            target.add(getPage().get("topFeedback"));
                         }
 
                         void doTest(
@@ -233,8 +233,6 @@ public class LDAPAuthProviderPanel extends AuthenticationProviderPanel<LDAPSecur
                             } catch (Exception e) {
                                 error(e);
                                 LOGGER.log(Level.WARNING, e.getMessage(), e);
-                            } finally {
-
                             }
                         }
                     }.setDefaultFormProcessing(false));

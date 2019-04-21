@@ -8,31 +8,6 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoClientOptions;
 import com.mongodb.ServerAddress;
-import org.custommonkey.xmlunit.SimpleNamespaceContext;
-import org.custommonkey.xmlunit.XMLUnit;
-import org.custommonkey.xmlunit.XpathEngine;
-import org.geoserver.catalog.Catalog;
-import org.geoserver.catalog.CatalogBuilder;
-import org.geoserver.catalog.FeatureTypeInfo;
-import org.geoserver.catalog.LayerInfo;
-import org.geoserver.catalog.NamespaceInfo;
-import org.geoserver.catalog.impl.DataStoreInfoImpl;
-import org.geoserver.catalog.impl.NamespaceInfoImpl;
-import org.geoserver.catalog.impl.WorkspaceInfoImpl;
-import org.geoserver.data.test.SystemTestData;
-import org.geoserver.test.GeoServerSystemTestSupport;
-import org.geoserver.util.IOUtils;
-import org.geotools.feature.NameImpl;
-import org.geotools.image.test.ImageAssert;
-import org.geotools.util.URLs;
-import org.hamcrest.MatcherAssert;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.Test;
-import org.springframework.mock.web.MockHttpServletResponse;
-import org.w3c.dom.Document;
-
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -50,10 +25,33 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
+import javax.imageio.ImageIO;
+import org.custommonkey.xmlunit.SimpleNamespaceContext;
+import org.custommonkey.xmlunit.XMLUnit;
+import org.custommonkey.xmlunit.XpathEngine;
+import org.geoserver.catalog.Catalog;
+import org.geoserver.catalog.CatalogBuilder;
+import org.geoserver.catalog.FeatureTypeInfo;
+import org.geoserver.catalog.LayerInfo;
+import org.geoserver.catalog.NamespaceInfo;
+import org.geoserver.catalog.impl.DataStoreInfoImpl;
+import org.geoserver.catalog.impl.NamespaceInfoImpl;
+import org.geoserver.catalog.impl.WorkspaceInfoImpl;
+import org.geoserver.data.test.SystemTestData;
+import org.geoserver.test.GeoServerSystemTestSupport;
+import org.geoserver.util.IOUtils;
+import org.geotools.feature.NameImpl;
+import org.geotools.image.test.ImageAssert;
+import org.geotools.util.URLs;
 import static org.hamcrest.CoreMatchers.is;
+import org.hamcrest.MatcherAssert;
+import org.junit.AfterClass;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeTrue;
+import org.junit.Before;
+import org.junit.Test;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.w3c.dom.Document;
 
 /**
  * Support for integration tests between MongoDB and App-schema. This test are integration tests
@@ -80,6 +78,9 @@ public abstract class ComplexMongoDBSupport extends GeoServerSystemTestSupport {
 
     @Before
     public void beforeTest() {
+        // check that the test should run
+        File fixtureFile = getFixtureFile();
+        assumeTrue(fixtureFile.exists());
         // instantiate WFS 1.1 xpath engine
         WFS11_XPATH_ENGINE =
                 buildXpathEngine(
@@ -99,7 +100,7 @@ public abstract class ComplexMongoDBSupport extends GeoServerSystemTestSupport {
     public static void tearDown() throws Exception {
         // remove the temporary directory
         if (ROOT_DIRECTORY != null) {
-            IOUtils.delete(ROOT_DIRECTORY.toFile());
+            IOUtils.delete(ROOT_DIRECTORY.toFile(), true);
         }
         // remove test data base from MongoDB
         try {
@@ -145,6 +146,8 @@ public abstract class ComplexMongoDBSupport extends GeoServerSystemTestSupport {
         dataStore.setWorkspace(workspace);
         dataStore.setEnabled(true);
         catalog.add(dataStore);
+        // add the stations style and set it as the default one for stations layer
+        testData.addStyle("stations", "stations.sld", ComplexMongoDBSupport.class, catalog);
         // build the feature type for the root mapping (StationFeature)
         CatalogBuilder builder = new CatalogBuilder(catalog);
         builder.setStore(dataStore);
@@ -153,7 +156,7 @@ public abstract class ComplexMongoDBSupport extends GeoServerSystemTestSupport {
                 builder.buildFeatureType(new NameImpl(nameSpace.getURI(), "StationFeature"));
         catalog.add(featureType);
         LayerInfo layer = builder.buildLayer(featureType);
-        layer.setDefaultStyle(catalog.getStyleByName("point"));
+        layer.setDefaultStyle(catalog.getStyleByName("stations"));
         catalog.add(layer);
     }
 

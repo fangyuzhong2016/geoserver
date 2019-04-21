@@ -1,6 +1,6 @@
 /* (c) 2014 Open Source Geospatial Foundation - all rights reserved
  * (c) 2001 - 2013 OpenPlans
- *           (c) 2002-2008 Open Source Geospatial Foundation (LGPL)
+ * (c) 2002-2008 Open Source Geospatial Foundation (LGPL)
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
@@ -10,9 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.geotools.factory.Hints;
 import org.geotools.util.Converter;
 import org.geotools.util.ConverterFactory;
+import org.geotools.util.factory.Hints;
 import org.jaitools.numeric.Range;
 
 /**

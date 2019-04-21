@@ -16,7 +16,7 @@ import net.opengis.wfs.WfsFactory;
 import net.opengis.wfs20.ResolveValueType;
 import net.opengis.wfs20.Wfs20Factory;
 import org.eclipse.emf.ecore.EObject;
-import org.geotools.xml.EMFUtils;
+import org.geotools.xsd.EMFUtils;
 
 /**
  * WFS GetFeature request.
@@ -50,8 +50,6 @@ public abstract class GetFeatureRequest extends RequestObject {
         List l = eGet(adaptee, "viewParams", List.class);
         l.clear();
         l.addAll(viewParams);
-
-        List check = eGet(adaptee, "viewParams", List.class);
     }
 
     public abstract List<Query> getQueries();

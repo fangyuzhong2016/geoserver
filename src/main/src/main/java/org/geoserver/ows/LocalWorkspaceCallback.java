@@ -5,6 +5,8 @@
  */
 package org.geoserver.ows;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.LayerGroupInfo;
 import org.geoserver.catalog.LayerInfo;
@@ -16,6 +18,8 @@ import org.geoserver.platform.Operation;
 import org.geoserver.platform.Service;
 import org.geoserver.platform.ServiceException;
 import org.geotools.feature.NameImpl;
+import org.geotools.util.SuppressFBWarnings;
+import org.geotools.util.logging.Logging;
 
 /**
  * Dispatcher callback that sets and clears the {@link LocalWorkspace} and {@link LocalPublished}
@@ -25,6 +29,8 @@ import org.geotools.feature.NameImpl;
  */
 public class LocalWorkspaceCallback implements DispatcherCallback, ExtensionPriority {
 
+    static final Logger LOGGER = Logging.getLogger(LocalWorkspaceCallback.class);
+
     GeoServer gs;
     Catalog catalog;
 
@@ -33,6 +39,7 @@ public class LocalWorkspaceCallback implements DispatcherCallback, ExtensionPrio
         catalog = gs.getCatalog();
     }
 
+    @SuppressFBWarnings("NP_NONNULL_PARAM_VIOLATION")
     public Request init(Request request) {
         WorkspaceInfo ws = null;
         LayerGroupInfo lg = null;
@@ -66,19 +73,36 @@ public class LocalWorkspaceCallback implements DispatcherCallback, ExtensionPrio
                         if (l != null) {
                             LocalPublished.set(l);
                         } else {
+                            LOGGER.log(
+                                    Level.FINE,
+                                    "Could not lookup context {0} as a layer, trying as group",
+                                    first);
                             lg = catalog.getLayerGroupByName(ws, last);
                             if (lg != null) {
                                 LocalPublished.set(lg);
                             } else {
                                 // TODO: perhaps throw an exception?
+                                LOGGER.log(
+                                        Level.FINE,
+                                        "Could not lookup context {0} as a group either",
+                                        first);
                             }
                         }
                     }
                 }
             } else {
+                LOGGER.log(
+                        Level.FINE,
+                        "Could not lookup context {0] as a workspace, trying as group",
+                        first);
                 lg = catalog.getLayerGroupByName((WorkspaceInfo) null, first);
                 if (lg != null) {
                     LocalPublished.set(lg);
+                } else {
+                    LOGGER.log(
+                            Level.FINE,
+                            "Could not lookup context {0} as a layer group either",
+                            first);
                 }
             }
             if (ws == null && lg == null) {

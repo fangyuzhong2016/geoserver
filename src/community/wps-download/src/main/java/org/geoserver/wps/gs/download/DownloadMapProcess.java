@@ -11,7 +11,7 @@ import de.micromata.opengis.kml.v_2_2_0.Icon;
 import de.micromata.opengis.kml.v_2_2_0.Kml;
 import de.micromata.opengis.kml.v_2_2_0.LatLonBox;
 import de.micromata.opengis.kml.v_2_2_0.ViewRefreshMode;
-import java.awt.Graphics2D;
+import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.awt.image.RenderedImage;
@@ -55,16 +55,16 @@ import org.geoserver.wps.process.ByteArrayRawData;
 import org.geoserver.wps.process.RawData;
 import org.geotools.data.ows.HTTPClient;
 import org.geotools.data.ows.SimpleHttpClient;
-import org.geotools.data.wms.WebMapServer;
-import org.geotools.data.wms.response.GetMapResponse;
+import org.geotools.data.util.DefaultProgressListener;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.ows.ServiceException;
+import org.geotools.ows.wms.WebMapServer;
+import org.geotools.ows.wms.response.GetMapResponse;
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
-import org.geotools.util.DefaultProgressListener;
 import org.geotools.util.Version;
 import org.geotools.util.logging.Logging;
 import org.opengis.referencing.FactoryException;
@@ -388,7 +388,7 @@ public class DownloadMapProcess implements GeoServerProcess, ApplicationContextA
             throws IOException, ServiceException, FactoryException {
         // using a WMS client so that it respects the GetMap URL from the capabilities
         WebMapServer server = getServer(layer, cache);
-        org.geotools.data.wms.request.GetMapRequest getMap = server.createGetMapRequest();
+        org.geotools.ows.wms.request.GetMapRequest getMap = server.createGetMapRequest();
         String requestFormat = getCascadingFormat(server);
 
         // going low level to apply all the properties we have verbatim
@@ -439,6 +439,10 @@ public class DownloadMapProcess implements GeoServerProcess, ApplicationContextA
                                 + ","
                                 + bbox.getMaxY());
             }
+        }
+
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.fine("Requesting external map at " + getMap.getFinalURL().toExternalForm());
         }
 
         GetMapResponse response = server.issueRequest(getMap);
@@ -523,6 +527,9 @@ public class DownloadMapProcess implements GeoServerProcess, ApplicationContextA
         }
         // for merging layers, unless the request stated otherwise
         rawKvp.putIfAbsent("transparent", "true");
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.fine("Internal render of map with key/value params: " + rawKvp);
+        }
         CaseInsensitiveMap kvp = new CaseInsensitiveMap(new HashMap());
         kvp.putAll(rawKvp);
         List<Throwable> exceptions = KvpUtils.parse(kvp);

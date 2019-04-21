@@ -618,9 +618,10 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
     //
     public NamespaceInfo add(NamespaceInfo namespace) {
         resolve(namespace);
-        namespaces.add(namespace);
+        NamespaceInfo unwrapped = unwrap(namespace);
+        namespaces.add(unwrapped);
 
-        return ModificationProxy.create(namespace, NamespaceInfo.class);
+        return ModificationProxy.create(unwrapped, NamespaceInfo.class);
     }
 
     public void remove(NamespaceInfo namespace) {
@@ -662,7 +663,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
                 Arrays.asList(old),
                 Arrays.asList(defaultNamespace));
 
-        this.defaultNamespace = defaultNamespace;
+        this.defaultNamespace = unwrap(defaultNamespace);
 
         // fire postmodify event after change
         catalog.firePostModified(
@@ -707,8 +708,9 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
     // Workspace methods
     public WorkspaceInfo add(WorkspaceInfo workspace) {
         resolve(workspace);
-        workspaces.add(workspace);
-        return ModificationProxy.create(workspace, WorkspaceInfo.class);
+        WorkspaceInfo unwrapped = unwrap(workspace);
+        workspaces.add(unwrapped);
+        return ModificationProxy.create(unwrapped, WorkspaceInfo.class);
     }
 
     public void remove(WorkspaceInfo workspace) {
@@ -745,7 +747,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
     }
 
     public WorkspaceInfo getDefaultWorkspace() {
-        return defaultWorkspace;
+        return wrapInModificationProxy(defaultWorkspace, WorkspaceInfo.class);
     }
 
     public void setDefaultWorkspace(WorkspaceInfo workspace) {
@@ -757,7 +759,7 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
                 Arrays.asList(old),
                 Arrays.asList(workspace));
 
-        this.defaultWorkspace = workspace;
+        this.defaultWorkspace = unwrap(workspace);
 
         // fire postmodify event after change
         catalog.firePostModified(
@@ -1103,7 +1105,6 @@ public class DefaultCatalogFacade extends AbstractCatalogFacade implements Catal
             final Class<T> of, final Filter filter, final SortBy[] sortByList) {
         List<T> all;
 
-        T t = null;
         if (NamespaceInfo.class.isAssignableFrom(of)) {
             all = (List<T>) namespaces.list(of, toPredicate(filter));
         } else if (WorkspaceInfo.class.isAssignableFrom(of)) {

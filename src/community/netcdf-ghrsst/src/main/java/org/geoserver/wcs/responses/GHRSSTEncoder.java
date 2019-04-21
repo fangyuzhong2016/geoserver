@@ -34,12 +34,12 @@ import org.geoserver.web.netcdf.DataPacking;
 import org.geoserver.web.netcdf.NetCDFSettingsContainer;
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
+import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
-import org.geotools.resources.coverage.CoverageUtilities;
 import org.geotools.util.DateRange;
 import org.geotools.util.logging.Logging;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
@@ -376,7 +376,7 @@ public class GHRSSTEncoder extends AbstractNetCDFEncoder {
                                 for (Attribute att : sourceVar.getAttributes()) {
                                     // do not allow overwrite or attributes in blacklist
                                     if (var.findAttribute(att.getFullName()) == null
-                                            && isBlacklistedAttribute(att, dataPacking)) {
+                                            && !isBlacklistedAttribute(att, dataPacking)) {
                                         writer.addVariableAttribute(var, att);
                                     }
                                 }
@@ -478,15 +478,15 @@ public class GHRSSTEncoder extends AbstractNetCDFEncoder {
         // part of the blacklist?
         String shortName = att.getShortName();
         if (COPY_ATTRIBUTES_BLACKLIST.contains(shortName)) {
-            return false;
+            return true;
         }
 
         // in case of data packing also valid_min and valid_max should go
         if (dataPacking != DataPacking.NONE) {
-            return !DATA_PACKING_ATTRIBUTES_BLACKLIST.contains(shortName);
+            return DATA_PACKING_ATTRIBUTES_BLACKLIST.contains(shortName);
         }
 
-        return true;
+        return false;
     }
 
     private DataType getDataType(String variableName, int dataType) {

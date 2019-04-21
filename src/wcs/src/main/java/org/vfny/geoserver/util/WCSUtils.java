@@ -31,24 +31,26 @@ import org.geotools.coverage.processing.CoverageProcessor;
 import org.geotools.coverage.processing.operation.Interpolate;
 import org.geotools.coverage.processing.operation.Resample;
 import org.geotools.coverage.processing.operation.SelectSampleDimension;
-import org.geotools.factory.Hints;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.util.NumberRange;
+import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Polygon;
 import org.opengis.coverage.Coverage;
 import org.opengis.coverage.grid.GridCoverage;
 import org.opengis.filter.Filter;
 import org.opengis.geometry.Envelope;
+import org.opengis.metadata.spatial.PixelOrientation;
 import org.opengis.parameter.GeneralParameterValue;
 import org.opengis.parameter.ParameterDescriptor;
 import org.opengis.parameter.ParameterValue;
 import org.opengis.parameter.ParameterValueGroup;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
+import org.opengis.referencing.operation.TransformException;
 import org.vfny.geoserver.wcs.WcsException;
 
 /**
@@ -126,6 +128,48 @@ public class WCSUtils {
     }
 
     /**
+     * Pads the coverage to the specified bounds
+     *
+     * @param coverage The coverage to be padded
+     * @param bounds The bounds to pad to
+     * @return The padded covearge, or the original one, if the padding would not add a single pixel
+     *     to it
+     */
+    public static GridCoverage2D padToEnvelope(final GridCoverage2D coverage, final Envelope bounds)
+            throws TransformException {
+        GridGeometry2D gg = coverage.getGridGeometry();
+        GeneralEnvelope padRange =
+                CRS.transform(gg.getCRSToGrid2D(PixelOrientation.UPPER_LEFT), bounds);
+        GridEnvelope2D targetRange =
+                new GridEnvelope2D(
+                        (int) Math.round(padRange.getMinimum(0)),
+                        (int) Math.round(padRange.getMinimum(1)),
+                        (int) Math.round(padRange.getSpan(0)),
+                        (int) Math.round(padRange.getSpan(1)));
+        GridEnvelope2D sourceRange = gg.getGridRange2D();
+        if (sourceRange.x == targetRange.x
+                && sourceRange.y == targetRange.y
+                && sourceRange.width == targetRange.width
+                && sourceRange.height == targetRange.height) {
+            return coverage;
+        }
+
+        GridGeometry2D target =
+                new GridGeometry2D(
+                        targetRange, gg.getGridToCRS(), gg.getCoordinateReferenceSystem2D());
+
+        List<GridCoverage2D> sources = new ArrayList<GridCoverage2D>(2);
+        sources.add(coverage);
+
+        // perform the mosaic
+        final ParameterValueGroup param = PROCESSOR.getOperation("Mosaic").getParameters();
+        param.parameter("Sources").setValue(sources);
+        param.parameter("geometry").setValue(target);
+
+        return (GridCoverage2D) PROCESSOR.doOperation(param);
+    }
+
+    /**
      * <strong>Interpolating</strong><br>
      * Specifies the interpolation type to be used to interpolate values for points which fall
      * between grid cells. The default value is nearest neighbor. The new interpolation type
@@ -189,7 +233,7 @@ public class WCSUtils {
         final ArrayList selectedBands = new ArrayList();
 
         for (int d = 0; d < numDimensions; d++) {
-            dims.put("band" + (d + 1), new Integer(d));
+            dims.put("band" + (d + 1), Integer.valueOf(d));
         }
 
         if ((params != null) && !params.isEmpty()) {
@@ -204,10 +248,6 @@ public class WCSUtils {
                             final String[] minMaxRes = values.split("/");
                             final int min = (int) Math.round(Double.parseDouble(minMaxRes[0]));
                             final int max = (int) Math.round(Double.parseDouble(minMaxRes[1]));
-                            final double res =
-                                    ((minMaxRes.length > 2)
-                                            ? Double.parseDouble(minMaxRes[2])
-                                            : 0.0);
 
                             for (int v = min; v <= max; v++) {
                                 final String key = param.toLowerCase() + v;

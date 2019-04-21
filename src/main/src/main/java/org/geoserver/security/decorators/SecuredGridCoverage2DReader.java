@@ -20,9 +20,9 @@ import org.geotools.coverage.processing.CoverageProcessor;
 import org.geotools.coverage.processing.operation.Crop;
 import org.geotools.data.ResourceInfo;
 import org.geotools.data.ServiceInfo;
-import org.geotools.factory.Hints;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.MultiPolygon;
@@ -95,7 +95,6 @@ public class SecuredGridCoverage2DReader extends DecoratingGridCoverage2DReader 
                         new ArrayList<GeneralParameterValue>(Arrays.asList(parameters));
                 for (GeneralParameterValue lparam : limitParams) {
                     // remove the overwritten param, if any
-                    final GeneralParameterDescriptor ldescriptor = lparam.getDescriptor();
                     for (Iterator it = params.iterator(); it.hasNext(); ) {
                         GeneralParameterValue param = (GeneralParameterValue) it.next();
                         if (param.getDescriptor().equals(lparam.getDescriptor())) {

@@ -20,12 +20,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.beanutils.ConstructorUtils;
-import org.apache.commons.lang.ClassUtils;
-import org.apache.commons.lang.SerializationUtils;
+import org.apache.commons.lang3.ClassUtils;
+import org.apache.commons.lang3.SerializationUtils;
 import org.geoserver.catalog.CatalogInfo;
 import org.geoserver.config.util.XStreamPersister;
 import org.geoserver.config.util.XStreamPersisterFactory;
@@ -91,6 +92,11 @@ class ModificationProxyCloner {
                 || source instanceof BigInteger
                 || source instanceof BigDecimal) {
             return (T) source;
+        }
+
+        // to avoid reflective access warnings
+        if (source instanceof TimeZone) {
+            return (T) ((TimeZone) source).clone();
         }
 
         // is it cloneable?

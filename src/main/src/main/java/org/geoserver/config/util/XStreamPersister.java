@@ -11,17 +11,20 @@ import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.converters.ConversionException;
 import com.thoughtworks.xstream.converters.Converter;
 import com.thoughtworks.xstream.converters.MarshallingContext;
+import com.thoughtworks.xstream.converters.SingleValueConverter;
 import com.thoughtworks.xstream.converters.SingleValueConverterWrapper;
 import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.converters.basic.AbstractSingleValueConverter;
 import com.thoughtworks.xstream.converters.collections.AbstractCollectionConverter;
 import com.thoughtworks.xstream.converters.collections.CollectionConverter;
 import com.thoughtworks.xstream.converters.collections.MapConverter;
+import com.thoughtworks.xstream.converters.extended.JavaClassConverter;
 import com.thoughtworks.xstream.converters.reflection.FieldDictionary;
 import com.thoughtworks.xstream.converters.reflection.ReflectionConverter;
 import com.thoughtworks.xstream.converters.reflection.ReflectionProvider;
 import com.thoughtworks.xstream.converters.reflection.SortableFieldKeySorter;
 import com.thoughtworks.xstream.converters.reflection.SunUnsafeReflectionProvider;
+import com.thoughtworks.xstream.core.ClassLoaderReference;
 import com.thoughtworks.xstream.io.ExtendedHierarchicalStreamWriterHelper;
 import com.thoughtworks.xstream.io.HierarchicalStreamDriver;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
@@ -30,8 +33,10 @@ import com.thoughtworks.xstream.io.json.JettisonStaxWriter;
 import com.thoughtworks.xstream.io.xml.StaxWriter;
 import com.thoughtworks.xstream.mapper.CannotResolveClassException;
 import com.thoughtworks.xstream.mapper.ClassAliasingMapper;
+import com.thoughtworks.xstream.mapper.DefaultMapper;
 import com.thoughtworks.xstream.mapper.DynamicProxyMapper;
 import com.thoughtworks.xstream.mapper.Mapper;
+import com.thoughtworks.xstream.mapper.PackageAliasingMapper;
 import java.awt.geom.AffineTransform;
 import java.io.IOException;
 import java.io.InputStream;
@@ -39,6 +44,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -139,6 +145,7 @@ import org.geoserver.security.GeoServerSecurityManager;
 import org.geoserver.security.SecureCatalogImpl;
 import org.geotools.coverage.grid.GeneralGridEnvelope;
 import org.geotools.coverage.grid.GridGeometry2D;
+import org.geotools.data.util.MeasureConverterFactory;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.Geometries;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -153,7 +160,6 @@ import org.geotools.referencing.crs.DefaultProjectedCRS;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
 import org.geotools.referencing.wkt.Formattable;
 import org.geotools.util.Converters;
-import org.geotools.util.MeasureConverterFactory;
 import org.geotools.util.NumberRange;
 import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Geometry;
@@ -433,6 +439,19 @@ public class XStreamPersister {
         xs.registerLocalConverter(impl(ResourceInfo.class), "keywords", new KeywordListConverter());
 
         // FeatureTypeInfo
+        PackageAliasingMapper bindingAliasingMapper =
+                new OneWayPackageAliasingMapper(
+                        new DefaultMapper(new ClassLoaderReference(xs.getClassLoader())));
+        // For compatibility with JTS 1.15 and older bindings
+        bindingAliasingMapper.addPackageAlias(
+                "com.vividsolutions.jts.geom", "org.locationtech.jts.geom");
+
+        xs.registerLocalConverter(
+                impl(AttributeTypeInfo.class),
+                "binding",
+                (SingleValueConverter)
+                        new SingleValueConverterWrapper(
+                                new JavaClassConverter(bindingAliasingMapper) {}));
 
         // CoverageInfo
         xs.registerLocalConverter(
@@ -640,8 +659,8 @@ public class XStreamPersister {
      */
     public void save(Object obj, OutputStream out) throws IOException {
         // unwrap dynamic proxies
-        obj = unwrapProxies(obj);
-        xs.toXML(obj, new OutputStreamWriter(out, "UTF-8"));
+        Object unwrapped = unwrapProxies(obj);
+        xs.toXML(unwrapped, new OutputStreamWriter(out, "UTF-8"));
     }
 
     /**
@@ -1276,7 +1295,7 @@ public class XStreamPersister {
                                 "Unexpected item "
                                         + item
                                         + " whose type is not among: "
-                                        + subclasses);
+                                        + Arrays.toString(subclasses));
                     }
                     String typeName = cam.serializedClass(theClass);
                     writer.addAttribute("type", typeName);

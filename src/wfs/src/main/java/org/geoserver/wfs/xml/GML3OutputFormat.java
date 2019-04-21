@@ -59,8 +59,8 @@ import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.simple.SimpleFeatureTypeImpl;
 import org.geotools.gml3.GMLConfiguration;
-import org.geotools.xml.Configuration;
-import org.geotools.xml.Encoder;
+import org.geotools.xsd.Configuration;
+import org.geotools.xsd.Encoder;
 import org.opengis.feature.type.FeatureType;
 import org.opengis.feature.type.Name;
 import org.w3c.dom.Document;
@@ -125,6 +125,8 @@ public class GML3OutputFormat extends WFSGetFeatureOutputFormat {
         List featureCollections = results.getFeature();
 
         int numDecimals = getNumDecimals(featureCollections, geoServer, catalog);
+        boolean padWithZeros = getPadWithZeros(featureCollections, geoServer, catalog);
+        boolean forcedDecimal = getForcedDecimal(featureCollections, geoServer, catalog);
 
         GetFeatureRequest request = GetFeatureRequest.adapt(getFeature.getParameters()[0]);
 
@@ -229,7 +231,9 @@ public class GML3OutputFormat extends WFSGetFeatureOutputFormat {
         Object gft = getFeature.getParameters()[0];
 
         Configuration configuration = customizeConfiguration(this.configuration, ns2metas, gft);
-        setNumDecimals(configuration, numDecimals);
+        boolean encodeMeasures = encodeMeasures(featureCollections, catalog);
+        updateConfiguration(
+                configuration, numDecimals, padWithZeros, forcedDecimal, encodeMeasures);
         Encoder encoder = createEncoder(configuration, ns2metas, gft);
 
         encoder.setEncoding(Charset.forName(geoServer.getSettings().getCharset()));
@@ -308,10 +312,29 @@ public class GML3OutputFormat extends WFSGetFeatureOutputFormat {
         }
     }
 
-    protected void setNumDecimals(Configuration configuration, int numDecimals) {
-        GMLConfiguration gml = configuration.getDependency(GMLConfiguration.class);
-        if (gml != null) {
-            gml.setNumDecimals(numDecimals);
+    protected void updateConfiguration(
+            Configuration configuration,
+            int numDecimals,
+            boolean padWithZeros,
+            boolean forcedDecimal,
+            boolean encodeMeasures) {
+        // GML 3.1. configuration
+        GMLConfiguration gml31 = configuration.getDependency(GMLConfiguration.class);
+        if (gml31 != null) {
+            gml31.setNumDecimals(numDecimals);
+            gml31.setPadWithZeros(padWithZeros);
+            gml31.setForceDecimalEncoding(forcedDecimal);
+            gml31.setEncodeMeasures(encodeMeasures);
+            return;
+        }
+        // GML 3.2 configuration
+        org.geotools.gml3.v3_2.GMLConfiguration gml32 =
+                configuration.getDependency(org.geotools.gml3.v3_2.GMLConfiguration.class);
+        if (gml32 != null) {
+            gml32.setNumDecimals(numDecimals);
+            gml32.setPadWithZeros(padWithZeros);
+            gml32.setForceDecimalEncoding(forcedDecimal);
+            gml32.setEncodeMeasures(encodeMeasures);
         }
     }
 

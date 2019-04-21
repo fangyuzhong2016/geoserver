@@ -12,8 +12,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.FeatureTypeInfo;
 import org.geoserver.catalog.ResourceInfo;
@@ -25,6 +27,7 @@ import org.geoserver.wfs.request.FeatureCollectionResponse;
 import org.geoserver.wfs.request.GetFeatureRequest;
 import org.geoserver.wfs.response.WFSResponse;
 import org.geotools.feature.FeatureCollection;
+import org.geotools.util.Version;
 import org.opengis.feature.type.FeatureType;
 
 /**
@@ -162,6 +165,17 @@ public abstract class WFSGetFeatureOutputFormat extends WFSResponse {
     }
 
     /**
+     * Allows to have version specific output formats. By default a WFS format is allowed on every
+     * version, override to filter specific ones
+     *
+     * @param version
+     * @return
+     */
+    public boolean canHandle(Version version) {
+        return true;
+    }
+
+    /**
      * Hook for subclasses to add addtional checks to {@link #canHandle(Operation)}.
      *
      * <p>Subclasses may override this method if need be, the default impelementation returns <code>
@@ -187,24 +201,42 @@ public abstract class WFSGetFeatureOutputFormat extends WFSResponse {
         }
     }
 
+    private <T> T getFeatureTypeInfoProperty(
+            Catalog catalog, FeatureCollection features, Function<FeatureTypeInfo, T> callback) {
+        FeatureTypeInfo fti;
+        ResourceInfo meta = null;
+        // if it's a complex feature collection get the proper ResourceInfo
+        if (features instanceof TypeInfoCollectionWrapper.Complex) {
+            TypeInfoCollectionWrapper.Complex fcollection =
+                    (TypeInfoCollectionWrapper.Complex) features;
+            fti = fcollection.getFeatureTypeInfo();
+            meta = catalog.getResourceByName(fti.getName(), ResourceInfo.class);
+        } else {
+            // no complex, normal behavior
+            FeatureType featureType = features.getSchema();
+            meta = catalog.getResourceByName(featureType.getName(), ResourceInfo.class);
+        }
+        if (meta instanceof FeatureTypeInfo) {
+            fti = (FeatureTypeInfo) meta;
+            return callback.apply(fti);
+        }
+        return null;
+    }
+
     protected int getNumDecimals(List featureCollections, GeoServer geoServer, Catalog catalog) {
         int numDecimals = -1;
         for (int i = 0; i < featureCollections.size(); i++) {
-            FeatureCollection features = (FeatureCollection) featureCollections.get(i);
-            FeatureType featureType = features.getSchema();
-
-            ResourceInfo meta =
-                    catalog.getResourceByName(featureType.getName(), ResourceInfo.class);
+            Integer ftiDecimals =
+                    getFeatureTypeInfoProperty(
+                            catalog,
+                            (FeatureCollection) featureCollections.get(i),
+                            fti -> fti.getNumDecimals());
 
             // track num decimals, in cases where the query has multiple types we choose the max
             // of all the values (same deal as above, might not be a vector due to GetFeatureInfo
             // reusing this)
-            if (meta instanceof FeatureTypeInfo) {
-                int ftiDecimals = ((FeatureTypeInfo) meta).getNumDecimals();
-                if (ftiDecimals > 0) {
-                    numDecimals =
-                            numDecimals == -1 ? ftiDecimals : Math.max(numDecimals, ftiDecimals);
-                }
+            if (ftiDecimals != null && ftiDecimals > 0) {
+                numDecimals = numDecimals == -1 ? ftiDecimals : Math.max(numDecimals, ftiDecimals);
             }
         }
 
@@ -217,6 +249,62 @@ public abstract class WFSGetFeatureOutputFormat extends WFSResponse {
         return numDecimals;
     }
 
+    protected boolean getPadWithZeros(
+            List featureCollections, GeoServer geoServer, Catalog catalog) {
+        boolean padWithZeros = false;
+        for (int i = 0; i < featureCollections.size(); i++) {
+            Boolean pad =
+                    getFeatureTypeInfoProperty(
+                            catalog,
+                            (FeatureCollection) featureCollections.get(i),
+                            fti -> fti.getPadWithZeros());
+            if (Boolean.TRUE.equals(pad)) {
+                padWithZeros = true;
+            }
+        }
+        return padWithZeros;
+    }
+
+    protected boolean getForcedDecimal(
+            List featureCollections, GeoServer geoServer, Catalog catalog) {
+        boolean forcedDecimal = false;
+        for (int i = 0; i < featureCollections.size(); i++) {
+            Boolean forced =
+                    getFeatureTypeInfoProperty(
+                            catalog,
+                            (FeatureCollection) featureCollections.get(i),
+                            fti -> fti.getForcedDecimal());
+            if (Boolean.TRUE.equals(forced)) {
+                forcedDecimal = true;
+            }
+        }
+        return forcedDecimal;
+    }
+
+    /**
+     * Helper method that checks if coordinates measured values should be encoded for the provided
+     * feature collections. By default coordinates measures are not encoded.
+     *
+     * @param featureCollections features collections
+     * @param catalog GeoServer catalog
+     * @return TRUE if coordinates measures should be encoded, otherwise FALSE
+     */
+    protected boolean encodeMeasures(List featureCollections, Catalog catalog) {
+        boolean encodeMeasures = true;
+        for (int i = 0; i < featureCollections.size(); i++) {
+            Boolean measures =
+                    getFeatureTypeInfoProperty(
+                            catalog,
+                            (FeatureCollection) featureCollections.get(i),
+                            fti -> fti.getEncodeMeasures());
+            if (Boolean.FALSE.equals(measures)) {
+                // no measures should be encoded
+                encodeMeasures = false;
+            }
+        }
+        return encodeMeasures;
+    }
+
     /**
      * Serializes the feature collection in the format declared.
      *
@@ -227,4 +315,50 @@ public abstract class WFSGetFeatureOutputFormat extends WFSResponse {
     protected abstract void write(
             FeatureCollectionResponse featureCollection, OutputStream output, Operation getFeature)
             throws IOException, ServiceException;
+
+    @Override
+    public String getAttachmentFileName(Object value, Operation operation) {
+        FeatureCollectionResponse response;
+        if (value instanceof FeatureCollectionResponse) {
+            response = (FeatureCollectionResponse) value;
+        } else {
+            response = FeatureCollectionResponse.adapt(value);
+        }
+        final String fileName;
+        if (response.getTypeNames() != null) {
+            fileName =
+                    response.getTypeNames()
+                            .stream()
+                            .map(tn -> tn.getLocalPart())
+                            .collect(Collectors.joining("_"));
+        } else if (response.getTypeName() != null) {
+            fileName = response.getTypeName().getLocalPart();
+        } else {
+            fileName = "features";
+        }
+        return fileName + "." + getExtension(response);
+    }
+
+    /**
+     * Sets the rigth extension for the response
+     *
+     * @param response
+     * @return
+     */
+    protected String getExtension(FeatureCollectionResponse response) {
+        String mimeType = getMimeType(null, null);
+        if (mimeType != null) {
+            // guesswork
+            if (mimeType.contains("gml")) {
+                return "xml";
+            } else if (mimeType.contains("json")) {
+                return "json";
+            }
+            // otehrwise use the default
+            String[] typeParts = mimeType.split(";");
+            return typeParts[0].split("/")[0];
+        } else {
+            return "bin";
+        }
+    }
 }

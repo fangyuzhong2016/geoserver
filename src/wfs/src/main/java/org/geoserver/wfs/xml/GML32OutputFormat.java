@@ -32,8 +32,8 @@ import org.geotools.feature.FeatureCollection;
 import org.geotools.gml3.v3_2.GML;
 import org.geotools.gml3.v3_2.GMLConfiguration;
 import org.geotools.wfs.v2_0.WFS;
-import org.geotools.xml.Configuration;
-import org.geotools.xml.Encoder;
+import org.geotools.xsd.Configuration;
+import org.geotools.xsd.Encoder;
 import org.opengis.feature.Feature;
 import org.w3c.dom.Document;
 
@@ -73,6 +73,12 @@ public class GML32OutputFormat extends GML3OutputFormat {
 
     public GML32OutputFormat(GeoServer geoServer, WFSConfiguration configuration) {
         super(new HashSet(FORMATS), geoServer, configuration);
+        this.geoServer = geoServer;
+    }
+
+    protected GML32OutputFormat(
+            GeoServer geoServer, Set<String> formats, WFSConfiguration configuration) {
+        super(formats, geoServer, configuration);
         this.geoServer = geoServer;
     }
 

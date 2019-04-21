@@ -158,7 +158,6 @@ public class ImportTaskController extends ImportBaseController {
 
         LOGGER.info("Handling POST of " + request.getContentType());
         // file posted from form
-        MediaType mimeType = MediaType.valueOf(request.getContentType());
         if (request.getContentType().startsWith(MediaType.MULTIPART_FORM_DATA_VALUE)) {
             data = handleMultiPartFormUpload(request, context(id));
         } else if (request.getContentType()
@@ -247,11 +246,11 @@ public class ImportTaskController extends ImportBaseController {
             @PathVariable Long id,
             @PathVariable Integer taskId,
             @RequestParam(required = false) String expand,
-            @RequestBody LayerInfo layer) {
+            @RequestBody ImportLayer layer) {
         ImportTask task = task(id, taskId);
 
         return (writer, builder, converter) -> {
-            updateLayer(task, layer, importer, converter);
+            updateLayer(task, layer.getLayer(), importer, converter);
             importer.changed(task);
             converter.layer(builder, task, true, converter.expand(expand, 1));
         };

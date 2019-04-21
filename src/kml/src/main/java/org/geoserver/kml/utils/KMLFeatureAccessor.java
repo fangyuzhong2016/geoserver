@@ -140,6 +140,7 @@ public class KMLFeatureAccessor {
         // now, if a definition query has been established for this layer,
         // be sure to respect it by combining it with the bounding box one.
         q = DataUtilities.mixQueries(q, layer.getQuery(), "KMLEncoder");
+        q.setSortBy(layer.getQuery().getSortBy());
 
         // check the regionating strategy
         RegionatingStrategy regionatingStrategy = null;
@@ -215,7 +216,7 @@ public class KMLFeatureAccessor {
      * Layer</code>'s feature source to return just the features for the target rendering extent
      *
      * @param schema the layer's feature source schema
-     * @param bbox the expression holding the target rendering bounding box
+     * @param aoi the target rendering bounding box
      * @throws IllegalFilterException if something goes wrong creating the filter
      */
     private Filter createBBoxFilter(SimpleFeatureType schema, ReferencedEnvelope aoi)
@@ -302,15 +303,13 @@ public class KMLFeatureAccessor {
      * @param filters
      */
     private Filter joinFilters(Filter... filters) {
+        Filter result = null;
         if (filters == null || filters.length == 0) {
             return Filter.EXCLUDE;
-        }
-
-        Filter result = null;
-        if (filters.length > 0) {
+        } else if (filters.length > 0) {
             FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
             result = ff.and(Arrays.asList(filters));
-        } else if (filters.length == 1) {
+        } else {
             result = filters[0];
         }
 

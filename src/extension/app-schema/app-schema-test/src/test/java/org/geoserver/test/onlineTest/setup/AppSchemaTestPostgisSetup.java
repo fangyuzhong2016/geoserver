@@ -12,9 +12,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.geotools.data.property.PropertyFeatureReader;
-import org.geotools.resources.Classes;
+import org.geotools.util.Classes;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.WKTWriter;
 import org.opengis.feature.IllegalAttributeException;
@@ -209,7 +209,7 @@ public class AppSchemaTestPostgisSetup extends ReferenceDataPostgisSetup {
                             // be supported if present.
                             Geometry geom = (Geometry) value;
                             value =
-                                    new WKTWriter(geom.getCoordinate().z == Double.NaN ? 2 : 3)
+                                    new WKTWriter(Double.isNaN(geom.getCoordinate().z) ? 2 : 3)
                                             .write(geom);
                         }
                         if (value == null || value.toString().equalsIgnoreCase("null")) {

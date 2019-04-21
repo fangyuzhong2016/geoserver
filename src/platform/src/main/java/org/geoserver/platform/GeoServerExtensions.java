@@ -10,15 +10,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.ServletContext;
 import org.geoserver.platform.resource.Paths;
 import org.geotools.util.SoftValueHashMap;
+import org.geotools.util.SuppressFBWarnings;
+import org.geotools.util.factory.FactoryRegistry;
 import org.geotools.util.logging.Logging;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
@@ -94,6 +94,7 @@ public class GeoServerExtensions implements ApplicationContextAware, Application
      *
      * @param context ApplicationContext used to lookup extensions
      */
+    @SuppressFBWarnings("ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD")
     public void setApplicationContext(ApplicationContext context) throws BeansException {
         isSpringContext = true;
         GeoServerExtensions.context = context;
@@ -151,7 +152,9 @@ public class GeoServerExtensions implements ApplicationContextAware, Application
         List<Object> spiExtensions = spiCache.get(extensionPoint);
         if (spiExtensions == null) {
             spiExtensions = new ArrayList<Object>();
-            ServiceLoader.load(extensionPoint).iterator().forEachRemaining(spiExtensions::add);
+            new FactoryRegistry(extensionPoint)
+                    .getFactories(extensionPoint, false)
+                    .forEach(spiExtensions::add);
             spiCache.put(extensionPoint, spiExtensions);
         }
         // filter the beans coming from SPI (we don't cache the results
@@ -160,21 +163,7 @@ public class GeoServerExtensions implements ApplicationContextAware, Application
         filter(spiExtensions, filters, result);
 
         // sort the results based on ExtensionPriority
-        Collections.sort(
-                result,
-                new Comparator<Object>() {
-                    public int compare(Object o1, Object o2) {
-                        int p1 = ExtensionPriority.LOWEST;
-                        if (o1 instanceof ExtensionPriority) {
-                            p1 = ((ExtensionPriority) o1).getPriority();
-                        }
-                        int p2 = ExtensionPriority.LOWEST;
-                        if (o2 instanceof ExtensionPriority) {
-                            p2 = ((ExtensionPriority) o2).getPriority();
-                        }
-                        return p1 - p2;
-                    }
-                });
+        Collections.sort(result, ExtensionPriority.COMPARATOR);
 
         return result;
     }
@@ -222,7 +211,7 @@ public class GeoServerExtensions implements ApplicationContextAware, Application
         if (bean == null && context != null) {
             bean = context.getBean(name);
             if (bean != null && context.isSingleton(name)) {
-                singletonBeanCache.put(name, bean);
+                singletonBeanCache.putIfAbsent(name, bean);
             }
         }
         return bean;
@@ -472,8 +461,10 @@ public class GeoServerExtensions implements ApplicationContextAware, Application
         if (fileCache.containsKey(path)) {
             return fileCache.get(path); // override provided by GeoServerExtensionsHelper
         }
-        if (context instanceof WebApplicationContext) {
-            ServletContext servletContext = ((WebApplicationContext) context).getServletContext();
+        ServletContext servletContext;
+        if (context instanceof WebApplicationContext
+                && (servletContext = ((WebApplicationContext) context).getServletContext())
+                        != null) {
             String filepath = servletContext.getRealPath(path);
             if (filepath != null) {
                 File file = new File(filepath);

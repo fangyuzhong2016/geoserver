@@ -41,8 +41,8 @@ import org.geotools.csw.DCT;
 import org.geotools.data.Query;
 import org.geotools.data.Transaction;
 import org.geotools.feature.FeatureCollection;
-import org.geotools.ows.OWS;
 import org.geotools.xlink.XLINK;
+import org.geotools.xsd.ows.OWS;
 import org.junit.Before;
 import org.junit.Test;
 import org.w3c.dom.Document;
@@ -100,6 +100,7 @@ public class CSWRecordResponseTest extends CSWSimpleTestSupport {
         XMLUnit.setXpathNamespaceContext(new SimpleNamespaceContext(namespaces));
     }
 
+    @Test
     public void testEncodeBrief() throws Exception {
         // setup the request
         CSWRecordsResult response = getCSWResponse();
@@ -168,6 +169,7 @@ public class CSWRecordResponseTest extends CSWSimpleTestSupport {
                 dom);
     }
 
+    @Test
     public void testEncodeSummary() throws Exception {
         // setup the request
         CSWRecordsResult response = getCSWResponse();
@@ -218,6 +220,7 @@ public class CSWRecordResponseTest extends CSWSimpleTestSupport {
                 dom);
     }
 
+    @Test
     public void testEncodeFull() throws Exception {
         // setup the request
         CSWRecordsResult response = getCSWResponse();

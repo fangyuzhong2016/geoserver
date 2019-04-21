@@ -5,16 +5,17 @@
  */
 package org.geoserver.catalog;
 
+import com.sun.media.imageioimpl.common.BogusColorSpace;
 import it.geosolutions.imageio.maskband.DatasetLayout;
 import it.geosolutions.imageio.utilities.ImageIOUtilities;
 import it.geosolutions.jaiext.JAIExt;
 import it.geosolutions.jaiext.utilities.ImageLayout2;
-import java.awt.RenderingHints;
-import java.awt.Transparency;
+import java.awt.*;
 import java.awt.color.ColorSpace;
 import java.awt.image.ColorModel;
 import java.awt.image.ComponentColorModel;
 import java.awt.image.DataBuffer;
+import java.awt.image.IndexColorModel;
 import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
 import java.io.IOException;
@@ -22,15 +23,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.media.jai.ColorModelFactory;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.JAI;
 import javax.media.jai.RasterFactory;
 import javax.media.jai.operator.ConstantDescriptor;
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.geoserver.catalog.CoverageView.CoverageBand;
 import org.geoserver.catalog.CoverageView.EnvelopeCompositionType;
 import org.geoserver.catalog.CoverageView.InputCoverageBand;
@@ -48,15 +51,17 @@ import org.geotools.coverage.processing.CoverageProcessor;
 import org.geotools.data.ResourceInfo;
 import org.geotools.data.ServiceInfo;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.factory.Hints;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.image.ImageWorker;
 import org.geotools.parameter.DefaultParameterDescriptorGroup;
 import org.geotools.parameter.ParameterGroup;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
+import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
 import org.opengis.coverage.grid.Format;
+import org.opengis.coverage.grid.GridCoverage;
 import org.opengis.coverage.grid.GridEnvelope;
 import org.opengis.filter.FilterFactory2;
 import org.opengis.geometry.BoundingBox;
@@ -430,6 +435,9 @@ public class CoverageViewReader implements GridCoverage2DReader {
             }
 
             coverage = retainBands(bandIndices, coverage, localHints);
+            if (mergedBands.size() > 1) {
+                coverage = prepareForBandMerge(coverage);
+            }
             coverages.add(coverage);
             if (resolutionChooser.visit(coverage)) {
                 transformationChoice = index;
@@ -471,6 +479,32 @@ public class CoverageViewReader implements GridCoverage2DReader {
                 param.parameter("coverage_idx").setValue(transformationChoice);
             }
             param.parameter("sources").setValue(coverages);
+            localHints.put(
+                    JAI.KEY_COLOR_MODEL_FACTORY,
+                    new ColorModelFactory() {
+                        @Override
+                        public ColorModel createColorModel(
+                                SampleModel sampleModel, List sources, Map configuration) {
+                            final int dataType = sampleModel.getDataType();
+                            final int numBands = sampleModel.getNumBands();
+
+                            ColorSpace cs;
+                            switch (numBands) {
+                                case 1:
+                                case 2:
+                                    cs = ColorSpace.getInstance(ColorSpace.CS_GRAY);
+                                    break;
+                                case 3:
+                                    cs = ColorSpace.getInstance(ColorSpace.CS_sRGB);
+                                    break;
+                                default:
+                                    cs = new BogusColorSpace(numBands);
+                            }
+
+                            return RasterFactory.createComponentColorModel(
+                                    dataType, cs, false, false, Transparency.OPAQUE);
+                        }
+                    });
             result = (GridCoverage2D) PROCESSOR.doOperation(param, localHints);
         } else {
             // optimize out, no need to do a band merge
@@ -478,6 +512,36 @@ public class CoverageViewReader implements GridCoverage2DReader {
         }
 
         return result;
+    }
+
+    /**
+     * The BandMerge operation takes indexed images and expands them, however in the context of
+     * coverage view band merging we don't normally want that, e.g., raster mask bands are
+     * represented as indexed but we really want to keep them in their binary, single band form. To
+     * do so, the IndexColorModel is replaced by a ComponentColorModel
+     *
+     * @param coverage
+     * @return
+     */
+    private GridCoverage2D prepareForBandMerge(GridCoverage2D coverage) {
+        RenderedImage ri = coverage.getRenderedImage();
+        SampleModel sampleModel = ri.getSampleModel();
+        if (sampleModel.getNumBands() == 1 && ri.getColorModel() instanceof IndexColorModel) {
+            ImageWorker worker = new ImageWorker(ri);
+            worker.removeIndexColorModel();
+            RenderedImage formatted = worker.getRenderedImage();
+
+            return new GridCoverageFactory()
+                    .create(
+                            coverage.getName(),
+                            formatted,
+                            coverage.getGridGeometry(),
+                            coverage.getSampleDimensions(),
+                            new GridCoverage[] {coverage},
+                            coverage.getProperties());
+        }
+
+        return coverage;
     }
 
     private void addAlphaColorModelHint(Hints localHints, int currentBandCount) {

@@ -9,6 +9,7 @@ package org.geoserver.test;
 import static org.geoserver.test.AbstractAppSchemaMockData.GSML_SCHEMA_LOCATION_URL;
 import static org.geoserver.test.AbstractAppSchemaMockData.GSML_URI;
 import static org.geoserver.test.FeatureChainingMockData.EX_URI;
+import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -29,11 +30,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import net.sf.json.JSON;
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.geoserver.catalog.FeatureTypeInfo;
 import org.geoserver.util.IOUtils;
 import org.geoserver.wfs.WFSInfo;
 import org.geoserver.wfs.xml.v1_1_0.WFS;
+import org.geotools.appschema.filter.FilterFactoryImplNamespaceAware;
+import org.geotools.appschema.jdbc.NestedFilterToSQL;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.complex.AppSchemaDataAccess;
 import org.geotools.data.complex.AppSchemaDataAccessRegistry;
@@ -41,10 +45,8 @@ import org.geotools.data.complex.FeatureTypeMapping;
 import org.geotools.data.complex.config.AppSchemaDataAccessConfigurator;
 import org.geotools.data.complex.filter.ComplexFilterSplitter;
 import org.geotools.data.jdbc.FilterToSQLException;
-import org.geotools.filter.FilterFactoryImplNamespaceAware;
+import org.geotools.data.util.NullProgressListener;
 import org.geotools.jdbc.JDBCDataStore;
-import org.geotools.jdbc.NestedFilterToSQL;
-import org.geotools.util.NullProgressListener;
 import org.geotools.util.URLs;
 import org.junit.Test;
 import org.opengis.filter.And;
@@ -490,7 +492,26 @@ public class FeatureChainingWfsTest extends AbstractAppSchemaTestSupport {
 
     @Test
     public void testGetFeatureJSON() throws Exception {
-        testJsonRequest("gsml:MappedFeature", "/test-data/MappedFeature.json");
+        JSON json =
+                getAsJSON(
+                        "wfs?request=GetFeature&version=1.1"
+                                + ".0&typename=gsml:GeologicUnit&outputFormat=application/json&featureId=gu.25678");
+        print(json);
+        JSONObject properties = getFeaturePropertiesById(json, "gu.25678");
+        assertNotNull(properties);
+        // make sure these are not encoded as GeoJSON features even if they are GeoTools Feature
+        // objects
+        JSONArray colors = properties.getJSONArray("exposureColor");
+        assertNotNull(colors);
+        JSONObject color = colors.getJSONObject(0);
+        // no top level feature elements
+        assertFalse(color.has("type"));
+        assertFalse(color.has("geometry"));
+        assertFalse(color.has("properties"));
+        // but value and codespace right in instead
+        color = color.getJSONObject("value");
+        assertThat(color.getString("value"), anyOf(is("Blue"), is("Yellow")));
+        assertThat(color.getString("@codeSpace"), is("some:uri"));
     }
 
     @Test
@@ -1637,11 +1658,6 @@ public class FeatureChainingWfsTest extends AbstractAppSchemaTestSupport {
                 id, "(//om:Observation)[4]/om:result/gsml:MappedFeature/@gml:id", doc);
     }
 
-    @Test
-    public void testAnyTypeAndAnyElementJSON() throws Exception {
-        testJsonRequest("om:Observation", "/test-data/Observation.json");
-    }
-
     /** Making sure attributes that are encoded as xlink:href can still be queried in filters. */
     @Test
     public void testFilteringXlinkHref() {
@@ -1941,12 +1957,6 @@ public class FeatureChainingWfsTest extends AbstractAppSchemaTestSupport {
         wfs = getGeoServer().getService(WFSInfo.class);
         wfs.setEncodeFeatureMember(encodeFeatureMember);
         getGeoServer().save(wfs);
-    }
-
-    @Test
-    public void testEncodeFeatureMembersJSON() throws Exception {
-        testJsonRequest(
-                "gsml:MappedFeature,gsml:GeologicUnit", "/test-data/MultipleCollections.json");
     }
 
     @Test

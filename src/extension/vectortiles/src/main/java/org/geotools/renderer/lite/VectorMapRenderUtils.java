@@ -6,8 +6,7 @@ package org.geotools.renderer.lite;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import java.awt.Graphics2D;
-import java.awt.Rectangle;
+import java.awt.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,7 +19,6 @@ import org.geotools.data.DataUtilities;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.Query;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.factory.Hints;
 import org.geotools.feature.FeatureTypes;
 import org.geotools.filter.IllegalFilterException;
 import org.geotools.filter.spatial.DefaultCRSFilterVisitor;
@@ -37,6 +35,7 @@ import org.geotools.referencing.operation.transform.ProjectiveTransform;
 import org.geotools.styling.FeatureTypeStyle;
 import org.geotools.styling.Rule;
 import org.geotools.styling.Style;
+import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
 import org.opengis.feature.type.FeatureType;
 import org.opengis.feature.type.GeometryDescriptor;
@@ -119,18 +118,7 @@ public class VectorMapRenderUtils {
 
     public static double getMapScale(
             WMSMapContent mapContent, final ReferencedEnvelope renderingArea) {
-        final double mapScale;
-        try {
-            mapScale =
-                    RendererUtilities.calculateScale(
-                            renderingArea,
-                            mapContent.getMapWidth(),
-                            mapContent.getMapHeight(),
-                            null);
-        } catch (TransformException | FactoryException e) {
-            throw Throwables.propagate(e);
-        }
-        return mapScale;
+        return RendererUtilities.calculateOGCScale(renderingArea, mapContent.getMapWidth(), null);
     }
 
     public static int getComputedBuffer(

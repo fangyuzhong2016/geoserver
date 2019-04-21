@@ -303,7 +303,7 @@ public class GetMapIntegrationTest extends WMSTestSupport {
 
     @Test
     public void testRasterRenderingTx() throws Exception {
-        System.out.println(getCatalog().getCoverages());
+        // System.out.println(getCatalog().getCoverages());
 
         String layer = getLayerId(MockData.USA_WORLDIMG);
         String url =
@@ -407,6 +407,7 @@ public class GetMapIntegrationTest extends WMSTestSupport {
         assertNotNull(request.getStyles());
     }
 
+    @Test
     public void testResolveLayersForStyleGroup() throws Exception {
         WMS wms = new WMS(getGeoServer());
         GetMapXmlReader reader = new GetMapXmlReader(wms);

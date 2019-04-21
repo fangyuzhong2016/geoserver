@@ -5,6 +5,8 @@
 package org.geoserver.wfs3;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -23,13 +25,13 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
-import javax.xml.ws.RequestWrapper;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.filters.GeoServerFilter;
 import org.geoserver.ows.HttpErrorCodeException;
 import org.geoserver.wfs.kvp.BBoxKvpParser;
 import org.geoserver.wfs3.response.RFCGeoJSONFeaturesResponse;
+import org.geoserver.wms.mapbox.MapBoxTileBuilderFactory;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.util.logging.Logging;
 import org.springframework.http.HttpStatus;
@@ -89,6 +91,11 @@ public class WFS3Filter implements GeoServerFilter {
         private String outputFormat;
         private String featureId;
         private String limit;
+        private String tilingScheme;
+        private String level;
+        private String row;
+        private String col;
+        private String styleId;
 
         private RequestWrapper(HttpServletRequest wrapped) {
             super(wrapped);
@@ -99,6 +106,37 @@ public class WFS3Filter implements GeoServerFilter {
                 request = "api";
             } else if (pathInfo.endsWith("/conformance") || pathInfo.endsWith("/conformance/")) {
                 request = "conformance";
+            } else if (pathInfo.matches("/styles/?")) {
+                request = wrapped.getMethod().toLowerCase() + "Styles";
+            } else if (pathInfo.matches("/styles/([^/]+)/?")) {
+                request = wrapped.getMethod().toLowerCase() + "Style";
+                Matcher matcher = Pattern.compile("/styles/([^/]+)/?").matcher(pathInfo);
+                matcher.matches();
+                this.styleId = matcher.group(1);
+            } else if (pathInfo.matches("/tilingSchemes/([^/]+)/?")) {
+                request = "describeTilingScheme";
+                Matcher matcher = Pattern.compile("/tilingSchemes/([^/]+)/?").matcher(pathInfo);
+                matcher.matches();
+                this.tilingScheme = matcher.group(1);
+            } else if (pathInfo.matches("/collections/([^/]+)/tiles/([^/]+)/?")) {
+                request = "describeTilingScheme";
+                Matcher matcher =
+                        Pattern.compile("/collections/([^/]+)/tiles/([^/]+)/?").matcher(pathInfo);
+                matcher.matches();
+                this.tilingScheme = matcher.group(2);
+            } else if (pathInfo.matches("/collections/([^/]+)/styles/?")) {
+                request = wrapped.getMethod().toLowerCase() + "Styles";
+                Matcher matcher =
+                        Pattern.compile("/collections/([^/]+)/styles/?").matcher(pathInfo);
+                matcher.matches();
+                setLayerName(matcher.group(1));
+            } else if (pathInfo.matches("/collections/([^/]+)/styles/([^/]+)/?")) {
+                request = wrapped.getMethod().toLowerCase() + "Style";
+                Matcher matcher =
+                        Pattern.compile("/collections/([^/]+)/styles/([^/]+)/?").matcher(pathInfo);
+                matcher.matches();
+                setLayerName(matcher.group(1));
+                this.styleId = matcher.group(2);
             } else if (pathInfo.startsWith("/collections")) {
                 List<Function<String, Boolean>> matchers = new ArrayList<>();
                 matchers.add(
@@ -110,8 +148,11 @@ public class WFS3Filter implements GeoServerFilter {
                             if (matches) {
                                 request = "getFeature";
                                 String layerName = matcher.group(1);
+                                if (layerName != null) {
+                                    layerName = urlDecode(layerName);
+                                }
                                 setLayerName(layerName);
-                                this.featureId = matcher.group(2);
+                                this.featureId = urlDecode(matcher.group(2));
                             }
                             return matches;
                         });
@@ -123,6 +164,24 @@ public class WFS3Filter implements GeoServerFilter {
                             if (matches) {
                                 request = "getFeature";
                                 String layerName = matcher.group(1);
+                                if (layerName != null) {
+                                    layerName = urlDecode(layerName);
+                                }
+                                setLayerName(layerName);
+                            }
+                            return matches;
+                        });
+                matchers.add(
+                        path -> {
+                            Matcher matcher =
+                                    Pattern.compile("/collections/([^/]+)/tiles/?").matcher(path);
+                            boolean matches = matcher.matches();
+                            if (matches) {
+                                request = "tilingSchemes";
+                                String layerName = matcher.group(1);
+                                if (layerName != null) {
+                                    layerName = urlDecode(layerName);
+                                }
                                 setLayerName(layerName);
                             }
                             return matches;
@@ -135,6 +194,9 @@ public class WFS3Filter implements GeoServerFilter {
                             if (matches) {
                                 request = "collection";
                                 String layerName = matcher.group(1);
+                                if (layerName != null) {
+                                    layerName = urlDecode(layerName);
+                                }
                                 setLayerName(layerName);
                             }
                             return matches;
@@ -145,6 +207,28 @@ public class WFS3Filter implements GeoServerFilter {
                             boolean matches = matcher.matches();
                             if (matches) {
                                 request = "collections";
+                            }
+                            return matches;
+                        });
+                // collections/{collectionId}/tiles/{tilingSchemeId}/{level}/{row}/{col}
+                matchers.add(
+                        path -> {
+                            Matcher matcher =
+                                    Pattern.compile(
+                                                    "/collections/([^/]+)/tiles/([^/]+)/([^/]+)/([^/]+)/([^/]+)/?")
+                                            .matcher(path);
+                            boolean matches = matcher.matches();
+                            if (matches) {
+                                request = "getTile";
+                                String layerName = matcher.group(1);
+                                if (layerName != null) {
+                                    layerName = urlDecode(layerName);
+                                }
+                                setLayerName(layerName);
+                                this.tilingScheme = urlDecode(matcher.group(2));
+                                this.level = urlDecode(matcher.group(3));
+                                this.row = urlDecode(matcher.group(4));
+                                this.col = urlDecode(matcher.group(5));
                             }
                             return matches;
                         });
@@ -162,6 +246,8 @@ public class WFS3Filter implements GeoServerFilter {
                     throw new HttpErrorCodeException(
                             HttpStatus.NOT_FOUND.value(), "Unsupported path " + pathInfo);
                 }
+            } else if (pathInfo.startsWith("/tilingSchemes")) {
+                request = "tilingSchemes";
             } else {
                 throw new HttpErrorCodeException(
                         HttpStatus.NOT_FOUND.value(), "Unsupported path " + pathInfo);
@@ -184,6 +270,8 @@ public class WFS3Filter implements GeoServerFilter {
                 }
             } else if ("getFeature".equals(request)) {
                 this.outputFormat = RFCGeoJSONFeaturesResponse.MIME;
+            } else if ("getTile".equals(request)) {
+                this.outputFormat = MapBoxTileBuilderFactory.MIME_TYPE;
             }
 
             // support for the limit parameter
@@ -212,7 +300,7 @@ public class WFS3Filter implements GeoServerFilter {
                 typeName = layers.get(0).prefixedName();
             } else {
                 throw new HttpErrorCodeException(
-                        HttpStatus.NOT_FOUND.value(), "Could not find layer " + layerName);
+                        HttpStatus.NOT_FOUND.value(), "Could not find feature type " + layerName);
             }
         }
 
@@ -228,13 +316,25 @@ public class WFS3Filter implements GeoServerFilter {
         }
 
         @Override
+        public String getMethod() {
+            // hack to ensure the Dispatcher does not handle this one as a OWS style post and
+            // consequently tries to find the request type in the payload
+            return "GET";
+        }
+
+        @Override
         public Map<String, String[]> getParameterMap() {
             Map<String, String[]> original = super.getParameterMap();
             Map<String, String[]> filtered = new HashMap<>(original);
             filtered.put("service", new String[] {"WFS"});
             filtered.put("version", new String[] {"3.0.0"});
             filtered.put("request", new String[] {request});
-            filtered.put("srsName", new String[] {"EPSG:4326"});
+            if ("GoogleMapsCompatible".equals(this.tilingScheme)) {
+                filtered.put("srsName", new String[] {"EPSG:3857"});
+            } else {
+                filtered.put("srsName", new String[] {"EPSG:4326"});
+            }
+
             String bbox = super.getParameter("bbox");
             if (bbox != null) {
                 try {
@@ -251,7 +351,12 @@ public class WFS3Filter implements GeoServerFilter {
                 }
             }
             if (typeName != null) {
-                filtered.put("typeName", new String[] {typeName});
+                if (request.toLowerCase().contains("style")) {
+                    filtered.put("layerName", new String[] {typeName});
+                } else {
+                    filtered.put("typeName", new String[] {typeName});
+                    filtered.put("typeNames", new String[] {typeName});
+                }
             }
             if (outputFormat != null) {
                 filtered.put("outputFormat", new String[] {outputFormat});
@@ -262,6 +367,11 @@ public class WFS3Filter implements GeoServerFilter {
             if (limit != null && !limit.isEmpty()) {
                 filtered.put("count", new String[] {limit});
             }
+            if (tilingScheme != null) filtered.put("tilingScheme", new String[] {tilingScheme});
+            if (level != null) filtered.put("level", new String[] {level});
+            if (row != null) filtered.put("row", new String[] {row});
+            if (col != null) filtered.put("col", new String[] {col});
+            if (styleId != null) filtered.put("styleId", new String[] {styleId});
             return filtered;
         }
 
@@ -280,5 +390,20 @@ public class WFS3Filter implements GeoServerFilter {
                 return values[0];
             }
         }
+    }
+
+    /**
+     * URL decodes the given string
+     *
+     * @param name
+     * @return
+     */
+    private String urlDecode(String name) {
+        try {
+            name = URLDecoder.decode(name, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+        return name;
     }
 }

@@ -25,15 +25,15 @@ import org.geotools.sld.v1_1.SLDConfiguration;
 import org.geotools.styling.DefaultResourceLocator;
 import org.geotools.styling.NamedLayer;
 import org.geotools.styling.ResourceLocator;
-import org.geotools.styling.SLDParser;
-import org.geotools.styling.SLDTransformer;
 import org.geotools.styling.Style;
 import org.geotools.styling.StyledLayerDescriptor;
 import org.geotools.util.URLs;
 import org.geotools.util.Version;
 import org.geotools.util.logging.Logging;
-import org.geotools.xml.Encoder;
-import org.geotools.xml.Parser;
+import org.geotools.xml.styling.SLDParser;
+import org.geotools.xml.styling.SLDTransformer;
+import org.geotools.xsd.Encoder;
+import org.geotools.xsd.Parser;
 import org.vfny.geoserver.util.SLDValidator;
 import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
@@ -99,7 +99,7 @@ public class SLDHandler extends StyleHandler {
 
     @Override
     public String getCodeMirrorEditMode() {
-        return "xml";
+        return "text/sld10";
     }
 
     @Override
@@ -114,7 +114,7 @@ public class SLDHandler extends StyleHandler {
 
     @Override
     public String mimeType(Version version) {
-        if (version != null && VERSION_11.equals(version)) {
+        if (version != null && version.equals(VERSION_11)) {
             return MIMETYPE_11;
         }
         return MIMETYPE_10;
@@ -320,10 +320,6 @@ public class SLDHandler extends StyleHandler {
             reader = RequestUtils.getBufferedXMLReader((InputStream) input, XML_LOOKAHEAD);
         } else {
             reader = RequestUtils.getBufferedXMLReader(toReader(input), XML_LOOKAHEAD);
-        }
-
-        if (!reader.ready()) {
-            return null;
         }
 
         String version;

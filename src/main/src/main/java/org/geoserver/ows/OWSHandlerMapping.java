@@ -12,6 +12,7 @@ import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.NamespaceInfo;
 import org.geoserver.catalog.WorkspaceInfo;
 import org.geotools.feature.NameImpl;
+import org.geotools.util.SuppressFBWarnings;
 import org.geotools.util.logging.Logging;
 import org.springframework.web.servlet.handler.SimpleUrlHandlerMapping;
 
@@ -52,6 +53,7 @@ public class OWSHandlerMapping extends SimpleUrlHandlerMapping {
     }
 
     @Override
+    @SuppressFBWarnings("NP_NONNULL_PARAM_VIOLATION")
     protected Object lookupHandler(String urlPath, HttpServletRequest request) throws Exception {
         Object h = super.lookupHandler(urlPath, request);
         if (h == null /*&& AdvancedDispatch.isSet(getApplicationContext())*/) {
@@ -92,7 +94,10 @@ public class OWSHandlerMapping extends SimpleUrlHandlerMapping {
                                 last = last.substring(j);
                             } else {
                                 LOGGER.fine(
-                                        "Could not a layer group named " + wsName + ":" + first);
+                                        "Could not find a layer group named "
+                                                + wsName
+                                                + ":"
+                                                + first);
                             }
                         }
                     }
@@ -101,7 +106,7 @@ public class OWSHandlerMapping extends SimpleUrlHandlerMapping {
                 } else if (catalog.getLayerGroupByName((WorkspaceInfo) null, first) != null) {
                     h = super.lookupHandler(last, request);
                 } else {
-                    LOGGER.fine("Could not a layer group named " + first);
+                    LOGGER.fine("Could not find a layer group named " + first);
                 }
             }
         }

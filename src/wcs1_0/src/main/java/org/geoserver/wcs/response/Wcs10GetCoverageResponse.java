@@ -17,7 +17,7 @@ import org.geoserver.platform.ServiceException;
 import org.geoserver.wcs.responses.CoverageResponseDelegate;
 import org.geoserver.wcs.responses.CoverageResponseDelegateFinder;
 import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.factory.Hints;
+import org.geotools.util.factory.Hints;
 import org.opengis.coverage.grid.GridCoverage;
 import org.vfny.geoserver.wcs.WcsException;
 
@@ -115,11 +115,7 @@ public class Wcs10GetCoverageResponse extends Response {
         // ImageIOUtilities.visualize(coverage.getRenderedImage());
 
         // write the coverage
-        try {
-            delegate.encode(coverage, outputFormat, Collections.EMPTY_MAP, output);
-            output.flush();
-        } finally {
-            // if(output != null) output.close();
-        }
+        delegate.encode(coverage, outputFormat, Collections.EMPTY_MAP, output);
+        output.flush();
     }
 }

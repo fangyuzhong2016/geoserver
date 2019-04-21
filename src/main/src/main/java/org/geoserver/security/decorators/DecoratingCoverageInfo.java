@@ -22,8 +22,8 @@ import org.geoserver.catalog.NamespaceInfo;
 import org.geoserver.catalog.ProjectionPolicy;
 import org.geoserver.catalog.StoreInfo;
 import org.geoserver.catalog.impl.AbstractDecorator;
-import org.geotools.factory.Hints;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.util.factory.Hints;
 import org.opengis.coverage.grid.GridCoverage;
 import org.opengis.coverage.grid.GridCoverageReader;
 import org.opengis.coverage.grid.GridGeometry;
@@ -307,5 +307,25 @@ public class DecoratingCoverageInfo extends AbstractDecorator<CoverageInfo>
     @Override
     public void setNativeCoverageName(String nativeCoverageName) {
         delegate.setNativeCoverageName(nativeCoverageName);
+    }
+
+    @Override
+    public boolean isServiceConfiguration() {
+        return delegate.isServiceConfiguration();
+    }
+
+    @Override
+    public void setServiceConfiguration(boolean serviceConfiguration) {
+        delegate.setServiceConfiguration(serviceConfiguration);
+    }
+
+    @Override
+    public List<String> getDisabledServices() {
+        return delegate.getDisabledServices();
+    }
+
+    @Override
+    public void setDisabledServices(List<String> disabledServices) {
+        delegate.setDisabledServices(disabledServices);
     }
 }

@@ -29,3 +29,7 @@ This section describes most of the extensions available for GeoServer. Other dat
    xslt/index
    wcs20eo/index
    mongodb/index
+   sldservice/index
+   geofence/index
+   geofence-server/index
+

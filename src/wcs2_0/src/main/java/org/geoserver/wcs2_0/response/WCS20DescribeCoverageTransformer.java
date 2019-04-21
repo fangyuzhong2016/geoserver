@@ -5,22 +5,22 @@
  */
 package org.geoserver.wcs2_0.response;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.geoserver.ows.util.ResponseUtils.buildSchemaURL;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 import net.opengis.wcs20.DescribeCoverageType;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CoverageDimensionInfo;
 import org.geoserver.catalog.CoverageInfo;
-import org.geoserver.catalog.DimensionInfo;
+import org.geoserver.catalog.KeywordInfo;
 import org.geoserver.catalog.LayerInfo;
-import org.geoserver.catalog.MetadataMap;
+import org.geoserver.catalog.MetadataLinkInfo;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.wcs.CoverageCleanerCallback;
-import org.geoserver.wcs.WCSInfo;
-import org.geoserver.wcs.responses.CoverageResponseDelegateFinder;
 import org.geoserver.wcs2_0.GetCoverage;
 import org.geoserver.wcs2_0.WCS20Const;
 import org.geoserver.wcs2_0.exception.WCS20Exception;
@@ -41,6 +41,7 @@ import org.geotools.wcs.v2_0.WCS;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.datum.PixelInCell;
+import org.vfny.geoserver.util.ResponseUtils;
 import org.vfny.geoserver.wcs.WcsException;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.helpers.AttributesImpl;
@@ -58,11 +59,8 @@ public class WCS20DescribeCoverageTransformer extends GMLTransformer {
             Logging.getLogger(WCS20DescribeCoverageTransformer.class.getPackage().getName());
 
     private MIMETypeMapper mimemapper;
-    private WCSInfo wcs;
 
     private Catalog catalog;
-
-    private CoverageResponseDelegateFinder responseFactory;
 
     /** Available extension points for DescribeCoverage */
     private List<WCS20DescribeCoverageExtension> wcsDescribeCoverageExtensions;
@@ -79,15 +77,11 @@ public class WCS20DescribeCoverageTransformer extends GMLTransformer {
      * @param mimemapper
      */
     public WCS20DescribeCoverageTransformer(
-            WCSInfo wcs,
             Catalog catalog,
-            CoverageResponseDelegateFinder responseFactory,
             EnvelopeAxesLabelsMapper envelopeDimensionsMapper,
             MIMETypeMapper mimemapper) {
         super(envelopeDimensionsMapper);
-        this.wcs = wcs;
         this.catalog = catalog;
-        this.responseFactory = responseFactory;
         this.mimemapper = mimemapper;
         setNamespaceDeclarationEnabled(false);
         setIndentation(2);
@@ -103,8 +97,6 @@ public class WCS20DescribeCoverageTransformer extends GMLTransformer {
 
     public class WCS20DescribeCoverageTranslator extends GMLTranslator {
         private DescribeCoverageType request;
-
-        private String proxifiedBaseUrl;
 
         public WCS20DescribeCoverageTranslator(ContentHandler handler) {
             super(handler);
@@ -163,7 +155,9 @@ public class WCS20DescribeCoverageTransformer extends GMLTransformer {
                     buildSchemaLocation(
                             request.getBaseUrl(),
                             WCS.NAMESPACE,
-                            "http://schemas.opengis.net/wcs/2.0/wcsDescribeCoverage.xsd");
+                            "http://schemas.opengis.net/wcs/2.0/wcsDescribeCoverage.xsd",
+                            "http://www.geoserver.org/wcsgs/2.0",
+                            buildSchemaURL(request.getBaseUrl(), "wcs/2.0/wcsgs.xsd"));
             attributes.addAttribute("", "xsi:schemaLocation", "xsi:schemaLocation", "", location);
             start("wcs:CoverageDescriptions", attributes);
             int coverageIndex = 0;
@@ -204,17 +198,9 @@ public class WCS20DescribeCoverageTransformer extends GMLTransformer {
 
             try {
                 // see if we have to handle time, elevation and additional dimensions
-                WCSDimensionsHelper dimensionsHelper = null;
-                MetadataMap metadata = ci.getMetadata();
-                Map<String, DimensionInfo> dimensionsMap =
-                        WCSDimensionsHelper.getDimensionsFromMetadata(metadata);
-
-                // Setup a dimension helper in case we found some dimensions for that coverage
-                if (!dimensionsMap.isEmpty()) {
-                    dimensionsHelper =
-                            new WCSDimensionsHelper(
-                                    dimensionsMap, RequestUtils.getCoverageReader(ci), encodedId);
-                }
+                WCSDimensionsHelper dimensionsHelper =
+                        WCSDimensionsHelper.getWCSDimensionsHelper(
+                                encodedId, ci, RequestUtils.getCoverageReader(ci));
 
                 GridCoverage2DReader reader =
                         (GridCoverage2DReader) ci.getGridCoverageReader(null, null);
@@ -249,6 +235,8 @@ public class WCS20DescribeCoverageTransformer extends GMLTransformer {
 
                 // starting encoding
                 start("wcs:CoverageDescription", coverageAttributes);
+                elementSafe("gml:description", ci.getDescription());
+                elementSafe("gml:name", ci.getTitle());
 
                 // handle domain
                 final StringBuilder builder = new StringBuilder();
@@ -315,6 +303,33 @@ public class WCS20DescribeCoverageTransformer extends GMLTransformer {
             }
         }
 
+        @Override
+        protected void handleAdditionalMetadata(Object context) {
+            if (context instanceof CoverageInfo) {
+                CoverageInfo ci = (CoverageInfo) context;
+                List<KeywordInfo> keywords = ci.getKeywords();
+                if (keywords != null && !keywords.isEmpty()) {
+                    start("ows:Keywords");
+                    keywords.forEach(kw -> element("ows:Keyword", kw.getValue()));
+                    end("ows:Keywords");
+                }
+                ci.getMetadataLinks().forEach(this::handleMetadataLink);
+            }
+        }
+
+        private void handleMetadataLink(MetadataLinkInfo mdl) {
+            if (isNotBlank(mdl.getContent())) {
+                String url = ResponseUtils.proxifyMetadataLink(mdl, request.getBaseUrl());
+                AttributesImpl attributes = new AttributesImpl();
+                if (isNotBlank(mdl.getAbout())) {
+                    attributes.addAttribute("", "about", "about", "", mdl.getAbout());
+                }
+                attributes.addAttribute("", "xlink:type", "xlink:type", "", "simple");
+                attributes.addAttribute("", "xlink:href", "xlink:href", "", url);
+                element("ows:Metadata", null, attributes);
+            }
+        }
+
         private void handleServiceParameters(CoverageInfo ci) throws IOException {
             start("wcs:ServiceParameters");
             element("wcs:CoverageSubtype", "RectifiedGridCoverage");
@@ -349,8 +364,6 @@ public class WCS20DescribeCoverageTransformer extends GMLTransformer {
          *    </swe:DataRecord>
          * </gmlcov:rangeType>
          * }</pre>
-         *
-         * @param gc2d the {@link GridCoverage2D} for which to encode the RangeType.
          */
         public void handleRangeType(final List<CoverageDimensionInfo> bands) {
             start("gmlcov:rangeType");

@@ -24,12 +24,12 @@ import org.geoserver.platform.resource.Resources;
 import org.geoserver.wps.ppio.ZipArchivePPIO;
 import org.geoserver.wps.resource.WPSFileResource;
 import org.geoserver.wps.resource.WPSResourceManager;
+import org.geotools.image.util.ImageUtilities;
 import org.geotools.process.ProcessException;
 import org.geotools.process.factory.DescribeParameter;
 import org.geotools.process.factory.DescribeProcess;
 import org.geotools.process.factory.DescribeResult;
 import org.geotools.process.gs.GSProcess;
-import org.geotools.resources.image.ImageUtilities;
 import org.geotools.util.Utilities;
 import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Geometry;
@@ -150,14 +150,16 @@ public class DownloadProcess implements GSProcess, ApplicationContextAware {
                         name = "targetSizeX",
                         min = 0,
                         minValue = 1,
-                        description = "X Size of the Target Image (applies to raster data only)"
+                        description =
+                                "X Size of the Target Image (applies to raster data only), or native resolution if missing"
                     )
                     Integer targetSizeX,
             @DescribeParameter(
                         name = "targetSizeY",
                         min = 0,
                         minValue = 1,
-                        description = "Y Size of the Target Image (applies to raster data only)"
+                        description =
+                                "Y Size of the Target Image (applies to raster data only), or native resolution if missing"
                     )
                     Integer targetSizeY,
             @DescribeParameter(

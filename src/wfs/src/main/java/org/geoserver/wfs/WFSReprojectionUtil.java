@@ -6,11 +6,11 @@
 package org.geoserver.wfs;
 
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.factory.GeoTools;
 import org.geotools.filter.spatial.DefaultCRSFilterVisitor;
 import org.geotools.filter.spatial.ReprojectingFilterVisitor;
 import org.geotools.gml2.bindings.GML2EncodingUtils;
 import org.geotools.referencing.CRS;
+import org.geotools.util.factory.GeoTools;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.feature.type.FeatureType;
 import org.opengis.filter.Filter;
@@ -91,6 +91,16 @@ class WFSReprojectionUtil {
     }
 
     /**
+     * Reprojects all geometric filter elements to the native CRS of the provided schema or to the
+     * target CRS if not NULL.
+     */
+    public static Filter reprojectFilter(
+            Filter filter, FeatureType schema, CoordinateReferenceSystem targetCrs) {
+        ReprojectingFilterVisitor visitor = new ReprojectingFilterVisitor(ff, schema, targetCrs);
+        return (Filter) filter.accept(visitor, null);
+    }
+
+    /**
      * Convenience method, same as calling {@link #applyDefaultCRS} and then {@link
      * #reprojectFilter(Filter, SimpleFeatureType)} in a row
      *
@@ -102,5 +112,19 @@ class WFSReprojectionUtil {
             Filter filter, FeatureType schema, CoordinateReferenceSystem defaultCRS) {
         Filter defaulted = applyDefaultCRS(filter, defaultCRS);
         return reprojectFilter(defaulted, schema);
+    }
+
+    /**
+     * Convenience method, same as calling {@link #applyDefaultCRS} and then {@link
+     * #reprojectFilter(Filter, FeatureType, CoordinateReferenceSystem)} in a row. If a non NULL
+     * target CRS is provided it will be used as the target CRS overriding the native CRS.
+     */
+    public static Filter normalizeFilterCRS(
+            Filter filter,
+            FeatureType schema,
+            CoordinateReferenceSystem defaultCRS,
+            CoordinateReferenceSystem targetCRS) {
+        Filter defaulted = applyDefaultCRS(filter, defaultCRS);
+        return reprojectFilter(defaulted, schema, targetCRS);
     }
 }

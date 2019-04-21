@@ -34,7 +34,7 @@ import org.geoserver.wms.RasterCleaner;
 import org.geoserver.wms.WMS;
 import org.geoserver.wms.WMSMapContent;
 import org.geotools.image.ImageWorker;
-import org.geotools.resources.image.ImageUtilities;
+import org.geotools.image.util.ImageUtilities;
 import org.geotools.util.logging.Logging;
 
 /**
@@ -108,7 +108,7 @@ public final class GIFMapResponse extends RenderedImageMapResponse {
     /**
      * Transforms the rendered image into the appropriate format, streaming to the output stream.
      *
-     * @param image The image to be formatted.
+     * @param originalImage The image to be formatted.
      * @param outStream The stream to write to.
      * @throws ServiceException not really.
      * @throws IOException if encoding to <code>outStream</code> fails.

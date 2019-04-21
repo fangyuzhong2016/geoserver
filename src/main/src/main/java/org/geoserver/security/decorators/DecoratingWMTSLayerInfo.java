@@ -19,8 +19,8 @@ import org.geoserver.catalog.StoreInfo;
 import org.geoserver.catalog.WMTSLayerInfo;
 import org.geoserver.catalog.WMTSStoreInfo;
 import org.geoserver.catalog.impl.AbstractDecorator;
-import org.geotools.data.ows.Layer;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.ows.wms.Layer;
 import org.opengis.feature.type.Name;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.util.ProgressListener;
@@ -229,5 +229,25 @@ public class DecoratingWMTSLayerInfo extends AbstractDecorator<WMTSLayerInfo>
     @Override
     public void setAdvertised(boolean advertised) {
         delegate.setAdvertised(advertised);
+    }
+
+    @Override
+    public boolean isServiceConfiguration() {
+        return delegate.isServiceConfiguration();
+    }
+
+    @Override
+    public void setServiceConfiguration(boolean serviceConfiguration) {
+        delegate.setServiceConfiguration(serviceConfiguration);
+    }
+
+    @Override
+    public List<String> getDisabledServices() {
+        return delegate.getDisabledServices();
+    }
+
+    @Override
+    public void setDisabledServices(List<String> disabledServices) {
+        delegate.setDisabledServices(disabledServices);
     }
 }

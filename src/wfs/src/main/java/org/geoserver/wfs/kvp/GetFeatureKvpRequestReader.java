@@ -27,7 +27,7 @@ import org.geoserver.wfs.StoredQueryProvider;
 import org.geoserver.wfs.WFSException;
 import org.geoserver.wfs.WFSInfo;
 import org.geoserver.wfs.request.GetFeatureRequest;
-import org.geotools.xml.EMFUtils;
+import org.geotools.xsd.EMFUtils;
 import org.opengis.filter.FilterFactory;
 
 /** @author Niels Charlier : added 3D BBOX support */
@@ -78,7 +78,6 @@ public class GetFeatureKvpRequestReader extends BaseFeatureKvpRequestReader {
                 default:
                     EMFUtils.set(eObject, "outputFormat", "application/gml+xml; version=3.2");
             }
-            ;
         }
 
         // aliases

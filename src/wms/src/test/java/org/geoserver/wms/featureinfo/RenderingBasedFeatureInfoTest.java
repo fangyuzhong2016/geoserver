@@ -21,7 +21,7 @@ import java.util.Map;
 import javax.xml.namespace.QName;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.mutable.MutableDouble;
+import org.apache.commons.lang3.mutable.MutableDouble;
 import org.custommonkey.xmlunit.SimpleNamespaceContext;
 import org.custommonkey.xmlunit.XMLUnit;
 import org.custommonkey.xmlunit.XpathEngine;
@@ -376,7 +376,7 @@ public class RenderingBasedFeatureInfoTest extends WMSTestSupport {
                         + layer
                         + "&WIDTH=90&HEIGHT=90&format=image%2Fpng&styles=doublepoly&srs=EPSG%3A4326&version=1.1.1&x=36&y=36";
         JSONObject result = (JSONObject) getAsJSON(request);
-        print(result);
+        // print(result);
         // we used to get two results
         assertEquals(1, result.getJSONArray("features").size());
     }

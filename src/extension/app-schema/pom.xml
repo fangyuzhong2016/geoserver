@@ -12,7 +12,7 @@
     <parent>
         <groupId>org.geoserver</groupId>
         <artifactId>extension</artifactId>
-        <version>2.14-SNAPSHOT</version>
+        <version>2.16-SNAPSHOT</version>
     </parent>
 
     <groupId>org.geoserver.extension</groupId>
@@ -33,11 +33,12 @@
                 <module>app-schema-postgis-test</module>
                 <module>app-schema-mongo-test</module>
                 <module>app-schema-solr-test</module>
+                <module>app-schema-indexes-test</module>
             </modules>
             <dependencies>
                 <dependency>
-                    <groupId>commons-lang</groupId>
-                    <artifactId>commons-lang</artifactId>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-lang3</artifactId>
                 </dependency>
             </dependencies>
         </profile>

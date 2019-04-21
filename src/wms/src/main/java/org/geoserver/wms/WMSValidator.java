@@ -12,7 +12,7 @@ import org.geoserver.catalog.PublishedType;
 import org.geoserver.catalog.WMSLayerInfo;
 import org.geoserver.catalog.WMTSLayerInfo;
 import org.geoserver.catalog.impl.AbstractCatalogValidator;
-import org.geotools.factory.GeoTools;
+import org.geotools.util.factory.GeoTools;
 
 /**
  * Configuration validator for Web Map Service.
@@ -52,7 +52,6 @@ public class WMSValidator extends AbstractCatalogValidator {
             if (!(lyr.getResource() instanceof FeatureTypeInfo))
                 throw new RuntimeException(
                         "Layer with type VECTOR doesn't have a featuretype associated");
-            FeatureTypeInfo ftinfo = (FeatureTypeInfo) lyr.getResource();
         } else if (lyr.getType()
                 == PublishedType.WMTS) { // this is mostly to avoid throwing a not RASTER nor VECTOR
             // exception

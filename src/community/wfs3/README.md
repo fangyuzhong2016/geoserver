@@ -1,26 +1,14 @@
-# WFS 3 experimental prototype
+# WFS 3 prototype
 
-This module contains a prototype based on an early draft specification of WFS 3.0, developed as part of the 
-WFS 3.0 hackaton, see:
+This module contains a prototype based on the current draft specification of WFS 3.0, developed as part of the 
+WFS 3.0 hackaton first, and then further developed to match Draft 1 spec and conformance tests, see:
 
 * https://github.com/opengeospatial/WFS_FES
 * https://github.com/opengeospatial/wfs3hackathon/blob/master/Implementations.md
 
-The module supports a subset of the current specification as of March 7th 2018.
-Parts missing:
-
-* HTML outputs for all resources (freemarker based, with the exception of the API one which could use that 
-  static page we already have for the documentation, loading dynamically the docs from JSON, which would
-  be the only dynamic bit)
-* Filtering by attribute (semantics to be clarified, see https://github.com/opengeospatial/WFS_FES/issues/67 )
-* Single feature encoding for GeoJSON and GML 
-* Expected MIME type for both GeoJSON and GML, and newer GeoJSON version encoding (EITF spec)
-* OGR needs schemas to be listed in the API document for every feature type, however that has yet to enter the spec
-
 Implementation wise:
-* The module basically acts as an internal proxy around WFS 2.0, using a  servlet filter to adapt protocols
-* The APIDocument class needs to be rewritten based on swagger-core, throwing away the current set of made-up-on-the-fly
-  beans supporting Jackson encoding
-* All tests are "fake" and need actual assertions
+* The module basically acts as an internal proxy around WFS 2.0, using a  servlet filter to adapt protocols. The long term approach would likely be to have a new MVCDispatcher that allows usage of Spring annotations instead (TBD).
  
-
+This implementation contains the following prototype WFS3 extensions:
+* Tiles extension, returning MapBOX/JSON/TopoJSON tiles. It does not cache tiles and will likely be removed when WFS3 is pushed to supported land, but served as a base to study a possible WMTS 2.0 API and WFS 3 tile extension in Testbed 14. Some bits can likely be re-used once a final version comes out.
+* Styles extension, with the ability to get/put/delete styles (must be secured using service security). The API is not really compatible with GeoServer style management and should also be removed, but was used to provide feedback to OGC in the vector tiles pilot, which will likely be used for WMTS 2.0 (and some bits can likely be re-used once a final version comes out).

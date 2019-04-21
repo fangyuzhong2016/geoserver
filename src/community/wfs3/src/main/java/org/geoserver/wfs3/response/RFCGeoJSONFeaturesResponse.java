@@ -4,6 +4,7 @@
  */
 package org.geoserver.wfs3.response;
 
+import static org.geoserver.ows.util.ResponseUtils.urlEncode;
 import static org.geoserver.wfs3.DefaultWebFeatureService30.getAvailableFormats;
 
 import java.io.BufferedWriter;
@@ -11,6 +12,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
+import java.io.Writer;
 import java.math.BigInteger;
 import java.util.Collections;
 import java.util.List;
@@ -29,12 +31,15 @@ import org.geoserver.wfs.request.FeatureCollectionResponse;
 import org.geoserver.wfs.request.GetFeatureRequest;
 import org.geoserver.wfs.request.Query;
 import org.geoserver.wfs3.NCNameResourceCodec;
+import org.geoserver.wfs3.TileDataRequest;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.NameImpl;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.util.Version;
+import org.geowebcache.config.DefaultGridsets;
 import org.opengis.feature.Feature;
+import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 public class RFCGeoJSONFeaturesResponse extends GeoJSONGetFeatureResponse {
@@ -43,6 +48,9 @@ public class RFCGeoJSONFeaturesResponse extends GeoJSONGetFeatureResponse {
 
     /** The MIME type requested by WFS3 for GeoJSON Responses */
     public static final String MIME = "application/geo+json";
+
+    private TileDataRequest tileData;
+    private DefaultGridsets gridSets;
 
     public RFCGeoJSONFeaturesResponse(GeoServer gs) {
         super(gs, MIME);
@@ -143,10 +151,11 @@ public class RFCGeoJSONFeaturesResponse extends GeoJSONGetFeatureResponse {
             }
         }
         // alternate/self links
+        String basePath = "wfs3/collections/" + urlEncode(NCNameResourceCodec.encode(featureType));
         for (String format : formats) {
-            String path = "wfs3/collections/" + NCNameResourceCodec.encode(featureType) + "/items";
+            String path = basePath + "/items";
             if (featureId != null) {
-                path += "/" + featureId;
+                path += "/" + urlEncode(featureId);
             }
             String href =
                     ResponseUtils.buildURL(
@@ -160,6 +169,18 @@ public class RFCGeoJSONFeaturesResponse extends GeoJSONGetFeatureResponse {
                 linkType = Link.REL_SELF;
                 linkTitle = "This document";
             }
+            writeLink(jw, linkTitle, format, linkType, href);
+        }
+        // backpointer to the collection
+        for (String format : getAvailableFormats(CollectionDocument.class)) {
+            String href =
+                    ResponseUtils.buildURL(
+                            baseUrl,
+                            basePath,
+                            Collections.singletonMap("f", format),
+                            URLMangler.URLType.SERVICE);
+            String linkType = Link.REL_COLLECTION;
+            String linkTitle = "The collection description as " + format;
             writeLink(jw, linkTitle, format, linkType, href);
         }
         jw.endArray();
@@ -204,5 +225,62 @@ public class RFCGeoJSONFeaturesResponse extends GeoJSONGetFeatureResponse {
     /** capabilities output format string. */
     public String getCapabilitiesElementName() {
         return "GeoJSON-RFC";
+    }
+
+    @Override
+    public boolean canHandle(Operation operation) {
+        if ("GetFeature".equalsIgnoreCase(operation.getId())
+                || "GetFeatureWithLock".equalsIgnoreCase(operation.getId())
+                || "getTile".equalsIgnoreCase(operation.getId())) {
+            // also check that the resultType is "results"
+            GetFeatureRequest req = GetFeatureRequest.adapt(operation.getParameters()[0]);
+            if (req.isResultTypeResults()) {
+                // call subclass hook
+                return canHandleInternal(operation);
+            }
+        }
+        return false;
+    }
+
+    @Override
+    protected GeoJSONBuilder getGeoJSONBuilder(
+            FeatureCollectionResponse featureCollection, Writer outWriter) {
+        if (tileData.isTileRequest()) {
+            try {
+                // get CRS
+                CoordinateReferenceSystem crs =
+                        CRS.decode(
+                                gridSets.getGridSet(tileData.getTilingScheme())
+                                        .get()
+                                        .getSrs()
+                                        .toString());
+                // Simplified GeoJson builder
+                GeoJsonSimplifiedBuilder jsonWriter = new GeoJsonSimplifiedBuilder(outWriter, crs);
+                // backward compatibility with super class behavior
+                int numDecimals =
+                        getNumDecimals(featureCollection.getFeature(), gs, gs.getCatalog());
+                jsonWriter.setNumberOfDecimals(numDecimals);
+                return jsonWriter;
+            } catch (FactoryException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return super.getGeoJSONBuilder(featureCollection, outWriter);
+    }
+
+    public TileDataRequest getTileData() {
+        return tileData;
+    }
+
+    public void setTileData(TileDataRequest tileData) {
+        this.tileData = tileData;
+    }
+
+    public DefaultGridsets getGridSets() {
+        return gridSets;
+    }
+
+    public void setGridSets(DefaultGridsets gridSets) {
+        this.gridSets = gridSets;
     }
 }

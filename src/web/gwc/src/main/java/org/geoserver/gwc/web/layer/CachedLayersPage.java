@@ -179,7 +179,7 @@ public class CachedLayersPage extends GeoServerSecuredPage {
                 ResponseUtils.buildURL(baseURL, "gwc/rest/seed/" + name, null, URLType.EXTERNAL);
 
         // openlayers preview
-        Fragment f = new Fragment(id, "actionsFragment", CachedLayersPage.this);
+        Fragment f = new Fragment(id, "actionsFragment", this);
         f.add(
                 new ExternalLink(
                         "seedLink", href, new ResourceModel("CachedLayersPage.seed").getObject()));
@@ -274,7 +274,7 @@ public class CachedLayersPage extends GeoServerSecuredPage {
                     }
                 });
 
-        Fragment f = new Fragment(id, "menuFragment", CachedLayersPage.this);
+        Fragment f = new Fragment(id, "menuFragment", this);
 
         WebMarkupContainer menu = new WebMarkupContainer("menu");
 
@@ -294,16 +294,18 @@ public class CachedLayersPage extends GeoServerSecuredPage {
         menu.add(previewLinks);
 
         // build the wms request, redirect to it in a new window, reset the selection
-        String demoUrl =
+        final String baseURL = ResponseUtils.baseURL(getGeoServerApplication().servletRequest());
+        // Since we're working with an absolute URL, build the URL this way to ensure proxy
+        // mangling is applied.
+        final String demoURL =
                 "'"
-                        + ResponseUtils.baseURL(getGeoServerApplication().servletRequest())
-                        + "gwc/demo/"
-                        + layer.getName()
+                        + ResponseUtils.buildURL(
+                                baseURL, "gwc/demo/" + layer.getName(), null, URLType.EXTERNAL)
                         + "?' + this.options[this.selectedIndex].value";
         menu.add(
                 new AttributeAppender(
                         "onchange",
-                        new Model<String>("window.open(" + demoUrl + ");this.selectedIndex=0"),
+                        new Model<String>("window.open(" + demoURL + ");this.selectedIndex=0"),
                         ";"));
 
         f.add(menu);

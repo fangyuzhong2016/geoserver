@@ -69,6 +69,7 @@ import org.geotools.gce.imagemosaic.ImageMosaicFormat;
 import org.geotools.image.ImageWorker;
 import org.geotools.image.test.ImageAssert;
 import org.junit.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -181,6 +182,8 @@ public class GetMapIntegrationTest extends WMSTestSupport {
         super.onSetUp(testData);
         Catalog catalog = getCatalog();
         testData.addStyle("Population", "Population.sld", GetMapIntegrationTest.class, catalog);
+        testData.addStyle(
+                "jiffleBandSelect", "jiffleBandSelect.sld", GetMapIntegrationTest.class, catalog);
         testData.addVectorLayer(
                 new QName(MockData.SF_URI, "states", MockData.SF_PREFIX),
                 Collections.EMPTY_MAP,
@@ -1317,6 +1320,7 @@ public class GetMapIntegrationTest extends WMSTestSupport {
         }
     }
 
+    @Test
     public void testRssMime() throws Exception {
         MockHttpServletResponse response =
                 getAsServletResponse(
@@ -1471,9 +1475,42 @@ public class GetMapIntegrationTest extends WMSTestSupport {
     }
 
     @Test
+    public void testJpegPng8Transparent() throws Exception {
+        String request =
+                "wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&FORMAT=image%2Fvnd.jpeg-png8&TRANSPARENT=true&STYLES"
+                        + "&LAYERS=cite%3ABasicPolygons&SRS=EPSG%3A4326&WIDTH=256&HEIGHT=256&BBOX=-2.4%2C1.4%2C0.4%2C4.2";
+        // checks it's a PNG
+        MockHttpServletResponse resp = getAsServletResponse(request);
+        assertEquals("image/png", resp.getContentType());
+        assertEquals(
+                "inline; filename=cite-BasicPolygons.png",
+                resp.getHeader(HttpHeaders.CONTENT_DISPOSITION));
+        BufferedImage image = ImageIO.read(getBinaryInputStream(resp));
+        assertNotBlank("testJpegPngTransparent", image);
+        // check it's paletted
+        assertThat(image.getColorModel(), instanceOf(IndexColorModel.class));
+    }
+
+    @Test
     public void testJpegPngOpaque() throws Exception {
         String request =
                 "wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&FORMAT=image%2Fvnd.jpeg-png&TRANSPARENT=true&STYLES"
+                        + "&LAYERS=cite%3ABasicPolygons&SRS=EPSG%3A4326&WIDTH=256&HEIGHT=256&BBOX=-0.4%2C3.6%2C1%2C5";
+        // checks it's a JPEG, since it's opaque
+        MockHttpServletResponse resp = getAsServletResponse(request);
+        assertEquals("image/jpeg", resp.getContentType());
+        assertEquals(
+                "inline; filename=cite-BasicPolygons.jpg",
+                resp.getHeader(HttpHeaders.CONTENT_DISPOSITION));
+        InputStream is = getBinaryInputStream(resp);
+        BufferedImage image = ImageIO.read(is);
+        assertNotBlank("testJpegPngOpaque", image);
+    }
+
+    @Test
+    public void testJpegPng8Opaque() throws Exception {
+        String request =
+                "wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&FORMAT=image%2Fvnd.jpeg-png8&TRANSPARENT=true&STYLES"
                         + "&LAYERS=cite%3ABasicPolygons&SRS=EPSG%3A4326&WIDTH=256&HEIGHT=256&BBOX=-0.4%2C3.6%2C1%2C5";
         // checks it's a JPEG, since it's opaque
         BufferedImage image = getAsImage(request, "image/jpeg");
@@ -1663,5 +1700,20 @@ public class GetMapIntegrationTest extends WMSTestSupport {
             wms.getMetadata().put(WMS.ADVANCED_PROJECTION_KEY, oldValue);
             gs.save(wms);
         }
+    }
+
+    @Test
+    public void testRTAndBandSelection() throws Exception {
+        String url =
+                "wms?LAYERS=mosaic_shuffle&styles=jiffleBandSelect"
+                        + "&FORMAT=image%2Fpng&SERVICE=WMS&VERSION=1.1.1"
+                        + "&REQUEST=GetMap&SRS=EPSG%3A4326"
+                        + "&BBOX=7,37,11,41&WIDTH=100&HEIGHT=200&bgcolor=0xFF0000";
+        // used to go NPE
+        BufferedImage jiffleBandSelected = getAsImage(url, "image/png");
+        ImageAssert.assertEquals(
+                new File("./src/test/resources/org/geoserver/wms/wms_1_1_1/jiffleBandSelected.png"),
+                jiffleBandSelected,
+                300);
     }
 }

@@ -7,6 +7,7 @@ package org.geoserver.wfs3;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -114,7 +115,6 @@ public class ApiTest extends WFS3TestSupport {
 
         // paths
         Paths paths = api.getPaths();
-        assertThat(paths.size(), equalTo(6));
 
         // ... landing page
         PathItem landing = paths.get("/");
@@ -157,6 +157,23 @@ public class ApiTest extends WFS3TestSupport {
         assertNotNull(item);
         assertThat(item.getGet().getOperationId(), equalTo("getFeature"));
 
+        // ... tiling schemes
+        PathItem tilingSchemes = paths.get("/tilingSchemes");
+        assertNotNull(tilingSchemes);
+        assertThat(tilingSchemes.getGet().getTags(), hasItem("Tiles"));
+
+        // ... tiling scheme id
+        PathItem tilingScheme = paths.get("/tilingSchemes/{tilingSchemeId}");
+        assertNotNull(tilingScheme);
+        assertThat(tilingScheme.getGet().getTags(), hasItem("Tiles"));
+
+        // ... tiles
+        PathItem tiles =
+                paths.get(
+                        "/collections/{collectionId}/tiles/{tilingSchemeId}/{zoomLevel}/{row}/{column}");
+        assertNotNull(tiles);
+        assertThat(tiles.getGet().getTags(), hasItem("Tiles"));
+
         // check collectionId parameter
         Map<String, Parameter> params = api.getComponents().getParameters();
         Parameter collectionId = params.get("collectionId");
@@ -176,5 +193,30 @@ public class ApiTest extends WFS3TestSupport {
         WFSInfo wfs = getGeoServer().getService(WFSInfo.class);
         assertEquals(wfs.getMaxFeatures(), limitSchema.getMaximum().intValue());
         assertEquals(wfs.getMaxFeatures(), ((Number) limitSchema.getDefault()).intValue());
+    }
+
+    @Test
+    public void testWorkspaceQualifiedAPI() throws Exception {
+        MockHttpServletRequest request = createRequest("cdf/wfs3/api");
+        request.setMethod("GET");
+        request.setContent(new byte[] {});
+        request.addHeader(HttpHeaders.ACCEPT, "foo/bar, application/x-yaml, text/html");
+        MockHttpServletResponse response = dispatch(request);
+        assertEquals(200, response.getStatus());
+        assertEquals("application/x-yaml", response.getContentType());
+        String yaml = string(new ByteArrayInputStream(response.getContentAsString().getBytes()));
+
+        ObjectMapper mapper = Yaml.mapper();
+        OpenAPI api = mapper.readValue(yaml, OpenAPI.class);
+        Map<String, Parameter> params = api.getComponents().getParameters();
+        Parameter collectionId = params.get("collectionId");
+        List<String> collectionIdValues = collectionId.getSchema().getEnum();
+        List<String> expectedCollectionIds =
+                getCatalog()
+                        .getFeatureTypesByNamespace(getCatalog().getNamespaceByPrefix("cdf"))
+                        .stream()
+                        .map(ft -> ft.getName())
+                        .collect(Collectors.toList());
+        assertThat(collectionIdValues, equalTo(expectedCollectionIds));
     }
 }

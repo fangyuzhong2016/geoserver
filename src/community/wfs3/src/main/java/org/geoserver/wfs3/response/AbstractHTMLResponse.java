@@ -6,7 +6,6 @@
  */
 package org.geoserver.wfs3.response;
 
-import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateMethodModel;
@@ -19,18 +18,16 @@ import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.config.GeoServer;
 import org.geoserver.ows.Response;
 import org.geoserver.ows.URLMangler;
+import org.geoserver.ows.util.OwsUtils;
 import org.geoserver.ows.util.ResponseUtils;
 import org.geoserver.platform.GeoServerResourceLoader;
 import org.geoserver.platform.Operation;
 import org.geoserver.platform.ServiceException;
-import org.geoserver.template.TemplateUtils;
 import org.geoserver.wfs.WFSInfo;
 import org.geoserver.wfs3.BaseRequest;
-import org.geoserver.wfs3.GetFeatureType;
+import org.geotools.util.Converters;
 
 public abstract class AbstractHTMLResponse extends Response {
-
-    private static Configuration templateConfig = TemplateUtils.getSafeConfiguration();
 
     protected final GeoServer geoServer;
     private FreemarkerTemplateSupport templateSupport;
@@ -39,7 +36,7 @@ public abstract class AbstractHTMLResponse extends Response {
             Class<?> binding, GeoServerResourceLoader loader, GeoServer geoServer) {
         super(binding, BaseRequest.HTML_MIME);
         this.geoServer = geoServer;
-        this.templateSupport = new FreemarkerTemplateSupport(loader, geoServer);
+        this.templateSupport = new FreemarkerTemplateSupport(loader);
     }
 
     @Override
@@ -119,13 +116,11 @@ public abstract class AbstractHTMLResponse extends Response {
 
     static String getBaseURL(Operation operation) {
         Object firstParam = operation.getParameters()[0];
-        if (firstParam instanceof BaseRequest) {
-            BaseRequest request = (BaseRequest) firstParam;
-            return request.getBaseUrl();
-        } else if (firstParam instanceof GetFeatureType) {
-            return ((GetFeatureType) firstParam).getBaseUrl();
+        String baseURL = Converters.convert(OwsUtils.get(firstParam, "baseUrl"), String.class);
+        if (baseURL == null) {
+            throw new IllegalArgumentException("Cannot extract base URL from " + firstParam);
         }
-        throw new IllegalArgumentException("Cannot extract base URL from " + firstParam);
+        return baseURL;
     }
 
     /**
@@ -143,4 +138,12 @@ public abstract class AbstractHTMLResponse extends Response {
      * @return
      */
     protected abstract ResourceInfo getResource(Object value);
+
+    @Override
+    public String getAttachmentFileName(Object value, Operation operation) {
+        return getFileName(value, operation) + ".html";
+    }
+
+    /** The name of the file for the response */
+    protected abstract String getFileName(Object value, Operation operation);
 }

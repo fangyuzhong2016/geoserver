@@ -8,7 +8,6 @@ package org.geoserver.wps;
 import static org.custommonkey.xmlunit.XMLAssert.assertXpathExists;
 import static org.junit.Assert.fail;
 
-import it.geosolutions.jaiext.JAIExt;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -36,8 +35,8 @@ import org.geoserver.test.GeoServerSystemTestSupport;
 import org.geoserver.wcs.CoverageCleanerCallback;
 import org.geoserver.wps.xml.WPSConfiguration;
 import org.geotools.process.Processors;
-import org.geotools.xml.Configuration;
-import org.geotools.xml.Parser;
+import org.geotools.xsd.Configuration;
+import org.geotools.xsd.Parser;
 import org.junit.After;
 import org.opengis.coverage.grid.GridCoverage;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -61,7 +60,6 @@ public abstract class WPSTestSupport extends GeoServerSystemTestSupport {
     List<GridCoverage> coverages = new ArrayList<GridCoverage>();
 
     static {
-        JAIExt.initJAIEXT(true, true);
         Processors.addProcessFactory(MonkeyProcess.getFactory());
         Processors.addProcessFactory(MultiRawProcess.getFactory());
         Processors.addProcessFactory(MultiOutputEchoProcess.getFactory());

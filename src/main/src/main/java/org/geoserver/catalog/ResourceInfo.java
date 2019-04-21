@@ -1,4 +1,4 @@
-/* (c) 2014 Open Source Geospatial Foundation - all rights reserved
+/* (c) 2014 - 2018 Open Source Geospatial Foundation - all rights reserved
  * (c) 2001 - 2013 OpenPlans
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
@@ -195,7 +195,7 @@ public interface ResourceInfo extends CatalogInfo {
     /**
      * Sets the bounds of the resource in lat / lon.
      *
-     * @param The lat/lon bounds.
+     * @param box The lat/lon bounds.
      * @uml.property name="latLonBoundingBox"
      */
     void setLatLonBoundingBox(ReferencedEnvelope box);
@@ -213,7 +213,7 @@ public interface ResourceInfo extends CatalogInfo {
     /**
      * Sets the bounds of the resource in the native crs.
      *
-     * @param The native crs bounds.
+     * @param box The native crs bounds.
      * @uml.property name="boundingBox"
      */
     void setNativeBoundingBox(ReferencedEnvelope box);
@@ -247,7 +247,7 @@ public interface ResourceInfo extends CatalogInfo {
     /**
      * Sets the identifier coordinate reference system of the resource.
      *
-     * @param crs The identifier of cordinate reference system.
+     * @param srs The identifier of coordinate reference system.
      * @uml.property name="sRS"
      */
     void setSRS(String srs);
@@ -367,4 +367,16 @@ public interface ResourceInfo extends CatalogInfo {
      * @param advertised
      */
     void setAdvertised(boolean advertised);
+
+    /** Returns true if the resource will configure services access, false otherwise */
+    boolean isServiceConfiguration();
+
+    /** Set to true if the resource will configure services access, false otherwise */
+    void setServiceConfiguration(boolean serviceConfiguration);
+
+    /** Returns a list of disabled services names for this resource */
+    List<String> getDisabledServices();
+
+    /** Set the list of disabled services names for this resource */
+    void setDisabledServices(List<String> disabledServices);
 }

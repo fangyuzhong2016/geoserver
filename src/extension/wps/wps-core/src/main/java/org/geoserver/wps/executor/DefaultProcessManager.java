@@ -27,7 +27,6 @@ import org.opengis.util.ProgressListener;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextClosedEvent;
-import org.springframework.context.event.ContextRefreshedEvent;
 
 public class DefaultProcessManager
         implements ProcessManager, ExtensionPriority, ApplicationListener<ApplicationEvent> {
@@ -58,8 +57,11 @@ public class DefaultProcessManager
                             TimeUnit.MILLISECONDS,
                             new LinkedBlockingQueue<Runnable>());
         } else {
-            asynchService.setCorePoolSize(maxAsynchronousProcesses);
+            // JDK 11 checks the relation between core and max pool size on each set,
+            // need to lower core pool size before changing max
+            asynchService.setCorePoolSize(1);
             asynchService.setMaximumPoolSize(maxAsynchronousProcesses);
+            asynchService.setCorePoolSize(maxAsynchronousProcesses);
         }
     }
 
@@ -76,18 +78,19 @@ public class DefaultProcessManager
                             TimeUnit.MILLISECONDS,
                             new LinkedBlockingQueue<Runnable>());
         } else {
-            synchService.setCorePoolSize(maxSynchronousProcesses);
+            // JDK 11 checks the relation between core and max pool size on each set,
+            // need to lower core pool size before changing max
+            synchService.setCorePoolSize(1);
             synchService.setMaximumPoolSize(maxSynchronousProcesses);
+            synchService.setCorePoolSize(maxSynchronousProcesses);
         }
     }
 
     @Override
     public void onApplicationEvent(ApplicationEvent event) {
-        if (event instanceof ContextRefreshedEvent) {
-            if (event instanceof ContextClosedEvent) {
-                synchService.shutdownNow();
-                asynchService.shutdownNow();
-            }
+        if (event instanceof ContextClosedEvent) {
+            synchService.shutdownNow();
+            asynchService.shutdownNow();
         }
     }
 

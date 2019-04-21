@@ -4,22 +4,21 @@
  */
 package org.geoserver.taskmanager.web;
 
-import static org.apache.commons.lang.StringEscapeUtils.escapeHtml;
-
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.apache.commons.text.StringEscapeUtils;
 import org.apache.wicket.Component;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.markup.html.AjaxLink;
+import org.apache.wicket.behavior.AttributeAppender;
 import org.apache.wicket.extensions.ajax.markup.html.modal.ModalWindow;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.Model;
 import org.geoserver.catalog.WorkspaceInfo;
 import org.geoserver.taskmanager.data.BatchElement;
 import org.geoserver.taskmanager.data.Configuration;
-import org.geoserver.taskmanager.data.Task;
 import org.geoserver.taskmanager.util.TaskManagerBeans;
 import org.geoserver.taskmanager.web.model.ConfigurationsModel;
 import org.geoserver.taskmanager.web.panel.DropDownPanel;
@@ -112,7 +111,8 @@ public class AbstractConfigurationsPage extends GeoServerSecuredPage {
                                                             new Model<ArrayList<String>>(list),
                                                             new ParamResourceModel(
                                                                     "addNewDialog.chooseTemplate",
-                                                                    getPage()));
+                                                                    getPage()),
+                                                            true);
                                             return panel;
                                         }
 
@@ -154,7 +154,10 @@ public class AbstractConfigurationsPage extends GeoServerSecuredPage {
                             public void onClick(AjaxRequestTarget target) {
                                 boolean someCant = false;
                                 for (Configuration config : configurationsPanel.getSelection()) {
-                                    BatchElement be = taskInUseByExternalBatch(config);
+                                    BatchElement be =
+                                            TaskManagerBeans.get()
+                                                    .getDataUtil()
+                                                    .taskInUseByExternalBatch(config);
                                     if (be != null) {
                                         error(
                                                 new ParamResourceModel(
@@ -220,7 +223,9 @@ public class AbstractConfigurationsPage extends GeoServerSecuredPage {
                                                     for (Configuration config :
                                                             configurationsPanel.getSelection()) {
                                                         sb.append("\n&nbsp;&nbsp;");
-                                                        sb.append(escapeHtml(config.getName()));
+                                                        sb.append(
+                                                                StringEscapeUtils.escapeHtml4(
+                                                                        config.getName()));
                                                     }
                                                     return new MultiLabelCheckBoxPanel(
                                                             id,
@@ -240,6 +245,10 @@ public class AbstractConfigurationsPage extends GeoServerSecuredPage {
                                                                 configurationsPanel
                                                                         .getSelection()) {
                                                             if (shouldCleanupModel.getObject()) {
+                                                                config =
+                                                                        TaskManagerBeans.get()
+                                                                                .getDao()
+                                                                                .init(config);
                                                                 if (TaskManagerBeans.get()
                                                                         .getTaskUtil()
                                                                         .canCleanup(config)) {
@@ -362,6 +371,12 @@ public class AbstractConfigurationsPage extends GeoServerSecuredPage {
                                 target.add(copy);
                             }
 
+                            @Override
+                            public void onBeforeRender() {
+                                ((ConfigurationsModel) getDataProvider()).reset();
+                                super.onBeforeRender();
+                            }
+
                             @SuppressWarnings("unchecked")
                             @Override
                             protected Component getComponentForProperty(
@@ -369,33 +384,35 @@ public class AbstractConfigurationsPage extends GeoServerSecuredPage {
                                     IModel<Configuration> itemModel,
                                     Property<Configuration> property) {
                                 if (property.equals(ConfigurationsModel.NAME)) {
-                                    return new SimpleAjaxLink<String>(
-                                            id, (IModel<String>) property.getModel(itemModel)) {
-                                        private static final long serialVersionUID =
-                                                -9184383036056499856L;
+                                    SimpleAjaxLink<String> link =
+                                            new SimpleAjaxLink<String>(
+                                                    id,
+                                                    (IModel<String>) property.getModel(itemModel)) {
+                                                private static final long serialVersionUID =
+                                                        -9184383036056499856L;
 
-                                        @Override
-                                        protected void onClick(AjaxRequestTarget target) {
-                                            setResponsePage(new ConfigurationPage(itemModel));
-                                        }
-                                    };
+                                                @Override
+                                                protected void onClick(AjaxRequestTarget target) {
+                                                    setResponsePage(
+                                                            new ConfigurationPage(
+                                                                    TaskManagerBeans.get()
+                                                                            .getDao()
+                                                                            .init(
+                                                                                    itemModel
+                                                                                            .getObject())));
+                                                }
+                                            };
+                                    if (!itemModel.getObject().isTemplate()
+                                            && !itemModel.getObject().isValidated()) {
+                                        link.add(
+                                                new AttributeAppender(
+                                                        "class", "notvalidated", " "));
+                                    }
+                                    return link;
                                 }
                                 return null;
                             }
                         });
         configurationsPanel.setOutputMarkupId(true);
-    }
-
-    private BatchElement taskInUseByExternalBatch(Configuration config) {
-        for (Task task : config.getTasks().values()) {
-            task = TaskManagerBeans.get().getDataUtil().init(task);
-            for (BatchElement element : task.getBatchElements()) {
-                if (element.getBatch().getConfiguration() == null
-                        && element.getBatch().isActive()) {
-                    return element;
-                }
-            }
-        }
-        return null;
     }
 }

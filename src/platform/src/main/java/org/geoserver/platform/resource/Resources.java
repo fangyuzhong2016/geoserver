@@ -21,10 +21,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.platform.GeoServerResourceLoader;
 import org.geoserver.platform.resource.Resource.Type;
@@ -539,7 +540,7 @@ public class Resources {
      */
     public static Resource fromURL(Resource baseDirectory, String url) {
         String ss;
-        if ((ss = StringUtils.removeStart(url, "resource:")) != url) {
+        if (!Objects.equals(url, ss = StringUtils.removeStart(url, "resource:"))) {
             return baseDirectory.get(ss);
         }
 

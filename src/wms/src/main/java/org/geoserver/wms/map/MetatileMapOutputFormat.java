@@ -31,9 +31,9 @@ import org.geoserver.wms.WebMap;
 import org.geoserver.wms.map.QuickTileCache.MetaTileKey;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.filter.function.EnvFunction;
+import org.geotools.metadata.i18n.ErrorKeys;
+import org.geotools.metadata.i18n.Errors;
 import org.geotools.renderer.lite.gridcoverage2d.GridCoverageRenderer;
-import org.geotools.resources.i18n.ErrorKeys;
-import org.geotools.resources.i18n.Errors;
 import org.geotools.util.logging.Logging;
 
 /**
@@ -100,7 +100,7 @@ public final class MetatileMapOutputFormat implements GetMapOutputFormat {
         }
     }
 
-    private static QuickTileCache tileCache;
+    private QuickTileCache tileCache;
 
     private GetMapRequest request;
 
@@ -108,6 +108,7 @@ public final class MetatileMapOutputFormat implements GetMapOutputFormat {
 
     public MetatileMapOutputFormat(GetMapRequest request, RenderedImageMapOutputFormat delegate) {
         if (tileCache == null) {
+            // the meta tile cache is a singleton, so no need to keep it as a static member
             tileCache = (QuickTileCache) GeoServerExtensions.bean("metaTileCache");
         }
         this.request = request;

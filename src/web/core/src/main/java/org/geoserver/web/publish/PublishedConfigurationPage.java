@@ -29,9 +29,11 @@ import org.apache.wicket.markup.html.panel.Panel;
 import org.apache.wicket.model.CompoundPropertyModel;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.Model;
+import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.PublishedInfo;
 import org.geoserver.web.ComponentAuthorizer;
 import org.geoserver.web.GeoServerSecuredPage;
+import org.geoserver.web.data.resource.LayerModel;
 import org.geoserver.web.data.resource.ResourceConfigurationPanel;
 
 /**
@@ -83,8 +85,12 @@ public abstract class PublishedConfigurationPage<T extends PublishedInfo>
         setupPublished(info);
     }
 
+    @SuppressWarnings("unchecked")
     protected void setupPublished(T info) {
-        setupPublished(new Model<T>(info));
+        setupPublished(
+                info instanceof LayerInfo
+                        ? (IModel<T>) new LayerModel((LayerInfo) info)
+                        : new Model<T>(info));
     }
 
     protected void setupPublished(IModel<T> infoModel) {
@@ -92,7 +98,7 @@ public abstract class PublishedConfigurationPage<T extends PublishedInfo>
         initComponents();
     }
 
-    /** */
+    /** Initialize components including tabpanels via PublishedEditTabPanelInfo extensions */
     @SuppressWarnings("rawtypes")
     private void initComponents() {
         this.tabPanelCustomModels =
@@ -128,20 +134,10 @@ public abstract class PublishedConfigurationPage<T extends PublishedInfo>
                 });
 
         // add the tabs contributed via extension point
-        List<PublishedEditTabPanelInfo> tabPanels =
-                getGeoServerApplication().getBeansOfType(PublishedEditTabPanelInfo.class);
+        List<PublishedEditTabPanelInfo> tabPanels = tabPanelsExtensions();
 
         // sort the tabs based on order
-        Collections.sort(
-                tabPanels,
-                new Comparator<PublishedEditTabPanelInfo>() {
-                    public int compare(PublishedEditTabPanelInfo o1, PublishedEditTabPanelInfo o2) {
-                        Integer order1 = o1.getOrder() >= 0 ? o1.getOrder() : Integer.MAX_VALUE;
-                        Integer order2 = o2.getOrder() >= 0 ? o2.getOrder() : Integer.MAX_VALUE;
-
-                        return order1.compareTo(order2);
-                    }
-                });
+        sortTabPanels(tabPanels);
 
         for (PublishedEditTabPanelInfo ttabPanelInfo : tabPanels) {
             if (ttabPanelInfo.supports(getPublishedInfo())) {
@@ -225,6 +221,23 @@ public abstract class PublishedConfigurationPage<T extends PublishedInfo>
         theForm.add(tabbedPanel);
         theForm.add(saveLink());
         theForm.add(cancelLink());
+    }
+
+    private void sortTabPanels(List<PublishedEditTabPanelInfo> tabPanels) {
+        Collections.sort(
+                tabPanels,
+                new Comparator<PublishedEditTabPanelInfo>() {
+                    public int compare(PublishedEditTabPanelInfo o1, PublishedEditTabPanelInfo o2) {
+                        Integer order1 = o1.getOrder() >= 0 ? o1.getOrder() : Integer.MAX_VALUE;
+                        Integer order2 = o2.getOrder() >= 0 ? o2.getOrder() : Integer.MAX_VALUE;
+
+                        return order1.compareTo(order2);
+                    }
+                });
+    }
+
+    private List<PublishedEditTabPanelInfo> tabPanelsExtensions() {
+        return getGeoServerApplication().getBeansOfType(PublishedEditTabPanelInfo.class);
     }
 
     protected abstract PublishedEditTabPanel<T> createMainTab(String panelID);

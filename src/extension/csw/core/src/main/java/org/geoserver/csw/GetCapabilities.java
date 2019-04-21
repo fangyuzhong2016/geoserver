@@ -47,13 +47,13 @@ import org.geoserver.ows.URLMangler.URLType;
 import org.geoserver.ows.util.RequestUtils;
 import org.geoserver.ows.util.ResponseUtils;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.factory.GeoTools;
 import org.geotools.filter.capability.FilterCapabilitiesImpl;
 import org.geotools.filter.capability.ScalarCapabilitiesImpl;
 import org.geotools.filter.capability.SpatialCapabiltiesImpl;
 import org.geotools.filter.capability.SpatialOperatorsImpl;
+import org.geotools.util.factory.GeoTools;
 import org.geotools.util.logging.Logging;
-import org.geotools.xml.EMFUtils;
+import org.geotools.xsd.EMFUtils;
 import org.opengis.feature.type.Name;
 import org.opengis.filter.FilterFactory2;
 import org.opengis.filter.capability.ArithmeticOperators;
@@ -832,7 +832,7 @@ class CSWSpatialCapabilities extends SpatialCapabiltiesImpl {
                 GeometryOperand.get("http://www.opengis.net/gml", "Polygon")
             };
 
-    SpatialOperators spatialOperands = new SpatialOperatorsImpl();
+    volatile SpatialOperators spatialOperands = new SpatialOperatorsImpl();
 
     List<GeometryOperand> geometryOperands = new LinkedList<GeometryOperand>();
 
@@ -889,18 +889,21 @@ class CSWSpatialCapabilities extends SpatialCapabiltiesImpl {
 
     @Override
     public SpatialOperatorsImpl getSpatialOperators() {
-        synchronized (spatialOperands) {
-            if (spatialOperands == null
-                    || spatialOperands.getOperators() == null
-                    || spatialOperands.getOperators().size() == 0) {
-                spatialOperands = new SpatialOperatorsImpl();
+        if (spatialOperands == null
+                || spatialOperands.getOperators() == null
+                || spatialOperands.getOperators().size() == 0) {
+            synchronized (this) {
+                if (spatialOperands == null
+                        || spatialOperands.getOperators() == null
+                        || spatialOperands.getOperators().size() == 0) {
+                    spatialOperands = new SpatialOperatorsImpl();
 
-                for (SpatialOperator operator : spatialOperators) {
-                    if (((SpatialOperatorsImpl) spatialOperands).getOperators() == null) {
-                        ((SpatialOperatorsImpl) spatialOperands)
-                                .setOperators(new HashSet<SpatialOperator>());
+                    for (SpatialOperator operator : spatialOperators) {
+                        if ((spatialOperands).getOperators() == null) {
+                            ((SpatialOperatorsImpl) spatialOperands).setOperators(new HashSet<>());
+                        }
+                        (spatialOperands).getOperators().add(operator);
                     }
-                    ((SpatialOperatorsImpl) spatialOperands).getOperators().add(operator);
                 }
             }
         }
@@ -922,4 +925,4 @@ class CSWSpatialCapabilities extends SpatialCapabiltiesImpl {
             }
         };
     }
-};
+}

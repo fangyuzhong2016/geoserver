@@ -15,9 +15,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
-import org.geotools.factory.Hints;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.ReferencingFactoryFinder;
+import org.geotools.util.factory.Hints;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CRSAuthorityFactory;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
@@ -87,6 +87,9 @@ public class SRSProvider extends GeoServerDataProvider<SRSProvider.SRS> {
 
         @Override
         public boolean equals(Object o) {
+            if (!(o instanceof SRS)) {
+                return false;
+            }
             return code.equals(((SRS) o).code);
         }
 
@@ -139,12 +142,12 @@ public class SRSProvider extends GeoServerDataProvider<SRSProvider.SRS> {
     private static final ArrayList<Property<SRS>> PROPERTIES =
             new ArrayList<Property<SRS>>(Arrays.asList(CODE, DESCRIPTION));
 
-    private List<SRS> items;
+    private volatile List<SRS> items;
 
     @Override
     protected List<SRS> getItems() {
         if (items == null) {
-            synchronized (SRSProvider.class) {
+            synchronized (this) {
                 if (items == null) {
                     items = buildCodeList();
                 }

@@ -172,7 +172,16 @@ public class StyleInfoImpl implements StyleInfo {
                 .toString();
     }
 
-    private Object readResolve() {
+    @Override
+    public String prefixedName() {
+        if (workspace != null) {
+            return workspace.getName() + ":" + getName();
+        } else {
+            return getName();
+        }
+    }
+
+    protected Object readResolve() {
         // this check is here to enable smooth migration from old configurations that don't have
         // the version property, and a transition from the deprecated sldVersion property
 
@@ -188,14 +197,5 @@ public class StyleInfoImpl implements StyleInfo {
         }
 
         return this;
-    }
-
-    @Override
-    public String prefixedName() {
-        if (workspace != null) {
-            return workspace.getName() + ":" + getName();
-        } else {
-            return getName();
-        }
     }
 }

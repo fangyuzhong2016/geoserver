@@ -97,13 +97,7 @@ public class GML2OutputFormat extends WFSGetFeatureOutputFormat {
         return "GML2";
     }
 
-    /**
-     * prepares for encoding into GML2 format
-     *
-     * @param outputFormat DOCUMENT ME!
-     * @param results DOCUMENT ME!
-     * @throws IOException DOCUMENT ME!
-     */
+    /** prepares for encoding into GML2 format */
     @SuppressWarnings("unchecked")
     public void prepare(
             String outputFormat, FeatureCollectionResponse results, GetFeatureRequest request)
@@ -117,6 +111,8 @@ public class GML2OutputFormat extends WFSGetFeatureOutputFormat {
         // one type, we really need to set it on the feature level
         int srs = -1;
         int numDecimals = -1;
+        boolean padWithZeros = false;
+        boolean forcedDecimal = false;
         for (int i = 0; i < results.getFeature().size(); i++) {
             // FeatureResults features = (FeatureResults) f.next();
             FeatureCollection features = (FeatureCollection) results.getFeature().get(i);
@@ -175,6 +171,14 @@ public class GML2OutputFormat extends WFSGetFeatureOutputFormat {
                     numDecimals =
                             numDecimals == -1 ? ftiDecimals : Math.max(numDecimals, ftiDecimals);
                 }
+                boolean pad = ((FeatureTypeInfo) meta).getPadWithZeros();
+                if (pad) {
+                    padWithZeros = true;
+                }
+                boolean force = ((FeatureTypeInfo) meta).getForcedDecimal();
+                if (force) {
+                    forcedDecimal = true;
+                }
             }
         }
 
@@ -188,6 +192,8 @@ public class GML2OutputFormat extends WFSGetFeatureOutputFormat {
 
         transformer.setIndentation(wfs.isVerbose() ? INDENT_SIZE : (NO_FORMATTING));
         transformer.setNumDecimals(numDecimals);
+        transformer.setPadWithZeros(padWithZeros);
+        transformer.setForceDecimalEncoding(forcedDecimal);
         transformer.setFeatureBounding(wfs.isFeatureBounding());
         transformer.setCollectionBounding(wfs.isFeatureBounding());
         transformer.setEncoding(Charset.forName(settings.getCharset()));
@@ -216,14 +222,7 @@ public class GML2OutputFormat extends WFSGetFeatureOutputFormat {
         }
     }
 
-    /**
-     * DOCUMENT ME!
-     *
-     * @param output DOCUMENT ME!
-     * @throws ServiceException DOCUMENT ME!
-     * @throws IOException DOCUMENT ME!
-     * @throws IllegalStateException DOCUMENT ME!
-     */
+    /** */
     public void encode(
             OutputStream output, FeatureCollectionResponse results, GetFeatureRequest request)
             throws ServiceException, IOException {

@@ -140,6 +140,20 @@ public class WMSAdminPage extends BaseServiceAdminPage<WMSInfo> {
                 defaultedModel(metadataModel, WMS.MAP_WRAPPING_KEY, WMS.ENABLE_MAP_WRAPPING);
         CheckBox aphWrapField = new CheckBox("aph.wrap", aphWrap);
         form.add(aphWrapField);
+        MapModel aphDensify =
+                defaultedModel(
+                        metadataModel,
+                        WMS.ADVANCED_PROJECTION_DENSIFICATION_KEY,
+                        WMS.ENABLE_ADVANCED_PROJECTION_DENSIFICATION);
+        CheckBox aphDensifyField = new CheckBox("aph.densify", aphDensify);
+        form.add(aphDensifyField);
+        MapModel aphHeuristic =
+                defaultedModel(
+                        metadataModel,
+                        WMS.DATELINE_WRAPPING_HEURISTIC_KEY,
+                        WMS.DISABLE_DATELINE_WRAPPING_HEURISTIC);
+        CheckBox aphHeuristicField = new CheckBox("aph.dlh", aphHeuristic);
+        form.add(aphHeuristicField);
 
         // general
         form.add(
@@ -344,6 +358,16 @@ public class WMSAdminPage extends BaseServiceAdminPage<WMSInfo> {
                 new CheckBox(
                         "disableFeaturesReproject",
                         new PropertyModel<>(info, WMS.FEATURES_REPROJECTION_DISABLED)));
+        TextField<Integer> cacheMaxExtries =
+                new TextField<Integer>("cacheConfiguration.maxEntries");
+        cacheMaxExtries.add(RangeValidator.minimum(1));
+        form.add(cacheMaxExtries);
+
+        TextField<Long> cacheEntrySize = new TextField<Long>("cacheConfiguration.maxEntrySize");
+        cacheEntrySize.add(new RangeValidator<Long>(1L, Long.MAX_VALUE));
+        form.add(cacheEntrySize);
+
+        form.add(new CheckBox("cacheConfiguration.enabled"));
     }
 
     @Override

@@ -17,14 +17,14 @@ import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.factory.GeoTools;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.gml3.GMLConfiguration;
 import org.geotools.map.Layer;
 import org.geotools.referencing.CRS;
-import org.geotools.xml.Configuration;
-import org.geotools.xml.Encoder;
+import org.geotools.util.factory.GeoTools;
 import org.geotools.xml.transform.TransformerBase;
+import org.geotools.xsd.Configuration;
+import org.geotools.xsd.Encoder;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
@@ -277,6 +277,7 @@ public abstract class GeoRSSTransformerBase extends TransformerBase {
                         }
 
                         // build the mixed query
+                        Query mixed = new Query(query);
                         Filter original = query.getFilter();
                         Filter bbox =
                                 ff.bbox(
@@ -286,10 +287,10 @@ public abstract class GeoRSSTransformerBase extends TransformerBase {
                                         env.getMaxX(),
                                         env.getMaxY(),
                                         null);
-                        query.setFilter(ff.and(original, bbox));
+                        mixed.setFilter(ff.and(original, bbox));
 
                         // query and eventually reproject
-                        features = source.getFeatures(query);
+                        features = source.getFeatures(mixed);
                         if (sourceCRS != null && !CRS.equalsIgnoreMetadata(wgs84, sourceCRS)) {
                             ReprojectingFeatureCollection coll =
                                     new ReprojectingFeatureCollection(features, wgs84);

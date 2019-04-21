@@ -16,10 +16,10 @@ import org.geoserver.catalog.DataStoreInfo;
 import org.geoserver.catalog.FeatureTypeInfo;
 import org.geoserver.catalog.StoreInfo;
 import org.geotools.data.FeatureSource;
-import org.geotools.factory.Hints;
 import org.geotools.filter.text.cql2.CQLException;
 import org.geotools.filter.text.ecql.ECQL;
 import org.geotools.measure.Measure;
+import org.geotools.util.factory.Hints;
 import org.opengis.feature.Feature;
 import org.opengis.feature.type.FeatureType;
 import org.opengis.filter.Filter;
@@ -34,6 +34,8 @@ public class FeatureTypeInfoImpl extends ResourceInfoImpl implements FeatureType
 
     protected int maxFeatures;
     protected int numDecimals;
+    protected boolean padWithZeros;
+    protected boolean forcedDecimal;
 
     protected List<AttributeTypeInfo> attributes = new ArrayList<AttributeTypeInfo>();
     protected List<String> responseSRS = new ArrayList<String>();
@@ -41,6 +43,9 @@ public class FeatureTypeInfoImpl extends ResourceInfoImpl implements FeatureType
     boolean overridingServiceSRS;
     boolean skipNumberMatched = false;
     boolean circularArcPresent;
+
+    // we don't use the primitive because we need to detect the situation where no value was set
+    Boolean encodeMeasures;
 
     public boolean isCircularArcPresent() {
         return circularArcPresent;
@@ -238,5 +243,36 @@ public class FeatureTypeInfoImpl extends ResourceInfoImpl implements FeatureType
     public void setCqlFilter(String cqlFilter) {
         this.cqlFilter = cqlFilter;
         this.filter = null;
+    }
+
+    @Override
+    public boolean getEncodeMeasures() {
+        // by default encoding of coordinates measures is not activated
+        return encodeMeasures == null ? false : encodeMeasures;
+    }
+
+    @Override
+    public void setEncodeMeasures(boolean encodeMeasures) {
+        this.encodeMeasures = encodeMeasures;
+    }
+
+    @Override
+    public boolean getPadWithZeros() {
+        return padWithZeros;
+    }
+
+    @Override
+    public void setPadWithZeros(boolean padWithZeros) {
+        this.padWithZeros = padWithZeros;
+    }
+
+    @Override
+    public boolean getForcedDecimal() {
+        return forcedDecimal;
+    }
+
+    @Override
+    public void setForcedDecimal(boolean forcedDecimal) {
+        this.forcedDecimal = forcedDecimal;
     }
 }

@@ -10,8 +10,8 @@ import org.geotools.geometry.jts.JTS;
 import org.geotools.gml2.bindings.GML2ParsingUtils;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.operation.projection.PointOutsideEnvelopeException;
-import org.geotools.xml.ElementInstance;
-import org.geotools.xml.Node;
+import org.geotools.xsd.ElementInstance;
+import org.geotools.xsd.Node;
 import org.locationtech.jts.geom.Geometry;
 import org.opengis.referencing.NoSuchAuthorityCodeException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
@@ -78,10 +78,11 @@ public class AbstractGeometryTypeBinding
                 // no crs set for the geometry, did we inherit one from a parent?
                 if (crs != null) {
                     geometry.setUserData(crs);
-                } else {
-                    // for the moment we don't do anything since we miss the information
-                    // to infer the CRS from the feature type
                 }
+                // else {
+                // for the moment we don't do anything since we miss the information
+                // to infer the CRS from the feature type
+                // }
             }
 
             // 2. ensure the coordinates of the geometry fall into valid space defined by crs

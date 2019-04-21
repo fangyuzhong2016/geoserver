@@ -61,10 +61,6 @@ public class PNGMapResponse extends RenderedImageMapResponse {
     private static MapProducerCapabilities CAPABILITIES =
             new MapProducerCapabilities(true, false, true, true, null);
 
-    /**
-     * @param format the format name as to be reported in the capabilities document
-     * @param wms
-     */
     public PNGMapResponse(WMS wms) {
         super(OUTPUT_FORMATS, wms);
     }
@@ -97,7 +93,7 @@ public class PNGMapResponse extends RenderedImageMapResponse {
         }
 
         // check to see if we have to see a translucent or bitmask quantizer
-        image = applyPalette(image, mapContent, "image/png8", true);
+        image = applyPalette(image, mapContent, f -> f != null && f.contains("png8"), true);
         float quality = (100 - wms.getPngCompression()) / 100.0f;
         JAIInfo.PngEncoderType encoder = wms.getPNGEncoderType();
         if (encoder == JAIInfo.PngEncoderType.PNGJ) {

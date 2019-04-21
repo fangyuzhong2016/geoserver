@@ -1,15 +1,7 @@
 /*
- *  (c) 2018 Open Source Geospatial Foundation - all rights reserved
- *  * This code is licensed under the GPL 2.0 license, available at the root
- *  * application directory.
- *
- */
-
-/*
- *  (c) 2018 Open Source Geospatial Foundation - all rights reserved
- *  * This code is licensed under the GPL 2.0 license, available at the root
- *  * application directory.
- *
+ * (c) 2018 Open Source Geospatial Foundation - all rights reserved
+ * This code is licensed under the GPL 2.0 license, available at the root
+ * application directory.
  */
 package org.geoserver.wfs3.response;
 
@@ -18,7 +10,6 @@ import freemarker.template.Template;
 import java.io.IOException;
 import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.WorkspaceInfo;
-import org.geoserver.config.GeoServer;
 import org.geoserver.ows.LocalWorkspace;
 import org.geoserver.platform.GeoServerResourceLoader;
 import org.geoserver.template.DirectTemplateFeatureCollectionFactory;
@@ -31,7 +22,6 @@ public class FreemarkerTemplateSupport {
     private static Configuration templateConfig = TemplateUtils.getSafeConfiguration();
 
     private final GeoServerResourceLoader resoureLoader;
-    private final GeoServer geoServer;
 
     static DirectTemplateFeatureCollectionFactory FC_FACTORY =
             new DirectTemplateFeatureCollectionFactory();
@@ -43,9 +33,8 @@ public class FreemarkerTemplateSupport {
         templateConfig.setObjectWrapper(new FeatureWrapper(FC_FACTORY));
     }
 
-    public FreemarkerTemplateSupport(GeoServerResourceLoader loader, GeoServer geoServer) {
+    public FreemarkerTemplateSupport(GeoServerResourceLoader loader) {
         this.resoureLoader = loader;
-        this.geoServer = geoServer;
     }
 
     /**

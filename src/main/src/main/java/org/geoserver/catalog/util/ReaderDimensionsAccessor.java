@@ -35,7 +35,6 @@ import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.StructuredGridCoverage2DReader;
 import org.geotools.data.Query;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.factory.Hints;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.visitor.UniqueVisitor;
 import org.geotools.util.Converters;
@@ -43,6 +42,7 @@ import org.geotools.util.DateRange;
 import org.geotools.util.NumberRange;
 import org.geotools.util.Range;
 import org.geotools.util.Utilities;
+import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
 import org.opengis.filter.FilterFactory;
 import org.opengis.filter.PropertyIsBetween;
@@ -73,7 +73,7 @@ public class ReaderDimensionsAccessor {
                 public int compare(Object o1, Object o2) {
                     // the domain can be a mix of dates and ranges
                     if (o1 instanceof Date) {
-                        if (o1 instanceof DateRange) {
+                        if (o2 instanceof DateRange) {
                             return ((Date) o1).compareTo(((DateRange) o2).getMinValue());
                         } else {
                             return ((Date) o1).compareTo((Date) o2);
@@ -224,6 +224,9 @@ public class ReaderDimensionsAccessor {
             String[] splitted = timeOrRange.split("/");
             final String strStart = splitted[0];
             final String strEnd = splitted[1];
+            if (strStart == null || strEnd == null) {
+                throw new IllegalArgumentException("Invalid date range " + timeOrRange);
+            }
             if (strStart != null && strStart.equals(strEnd)) {
                 return df.parse(strStart);
             } else {

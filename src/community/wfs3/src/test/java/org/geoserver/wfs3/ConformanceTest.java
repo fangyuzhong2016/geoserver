@@ -18,13 +18,13 @@ public class ConformanceTest extends WFS3TestSupport {
 
     @Test
     public void testCollectionsXML() throws Exception {
-        Document dom = getAsDOM("wfs3/conformance?f=text/xml");
+        Document dom = getAsDOM("wfs3/conformance?f=application/xml");
         print(dom);
     }
 
     @Test
     public void testCollectionsYaml() throws Exception {
         String yaml = getAsString("wfs3/conformance/?f=application/x-yaml");
-        System.out.println(yaml);
+        // System.out.println(yaml);
     }
 }

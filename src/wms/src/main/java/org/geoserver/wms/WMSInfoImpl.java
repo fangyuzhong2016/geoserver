@@ -59,13 +59,13 @@ public class WMSInfoImpl extends ServiceInfoImpl implements WMSInfo {
 
     int maxRenderingErrors;
 
-    private String capabilitiesErrorHandling;
-
     private String rootLayerTitle;
 
     private String rootLayerAbstract;
 
     private Integer maxRequestedDimensionValues;
+
+    private CacheConfiguration cacheConfiguration = new CacheConfiguration();
 
     public WMSInfoImpl() {
         authorityURLs = new ArrayList<AuthorityURLInfo>(2);
@@ -243,5 +243,18 @@ public class WMSInfoImpl extends ServiceInfoImpl implements WMSInfo {
 
     public void setMaxRequestedDimensionValues(int maxRequestedDimensionValues) {
         this.maxRequestedDimensionValues = maxRequestedDimensionValues;
+    }
+
+    @Override
+    public CacheConfiguration getCacheConfiguration() {
+        if (cacheConfiguration == null) {
+            cacheConfiguration = new CacheConfiguration();
+        }
+        return cacheConfiguration;
+    }
+
+    @Override
+    public void setCacheConfiguration(CacheConfiguration cacheCfg) {
+        this.cacheConfiguration = cacheCfg;
     }
 }

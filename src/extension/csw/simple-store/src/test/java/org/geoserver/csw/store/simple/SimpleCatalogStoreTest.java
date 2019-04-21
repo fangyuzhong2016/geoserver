@@ -31,11 +31,12 @@ import org.geotools.csw.DC;
 import org.geotools.data.Query;
 import org.geotools.data.Transaction;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.factory.Hints;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.feature.NameImpl;
 import org.geotools.filter.SortByImpl;
+import org.geotools.util.factory.Hints;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.opengis.feature.Attribute;
 import org.opengis.feature.ComplexAttribute;
@@ -54,7 +55,8 @@ public class SimpleCatalogStoreTest {
     File root = new File("./src/test/resources/org/geoserver/csw/store/simple");
     SimpleCatalogStore store = new SimpleCatalogStore(Files.asResource(root));
 
-    protected void setUp() throws Exception {
+    @BeforeClass
+    public static void setUp() {
         Hints.putSystemDefault(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER, true);
     }
 

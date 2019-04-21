@@ -12,13 +12,15 @@ import org.geoserver.platform.ServiceException;
 import org.geoserver.wms.MapProducerCapabilities;
 import org.geoserver.wms.WMS;
 import org.geoserver.wms.WMSMapContent;
+import org.geoserver.wms.WebMap;
 
 /** Allows encoding in JPEG or PNG depending on whether the image has transparency, or not */
 public class JpegPngMapResponse extends RenderedImageMapResponse {
 
     public static final String MIME = "image/vnd.jpeg-png";
+    public static final String MIME8 = "image/vnd.jpeg-png8";
 
-    private static final String[] OUTPUT_FORMATS = {MIME};
+    private static final String[] OUTPUT_FORMATS = {MIME, MIME8};
 
     private static MapProducerCapabilities CAPABILITIES =
             new MapProducerCapabilities(true, false, false, true, null);
@@ -27,10 +29,6 @@ public class JpegPngMapResponse extends RenderedImageMapResponse {
 
     private JPEGMapResponse jpegResponse;
 
-    /**
-     * @param format the format name as to be reported in the capabilities document
-     * @param wms
-     */
     public JpegPngMapResponse(WMS wms, JPEGMapResponse jpegResponse, PNGMapResponse pngResponse) {
         super(OUTPUT_FORMATS, wms);
         this.jpegResponse = jpegResponse;
@@ -41,13 +39,6 @@ public class JpegPngMapResponse extends RenderedImageMapResponse {
     public String getMimeType(Object value, Operation operation) throws ServiceException {
         RenderedImageMap map = ((RenderedImageMap) value);
         return JpegOrPngChooser.getFromMap(map).getMime();
-    }
-
-    @Override
-    public String getPreferredDisposition(Object value, Operation operation) {
-        RenderedImageMap map = ((RenderedImageMap) value);
-        String extension = JpegOrPngChooser.getFromMap(map).getMime();
-        return map.getSimpleAttachmentFileName() + "." + extension;
     }
 
     /**
@@ -79,6 +70,21 @@ public class JpegPngMapResponse extends RenderedImageMapResponse {
             return "jpg";
         } else {
             return "png";
+        }
+    }
+
+    @Override
+    public String getAttachmentFileName(Object value, Operation operation) {
+        String fileName = ((WebMap) value).getAttachmentFileName();
+        int idx = fileName.lastIndexOf(".");
+        if (idx > 0) {
+            return fileName.substring(0, idx)
+                    + "."
+                    + getExtension(
+                            ((RenderedImageMap) value).getImage(),
+                            ((RenderedImageMap) value).getMapContext());
+        } else {
+            return fileName;
         }
     }
 }

@@ -40,18 +40,18 @@ import org.geoserver.wms.GetLegendGraphicRequest.LegendRequest;
 import org.geoserver.wms.MapLayerInfo;
 import org.geoserver.wms.WMS;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
+import org.geotools.coverage.util.FeatureUtilities;
 import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.util.NullProgressListener;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.factory.FactoryRegistryException;
-import org.geotools.factory.GeoTools;
 import org.geotools.feature.SchemaException;
-import org.geotools.resources.coverage.FeatureUtilities;
-import org.geotools.styling.SLDParser;
 import org.geotools.styling.Style;
 import org.geotools.styling.StyleFactory;
-import org.geotools.util.NullProgressListener;
 import org.geotools.util.URLs;
+import org.geotools.util.factory.FactoryRegistryException;
+import org.geotools.util.factory.GeoTools;
 import org.geotools.util.logging.Logging;
+import org.geotools.xml.styling.SLDParser;
 import org.opengis.feature.type.FeatureType;
 import org.opengis.feature.type.Name;
 import org.opengis.referencing.operation.TransformException;
@@ -91,7 +91,6 @@ public class GetLegendGraphicKvpReader extends KvpRequestReader {
     /**
      * Creates a new GetLegendGraphicKvpReader object.
      *
-     * @param params map of key/value pairs with the parameters for a GetLegendGraphic request
      * @param wms WMS config object.
      */
     public GetLegendGraphicKvpReader(WMS wms) {
@@ -237,7 +236,7 @@ public class GetLegendGraphicKvpReader extends KvpRequestReader {
      * <p>Additional LayerInfo details such as title and legend are filled in if available.
      *
      * @param layerInfo The layer description
-     * @param req The GetLegendGrapicRequest used for context
+     * @param request The GetLegendGrapicRequest used for context
      * @return created LegendRequest
      * @throws FactoryRegistryException
      * @throws IOException
@@ -248,7 +247,10 @@ public class GetLegendGraphicKvpReader extends KvpRequestReader {
             throws FactoryRegistryException, IOException, TransformException, SchemaException {
         FeatureType featureType = getLayerFeatureType(layerInfo);
         if (featureType != null) {
-            LegendRequest legend = request.new LegendRequest(featureType);
+            LegendRequest legend =
+                    request
+                    .new LegendRequest(
+                            featureType, layerInfo.getResource().getQualifiedName(), wms);
             legend.setLayerInfo(layerInfo);
 
             MapLayerInfo mli = new MapLayerInfo(layerInfo);

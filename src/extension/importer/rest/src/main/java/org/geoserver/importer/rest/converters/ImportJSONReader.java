@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -36,6 +37,7 @@ import org.geoserver.importer.UpdateMode;
 import org.geoserver.importer.ValidationException;
 import org.geoserver.importer.mosaic.Mosaic;
 import org.geoserver.importer.mosaic.TimeMode;
+import org.geoserver.importer.rest.ImportLayer;
 import org.geoserver.importer.transform.AttributeComputeTransform;
 import org.geoserver.importer.transform.AttributeRemapTransform;
 import org.geoserver.importer.transform.AttributesToPointGeometryTransform;
@@ -146,7 +148,7 @@ public class ImportJSONReader {
         return context;
     }
 
-    LayerInfo layer(JSONObject json) throws IOException {
+    ImportLayer layer(JSONObject json) throws IOException {
         CatalogFactory f = importer.getCatalog().getFactory();
 
         if (json.has("layer")) {
@@ -203,7 +205,7 @@ public class ImportJSONReader {
                 l.setDefaultStyle(fromJSON(sobj, StyleInfo.class));
             }
         }
-        return l;
+        return new ImportLayer(l);
     }
 
     public ImportTask task(InputStream inputStream) throws IOException {
@@ -252,7 +254,7 @@ public class ImportJSONReader {
 
         LayerInfo layer = null;
         if (json.has("layer")) {
-            layer = layer(json.getJSONObject("layer"));
+            layer = layer(json.getJSONObject("layer")).getLayer();
         } else {
             layer = importer.getCatalog().getFactory().createLayer();
         }
@@ -461,7 +463,7 @@ public class ImportJSONReader {
                 throw new IllegalArgumentException(
                         "time object must specific mode property as "
                                 + "one of "
-                                + TimeMode.values());
+                                + Arrays.asList(TimeMode.values()));
             }
 
             m.setTimeMode(TimeMode.valueOf(time.getString("mode").toUpperCase()));
@@ -482,7 +484,7 @@ public class ImportJSONReader {
         }
     }
 
-    Database database(JSONObject json) throws IOException {
+    Database database(JSONObject json) {
         throw new UnsupportedOperationException("TODO: implement");
     }
 

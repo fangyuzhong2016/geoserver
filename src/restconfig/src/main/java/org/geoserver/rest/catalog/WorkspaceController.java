@@ -56,9 +56,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -175,8 +172,8 @@ public class WorkspaceController extends AbstractCatalogController {
             }
 
             String infoName = workspace.getName();
-            if (infoName != null && !workspaceName.equals(infoName)) {
-                throw new RestException("Can't change name of workspace", HttpStatus.FORBIDDEN);
+            if (infoName != null && infoName.isEmpty()) {
+                throw new RestException("The workspace name cannot be empty", HttpStatus.FORBIDDEN);
             }
 
             new CatalogBuilder(catalog).updateWorkspace(wks, workspace);
@@ -300,13 +297,7 @@ public class WorkspaceController extends AbstractCatalogController {
 
                     @Override
                     protected CatalogInfo getCatalogObject() {
-                        Map<String, String> uriTemplateVars =
-                                (Map<String, String>)
-                                        RequestContextHolder.getRequestAttributes()
-                                                .getAttribute(
-                                                        HandlerMapping
-                                                                .URI_TEMPLATE_VARIABLES_ATTRIBUTE,
-                                                        RequestAttributes.SCOPE_REQUEST);
+                        Map<String, String> uriTemplateVars = getURITemplateVariables();
                         String workspace = uriTemplateVars.get("workspaceName");
 
                         if (workspace == null) {

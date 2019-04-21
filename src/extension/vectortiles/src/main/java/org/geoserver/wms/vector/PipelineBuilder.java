@@ -12,13 +12,13 @@ import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.geotools.data.util.ScreenMap;
 import org.geotools.geometry.jts.Decimator;
 import org.geotools.geometry.jts.GeometryClipper;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.operation.transform.ConcatenatedTransform;
 import org.geotools.referencing.operation.transform.ProjectiveTransform;
-import org.geotools.renderer.ScreenMap;
 import org.geotools.renderer.crs.ProjectionHandler;
 import org.geotools.renderer.crs.ProjectionHandlerFinder;
 import org.geotools.renderer.lite.RendererUtilities;
@@ -31,13 +31,14 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
 import org.locationtech.jts.simplify.TopologyPreservingSimplifier;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.MathTransform;
 import org.opengis.referencing.operation.TransformException;
 
-class PipelineBuilder {
+public class PipelineBuilder {
 
     // The base simplification tolerance for screen coordinates.
     private static final double PIXEL_BASE_SAMPLE_SIZE = 0.25;
@@ -349,16 +350,14 @@ class PipelineBuilder {
 
         @Override
         protected Geometry _run(Geometry geom) throws Exception {
-            if (geom.getDimension() == 0) {
-                return geom;
+            switch (geom.getDimension()) {
+                case 2:
+                    return TopologyPreservingSimplifier.simplify(geom, this.distanceTolerance);
+                case 1:
+                    return DouglasPeuckerSimplifier.simplify(geom, this.distanceTolerance);
+                default:
+                    return geom;
             }
-            // DJB: Use this instead of org.locationtech.jts.simplify.DouglasPeuckerSimplifier
-            // because
-            // DPS does NOT do a good job with polygons.
-            TopologyPreservingSimplifier simplifier = new TopologyPreservingSimplifier(geom);
-            simplifier.setDistanceTolerance(this.distanceTolerance);
-            Geometry simplified = simplifier.getResultGeometry();
-            return simplified;
         }
     }
 

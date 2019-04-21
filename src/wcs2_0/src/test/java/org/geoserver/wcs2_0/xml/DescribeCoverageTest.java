@@ -11,7 +11,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import org.apache.commons.io.FileUtils;
 import org.geoserver.wcs2_0.WCSTestSupport;
-import org.geotools.xml.PreventLocalEntityResolver;
+import org.geotools.util.PreventLocalEntityResolver;
 import org.junit.Test;
 import org.w3c.dom.Document;
 
@@ -41,7 +41,7 @@ public class DescribeCoverageTest extends WCSTestSupport {
         // print(dom, System.out);
 
         // validate
-        checkValidationErrors(dom, WCS20_SCHEMA);
+        checkValidationErrors(dom, getWcs20Schema());
 
         // check it is good
         assertXpathEvaluatesTo("wcs__BlueMarble", "//wcs:CoverageDescription//wcs:CoverageId", dom);
@@ -69,7 +69,7 @@ public class DescribeCoverageTest extends WCSTestSupport {
         assertNotNull(dom);
         // print(dom, System.out);
 
-        checkValidationErrors(dom, WCS20_SCHEMA);
+        checkValidationErrors(dom, getWcs20Schema());
 
         // check it is good
         assertXpathEvaluatesTo("wcs__multiband", "//wcs:CoverageDescription//wcs:CoverageId", dom);

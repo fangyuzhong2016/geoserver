@@ -40,6 +40,7 @@ import org.geotools.data.Transaction;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.simple.SimpleFeatureStore;
+import org.geotools.data.util.NullProgressListener;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.gce.geotiff.GeoTiffFormat;
@@ -53,7 +54,6 @@ import org.geotools.process.factory.DescribeResult;
 import org.geotools.process.gs.GSProcess;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
-import org.geotools.util.NullProgressListener;
 import org.geotools.util.logging.Logging;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
@@ -350,14 +350,12 @@ public class ImportProcess implements GSProcess {
 
                 // check the target crs
                 CoordinateReferenceSystem cvCrs = coverage.getCoordinateReferenceSystem();
-                String targetSRSCode = null;
                 if (srs != null) {
                     try {
                         Integer code = CRS.lookupEpsgCode(srs, true);
                         if (code == null) {
                             throw new WPSException("Could not find a EPSG code for " + srs);
                         }
-                        targetSRSCode = "EPSG:" + code;
                     } catch (Exception e) {
                         throw new ProcessException(
                                 "Could not lookup the EPSG code for the provided srs", e);
@@ -366,8 +364,6 @@ public class ImportProcess implements GSProcess {
                     // check we can extract a code from the original data
                     if (cvCrs == null) {
                         // data is geometryless, we need a fake SRS
-                        targetSRSCode = "EPSG:4326";
-                        srsHandling = ProjectionPolicy.FORCE_DECLARED;
                         srs = DefaultGeographicCRS.WGS84;
                     } else {
                         CoordinateReferenceSystem nativeCrs = cvCrs;
@@ -384,7 +380,7 @@ public class ImportProcess implements GSProcess {
                                                     + "native spatial reference system: "
                                                     + nativeCrs);
                                 } else {
-                                    targetSRSCode = "EPSG:" + code;
+                                    String targetSRSCode = "EPSG:" + code;
                                     srs = CRS.decode(targetSRSCode, true);
                                 }
                             } catch (Exception e) {
@@ -419,8 +415,7 @@ public class ImportProcess implements GSProcess {
                 params.parameter(AbstractGridFormat.GEOTOOLS_WRITE_PARAMS.getName().toString())
                         .setValue(DEFAULT_WRITE_PARAMS);
                 final GeneralParameterValue[] wps =
-                        (GeneralParameterValue[])
-                                params.values().toArray(new GeneralParameterValue[1]);
+                        params.values().toArray(new GeneralParameterValue[1]);
 
                 try {
                     writer.write(coverage, wps);
@@ -436,12 +431,12 @@ public class ImportProcess implements GSProcess {
 
                 // add or update the datastore info
                 if (add) {
-                    catalog.add((CoverageStoreInfo) storeInfo);
+                    catalog.add(storeInfo);
                 } else {
-                    catalog.save((CoverageStoreInfo) storeInfo);
+                    catalog.save(storeInfo);
                 }
 
-                cb.setStore((CoverageStoreInfo) storeInfo);
+                cb.setStore(storeInfo);
 
                 GridCoverage2DReader reader = new GeoTiffReader(file);
                 if (reader == null) {

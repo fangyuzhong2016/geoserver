@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletRequest;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.wicket.AttributeModifier;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.markup.html.form.AjaxButton;
@@ -36,7 +36,6 @@ import org.apache.wicket.validation.IValidator;
 import org.apache.wicket.validation.ValidationError;
 import org.apache.wicket.validation.validator.RangeValidator;
 import org.geoserver.catalog.LegendInfo;
-import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.catalog.StyleInfo;
 import org.geoserver.catalog.WorkspaceInfo;
 import org.geoserver.config.GeoServer;
@@ -65,10 +64,6 @@ public class ExternalGraphicPanel extends Panel {
 
     private Model<String> showhideStyleModel = new Model<String>("");
 
-    /**
-     * @param id
-     * @param model Must return a {@link ResourceInfo}
-     */
     public ExternalGraphicPanel(
             String id, final CompoundPropertyModel<StyleInfo> styleModel, final Form<?> styleForm) {
         super(id, styleModel);

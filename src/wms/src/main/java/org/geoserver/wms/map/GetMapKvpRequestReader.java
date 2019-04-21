@@ -21,6 +21,17 @@ import java.util.logging.Level;
 import javax.media.jai.Interpolation;
 import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.collections.EnumerationUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.http.client.cache.CacheResponseStatus;
+import org.apache.http.client.cache.HttpCacheContext;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.conn.HttpClientConnectionManager;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.cache.CacheConfig;
+import org.apache.http.impl.client.cache.CachingHttpClientBuilder;
 import org.geoserver.catalog.DimensionInfo;
 import org.geoserver.catalog.LayerGroupInfo;
 import org.geoserver.catalog.LayerInfo;
@@ -31,28 +42,31 @@ import org.geoserver.catalog.StyleInfo;
 import org.geoserver.catalog.Styles;
 import org.geoserver.catalog.WMSLayerInfo;
 import org.geoserver.catalog.util.ReaderDimensionsAccessor;
+import org.geoserver.config.ConfigurationListenerAdapter;
+import org.geoserver.config.ServiceInfo;
 import org.geoserver.ows.HttpServletRequestAware;
 import org.geoserver.ows.KvpRequestReader;
 import org.geoserver.ows.LocalHttpServletRequest;
 import org.geoserver.ows.util.KvpUtils;
 import org.geoserver.platform.ServiceException;
 import org.geoserver.util.EntityResolverProvider;
+import org.geoserver.wms.CacheConfiguration;
 import org.geoserver.wms.GetMapRequest;
 import org.geoserver.wms.MapLayerInfo;
 import org.geoserver.wms.WMS;
 import org.geoserver.wms.WMSErrorCode;
+import org.geoserver.wms.WMSInfo;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.data.DataStore;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.wfs.WFSDataStoreFactory;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.referencing.CRS;
+import org.geotools.renderer.style.StyleAttributeExtractor;
 import org.geotools.styling.FeatureTypeStyle;
 import org.geotools.styling.NamedLayer;
 import org.geotools.styling.NamedStyle;
 import org.geotools.styling.Style;
-import org.geotools.styling.StyleAttributeExtractor;
-import org.geotools.styling.StyleFactory;
 import org.geotools.styling.StyledLayer;
 import org.geotools.styling.StyledLayerDescriptor;
 import org.geotools.styling.UserLayer;
@@ -63,12 +77,14 @@ import org.opengis.filter.Id;
 import org.opengis.filter.expression.PropertyName;
 import org.opengis.filter.sort.SortBy;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.springframework.beans.factory.DisposableBean;
 import org.vfny.geoserver.util.Requests;
 import org.vfny.geoserver.util.SLDValidator;
 import org.xml.sax.EntityResolver;
 import org.xml.sax.SAXException;
 
-public class GetMapKvpRequestReader extends KvpRequestReader implements HttpServletRequestAware {
+public class GetMapKvpRequestReader extends KvpRequestReader
+        implements HttpServletRequestAware, DisposableBean {
 
     private static Map<String, Integer> interpolationMethods;
 
@@ -78,9 +94,6 @@ public class GetMapKvpRequestReader extends KvpRequestReader implements HttpServ
         interpolationMethods.put("BILINEAR", Interpolation.INTERP_BILINEAR);
         interpolationMethods.put("BICUBIC", Interpolation.INTERP_BICUBIC);
     }
-
-    /** style factory */
-    private StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory(null);
 
     /** filter factory */
     private FilterFactory filterFactory = CommonFactoryFinder.getFilterFactory(null);
@@ -94,6 +107,11 @@ public class GetMapKvpRequestReader extends KvpRequestReader implements HttpServ
     /** EntityResolver provider, used in SLD parsing */
     EntityResolverProvider entityResolverProvider;
 
+    /** HTTP client used to fetch remote styles * */
+    CloseableHttpClient httpClient;
+
+    /** Current cache configuration. */
+    private CacheConfiguration cacheCfg;
     /**
      * This flags allows the kvp reader to go beyond the SLD library mode specification and match
      * the first style that can be applied to a given layer. This is for backwards compatibility
@@ -101,9 +119,77 @@ public class GetMapKvpRequestReader extends KvpRequestReader implements HttpServ
     private boolean laxStyleMatchAllowed = true;
 
     public GetMapKvpRequestReader(WMS wms) {
+        this(wms, null);
+    }
+
+    public GetMapKvpRequestReader(WMS wms, HttpClientConnectionManager manager) {
         super(GetMapRequest.class);
+        // configure the http client used to fetch remote styles
+        RequestConfig requestConfig = RequestConfig.DEFAULT;
+
+        wms.getGeoServer()
+                .addListener(
+                        new ConfigurationListenerAdapter() {
+
+                            @Override
+                            public void handleServiceChange(
+                                    ServiceInfo service,
+                                    List<String> propertyNames,
+                                    List<Object> oldValues,
+                                    List<Object> newValues) {
+                                if (service instanceof WMSInfo) {
+                                    WMSInfo info = (WMSInfo) service;
+                                    CacheConfiguration newCacheCfg = info.getCacheConfiguration();
+                                    if (!newCacheCfg.equals(cacheCfg)) {
+                                        createHttpClient(
+                                                wms,
+                                                manager,
+                                                requestConfig,
+                                                (CacheConfiguration) newCacheCfg.clone());
+                                    }
+                                }
+                            }
+                        });
         this.wms = wms;
         this.entityResolverProvider = new EntityResolverProvider(wms.getGeoServer());
+        createHttpClient(
+                wms,
+                manager,
+                requestConfig,
+                (CacheConfiguration) wms.getRemoteResourcesCacheConfiguration().clone());
+    }
+
+    private synchronized void createHttpClient(
+            WMS wms,
+            HttpClientConnectionManager manager,
+            RequestConfig requestConfig,
+            CacheConfiguration cfg) {
+        this.cacheCfg = cfg;
+        if (cfg != null && cfg.isEnabled()) {
+            CacheConfig cacheConfig =
+                    CacheConfig.custom()
+                            .setMaxCacheEntries(cacheCfg.getMaxEntries())
+                            .setMaxObjectSize(cacheCfg.getMaxEntrySize())
+                            .build();
+            if (httpClient != null) {
+                try {
+                    httpClient.close();
+                } catch (IOException e) {
+                    if (LOGGER.isLoggable(Level.SEVERE)) {
+                        LOGGER.log(Level.SEVERE, "Error closing HTTPClient", e);
+                    }
+                }
+            }
+            this.httpClient =
+                    CachingHttpClientBuilder.create()
+                            .setCacheConfig(cacheConfig)
+                            .setConnectionManager(manager)
+                            .setDefaultRequestConfig(requestConfig)
+                            .build();
+        } else {
+            this.httpClient =
+                    HttpClientBuilder.create().setDefaultRequestConfig(requestConfig).build();
+        }
     }
 
     /**
@@ -116,10 +202,6 @@ public class GetMapKvpRequestReader extends KvpRequestReader implements HttpServ
      */
     public void setHttpRequest(HttpServletRequest httpRequest) {
         LocalHttpServletRequest.set(httpRequest);
-    }
-
-    public void setStyleFactory(StyleFactory styleFactory) {
-        this.styleFactory = styleFactory;
     }
 
     public void setFilterFactory(FilterFactory filterFactory) {
@@ -321,52 +403,53 @@ public class GetMapKvpRequestReader extends KvpRequestReader implements HttpServ
 
             URL styleUrl = getMap.getStyleUrl();
 
-            if (getMap.getValidateSchema().booleanValue()) {
-                InputStream input = Requests.getInputStream(styleUrl);
-                List errors = null;
-
+            InputStream input = null;
+            if (styleUrl.getProtocol().toLowerCase().indexOf("http") == 0) {
+                input = getHttpInputStream(styleUrl);
+            } else {
                 try {
-                    errors = validateStyle(input, getMap);
-                } finally {
-                    input.close();
-                }
-
-                if ((errors != null) && (errors.size() != 0)) {
                     input = Requests.getInputStream(styleUrl);
-
-                    try {
-                        throw new ServiceException(SLDValidator.getErrorMessage(input, errors));
-                    } finally {
-                        input.close();
-                    }
-                }
-            }
-
-            // JD: GEOS-420, Wrap the sldUrl in getINputStream method in order
-            // to do compression
-            try (InputStreamReader input =
-                    new InputStreamReader(Requests.getInputStream(styleUrl))) {
-                StyledLayerDescriptor sld = parseStyle(getMap, input);
-                processSld(getMap, requestedLayerInfos, sld, styleNameList);
-            } catch (Exception ex) {
-                final Level l = Level.WARNING;
-                // KMS: Kludge here to allow through certain exceptions without being hidden.
-                if (ex.getCause() instanceof SAXException) {
-                    if (ex.getCause().getMessage().contains("Entity resolution disallowed")) {
-                        throw ex;
-                    }
-                }
-                LOGGER.log(l, "Exception while getting SLD.", ex);
-                // KMS: Replace with a generic exception so it can't be used to port scan the local
-                // network.
-                if (LOGGER.isLoggable(l)) {
-                    throw new ServiceException(
-                            "Error while getting SLD.  See the log for details.");
-                } else {
+                } catch (Exception ex) {
+                    LOGGER.log(Level.WARNING, "Exception while getting SLD.", ex);
+                    // KMS: Replace with a generic exception so it can't be used to port scan the
+                    // local
+                    // network.
                     throw new ServiceException("Error while getting SLD.");
                 }
             }
+            if (input != null) {
+                try (InputStreamReader reader = new InputStreamReader(input)) {
+                    if (getMap.getValidateSchema().booleanValue()) {
+                        List errors = validateStyle(input, getMap);
+                        if ((errors != null) && (errors.size() != 0)) {
+                            throw new ServiceException(SLDValidator.getErrorMessage(input, errors));
+                        }
+                    }
 
+                    StyledLayerDescriptor sld = parseStyle(getMap, reader);
+                    processSld(getMap, requestedLayerInfos, sld, styleNameList);
+                } catch (Exception ex) {
+                    final Level l = Level.WARNING;
+                    // KMS: Kludge here to allow through certain exceptions without being hidden.
+                    if (ex.getCause() instanceof SAXException) {
+                        if (ex.getCause().getMessage().contains("Entity resolution disallowed")) {
+                            throw ex;
+                        }
+                    }
+                    LOGGER.log(l, "Exception while getting SLD.", ex);
+                    // KMS: Replace with a generic exception so it can't be used to port scan the
+                    // local
+                    // network.
+                    if (LOGGER.isLoggable(l)) {
+                        throw new ServiceException(
+                                "Error while getting SLD.  See the log for details.");
+                    } else {
+                        throw new ServiceException("Error while getting SLD.");
+                    }
+                } finally {
+                    input.close();
+                }
+            }
             // set filter in, we'll check consistency later
             getMap.setFilter(filters);
             getMap.setSortBy(sortBy);
@@ -592,6 +675,66 @@ public class GetMapKvpRequestReader extends KvpRequestReader implements HttpServ
         return getMap;
     }
 
+    private InputStream getHttpInputStream(URL styleUrl) throws IOException {
+        InputStream input = null;
+        HttpCacheContext cacheContext = HttpCacheContext.create();
+        CloseableHttpResponse response = null;
+        try {
+            HttpGet httpget = new HttpGet(styleUrl.toExternalForm());
+            response = httpClient.execute(httpget, cacheContext);
+
+            if (cacheContext != null) {
+                CacheResponseStatus responseStatus = cacheContext.getCacheResponseStatus();
+                if (responseStatus != null) {
+                    switch (responseStatus) {
+                        case CACHE_HIT:
+                            if (LOGGER.isLoggable(Level.FINE)) {
+                                LOGGER.fine(
+                                        "A response was generated from the cache with "
+                                                + "no requests sent upstream");
+                            }
+                            break;
+                        case CACHE_MODULE_RESPONSE:
+                            if (LOGGER.isLoggable(Level.FINE)) {
+                                LOGGER.fine(
+                                        "The response was generated directly by the "
+                                                + "caching module");
+                            }
+                            break;
+                        case CACHE_MISS:
+                            if (LOGGER.isLoggable(Level.FINE)) {
+                                LOGGER.fine("The response came from an upstream server");
+                            }
+                            break;
+                        case VALIDATED:
+                            if (LOGGER.isLoggable(Level.FINE)) {
+                                LOGGER.fine(
+                                        "The response was generated from the cache "
+                                                + "after validating the entry with the origin server");
+                            }
+                            break;
+                    }
+                }
+            }
+            input = response.getEntity().getContent();
+            ByteArrayInputStream styleData = new ByteArrayInputStream(IOUtils.toByteArray(input));
+            input.close();
+            input = styleData;
+            input.reset();
+            return input;
+        } catch (Exception ex) {
+            LOGGER.log(Level.WARNING, "Exception while getting SLD.", ex);
+            // KMS: Replace with a generic exception so it can't be used to port scan the
+            // local
+            // network.
+            throw new ServiceException("Error while getting SLD.");
+        } finally {
+            if (response != null) {
+                response.close();
+            }
+        }
+    }
+
     private List<Interpolation> parseInterpolations(
             List<Object> requestedLayers, List<String> interpolationList) {
         List<Interpolation> interpolations = new ArrayList<Interpolation>();
@@ -610,9 +753,7 @@ public class GetMapKvpRequestReader extends KvpRequestReader implements HttpServ
                 interpolations.add(interpolation);
             } else if (o instanceof LayerGroupInfo) {
                 List<LayerInfo> subLayers = ((LayerGroupInfo) o).layers();
-                for (LayerInfo layer : subLayers) {
-                    interpolations.add(interpolation);
-                }
+                interpolations.addAll(Collections.nCopies(subLayers.size(), interpolation));
             } else {
                 throw new IllegalArgumentException("Unknown layer info type: " + o);
             }
@@ -1305,5 +1446,12 @@ public class GetMapKvpRequestReader extends KvpRequestReader implements HttpServ
 
     public void setLaxStyleMatchAllowed(boolean laxStyleMatchAllowed) {
         this.laxStyleMatchAllowed = laxStyleMatchAllowed;
+    }
+
+    @Override
+    public void destroy() throws Exception {
+        if (httpClient != null) {
+            httpClient.close();
+        }
     }
 }

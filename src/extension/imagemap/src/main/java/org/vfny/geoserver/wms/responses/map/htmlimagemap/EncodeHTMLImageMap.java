@@ -13,13 +13,11 @@ import java.util.logging.Logger;
 import org.geoserver.wms.WMSMapContent;
 import org.geoserver.wms.WebMap;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.DefaultQuery;
 import org.geotools.data.Query;
 import org.geotools.data.crs.ReprojectFeatureResults;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.factory.GeoTools;
 import org.geotools.feature.FeatureTypes;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.Layer;
@@ -28,6 +26,7 @@ import org.geotools.renderer.lite.RendererUtilities;
 import org.geotools.styling.FeatureTypeStyle;
 import org.geotools.styling.Rule;
 import org.geotools.styling.Style;
+import org.geotools.util.factory.GeoTools;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory;
@@ -331,7 +330,7 @@ public class EncodeHTMLImageMap extends WebMap {
 
                     // set the actual filter
                     // q.setFilter(ruleFilter);
-                    q = new DefaultQuery(schema.getTypeName(), ruleFilter);
+                    q = new Query(schema.getTypeName(), ruleFilter);
                     // q = (Query) DataUtilities.mixQueries(new
                     // Query(schema.getTypeName(),ruleFilter), q, "HTMLImageMapEncoder");
                 }

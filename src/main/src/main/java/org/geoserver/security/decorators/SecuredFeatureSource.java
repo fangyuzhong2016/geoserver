@@ -20,9 +20,9 @@ import org.geotools.data.FeatureSource;
 import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.store.ReTypingFeatureCollection;
-import org.geotools.factory.Hints;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
+import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
 import org.opengis.feature.Feature;
 import org.opengis.feature.simple.SimpleFeatureType;
@@ -141,7 +141,9 @@ public class SecuredFeatureSource<T extends FeatureType, F extends Feature>
      */
     protected Query mixQueries(Query userQuery, Query securityQuery) {
         // first rough mix
-        Query result = DataUtilities.mixQueries(userQuery, securityQuery, userQuery.getHandle());
+        Query result =
+                new Query(
+                        DataUtilities.mixQueries(userQuery, securityQuery, userQuery.getHandle()));
 
         // check request attributes and use those ones only
         List<PropertyName> securityProperties = securityQuery.getProperties();

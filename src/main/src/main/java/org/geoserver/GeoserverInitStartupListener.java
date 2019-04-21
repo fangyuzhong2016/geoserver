@@ -47,14 +47,14 @@ import org.geotools.coverage.CoverageFactoryFinder;
 import org.geotools.data.DataAccessFinder;
 import org.geotools.data.DataStoreFinder;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.factory.GeoTools;
-import org.geotools.factory.Hints;
 import org.geotools.image.io.ImageIOExt;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.ReferencingFactoryFinder;
 import org.geotools.referencing.factory.AbstractAuthorityFactory;
 import org.geotools.referencing.factory.DeferredAuthorityFactory;
 import org.geotools.util.WeakCollectionCleaner;
+import org.geotools.util.factory.GeoTools;
+import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
 import org.opengis.referencing.AuthorityFactory;
 import org.opengis.referencing.FactoryException;
@@ -69,8 +69,6 @@ public class GeoserverInitStartupListener implements ServletContextListener {
     private static final Logger LOGGER = Logging.getLogger("org.geoserver.logging");
 
     boolean relinquishLoggingControl;
-
-    private Iterator<Class<?>> products;
 
     private static final String COMPARISON_TOLERANCE_PROPERTY = "COMPARISON_TOLERANCE";
 
@@ -274,7 +272,7 @@ public class GeoserverInitStartupListener implements ServletContextListener {
                     // the
                     // sun.jdbc.odbc.JdbcOdbcDriver
                     ClassLoader driverClassLoader = driver.getClass().getClassLoader();
-                    if (driverClassLoader != null && webappClassLoader.equals(driverClassLoader)) {
+                    if (driverClassLoader != null && driverClassLoader.equals(webappClassLoader)) {
                         driversToUnload.add(driver);
                     }
                 } catch (Throwable t) {
@@ -288,10 +286,6 @@ public class GeoserverInitStartupListener implements ServletContextListener {
                 } catch (Exception e) {
                     LOGGER.log(Level.SEVERE, "Could now unload driver " + driver.getClass(), e);
                 }
-            }
-            drivers = DriverManager.getDrivers();
-            while (drivers.hasMoreElements()) {
-                Driver driver = drivers.nextElement();
             }
             try {
                 Class h2Driver = Class.forName("org.h2.Driver");
@@ -341,11 +335,7 @@ public class GeoserverInitStartupListener implements ServletContextListener {
                 try {
                     executor.shutdown();
                 } finally {
-                    try {
-                        executor.shutdownNow();
-                    } finally {
-
-                    }
+                    executor.shutdownNow();
                 }
             }
 

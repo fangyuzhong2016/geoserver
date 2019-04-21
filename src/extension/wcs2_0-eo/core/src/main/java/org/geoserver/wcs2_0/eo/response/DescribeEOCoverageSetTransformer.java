@@ -43,7 +43,6 @@ import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.store.MaxFeaturesFeatureCollection;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.factory.GeoTools;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -52,6 +51,7 @@ import org.geotools.referencing.CRS.AxisOrder;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.util.DateRange;
 import org.geotools.util.NumberRange;
+import org.geotools.util.factory.GeoTools;
 import org.geotools.util.logging.Logging;
 import org.geotools.xml.impl.DatatypeConverterImpl;
 import org.geotools.xml.transform.TransformerBase;
@@ -138,6 +138,8 @@ public class DescribeEOCoverageSetTransformer extends TransformerBase {
                     atts(
                             "xmlns:eop",
                             "http://www.opengis.net/eop/2.0", //
+                            "xmlns:ows",
+                            "http://www.opengis.net/ows/2.0",
                             "xmlns:gml",
                             "http://www.opengis.net/gml/3.2", //
                             "xmlns:wcsgs",

@@ -29,6 +29,7 @@ import net.razorvine.pickle.PickleException;
 import net.razorvine.pickle.PickleUtils;
 import net.razorvine.pickle.Pickler;
 import net.razorvine.pickle.Unpickler;
+import net.sf.json.JSONNull;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.ssl.SSLContexts;
@@ -180,6 +181,15 @@ public class XMPPClient extends RemoteProcessClient {
 
         // Complex and Raw data types
         // ----
+        PRIMITIVE_NAME_TYPE_MAP.put(
+                "complex",
+                new Object[] {
+                    RawData.class,
+                    CType.COMPLEX,
+                    new StringRawData("", "application/octet-stream"),
+                    "application/octet-stream",
+                    ".bin"
+                });
         PRIMITIVE_NAME_TYPE_MAP.put(
                 "application/xml",
                 new Object[] {
@@ -652,7 +662,9 @@ public class XMPPClient extends RemoteProcessClient {
                 }
             }
 
-            fixedInputs.put(key, fixedValue);
+            if (value != null && !(value instanceof JSONNull)) {
+                fixedInputs.put(key, fixedValue);
+            }
         }
 
         return fixedInputs;
@@ -926,13 +938,14 @@ public class XMPPClient extends RemoteProcessClient {
     protected void checkPendingRequests() throws Exception {
         synchronized (pendingRequests) {
             for (RemoteRequestDescriptor request : pendingRequests) {
-
                 // Check if the request is still valid
                 final String pid = request.getPid();
                 boolean isRequestValid = false;
+                RemoteProcessClientListener blockedProcess = null;
                 for (RemoteProcessClientListener process : getRemoteClientListeners()) {
                     if (process.getPID().equals(pid)) {
                         isRequestValid = true;
+                        blockedProcess = process;
                         break;
                     }
                 }
@@ -984,6 +997,9 @@ public class XMPPClient extends RemoteProcessClient {
                     // Remove the request from the queue
                     pendingRequests.remove(request);
                     continue;
+                } else {
+                    blockedProcess.setTask(pid, "Blocked: no resources available for execution!");
+                    blockedProcess.progress(pid, blockedProcess.getProgress(pid));
                 }
             }
         }
@@ -1042,8 +1058,9 @@ public class XMPPClient extends RemoteProcessClient {
      *
      * @param service name
      * @param candidateServiceJID
+     * @throws Exception
      */
-    private String getFlattestMachine(Name serviceName) {
+    private String getFlattestMachine(Name serviceName) throws Exception {
         // The candidate remote processing node
         RemoteMachineDescriptor candidateNode = null;
 
@@ -1066,10 +1083,11 @@ public class XMPPClient extends RemoteProcessClient {
                     Boolean.valueOf(getConfiguration().get("xmpp_force_execution"));
         }
 
-        synchronized (registeredProcessingMachines) {
-            LOGGER.info(
-                    "XMPPClient::getFlattestMachine - scanning the connected remote services...");
+        LOGGER.info("XMPPClient::getFlattestMachine - scanning the connected remote services...");
 
+        getEndpointsLoadAverages();
+
+        synchronized (registeredProcessingMachines) {
             for (RemoteMachineDescriptor node : registeredProcessingMachines) {
                 if (node.getAvailable() && node.getServiceName().equals(serviceName)) {
 
@@ -1549,8 +1567,10 @@ class XMPPPacketListener implements PacketListener {
                         /** Manage the channel occupants list */
                         final String channel = p.getFrom().substring(0, p.getFrom().indexOf("@"));
                         /*
-                         * if (xmppClient.occupantsList.get(channel) == null) { xmppClient.occupantsList.put(channel, new ArrayList<String>()); } if
-                         * (xmppClient.occupantsList.get(channel) != null) { if (!xmppClient.occupantsList.get(channel).contains(p. getFrom()))
+                         * if (xmppClient.occupantsList.get(channel) == null) {
+                         * xmppClient.occupantsList.put(channel, new ArrayList<String>()); } if
+                         * (xmppClient.occupantsList.get(channel) != null) { if
+                         * (!xmppClient.occupantsList.get(channel).contains(p. getFrom()))
                          * xmppClient.occupantsList.get(channel).add(p.getFrom() ); }
                          */
 
@@ -1625,7 +1645,27 @@ class XMPPPacketListener implements PacketListener {
                     for (XMPPMessage xmppMessage :
                             GeoServerExtensions.extensions(XMPPMessage.class)) {
                         if (xmppMessage.canHandle(signalArgs)) {
-                            xmppMessage.handleSignal(xmppClient, packet, message, signalArgs);
+                            try {
+                                xmppMessage.handleSignal(xmppClient, packet, message, signalArgs);
+                            } catch (IOException e) {
+                                LOGGER.log(Level.WARNING, e.getMessage(), e);
+
+                                Map<String, Object> metadata = new HashMap<String, Object>();
+                                metadata.put("serviceJID", packet.getFrom());
+
+                                final String pID =
+                                        (signalArgs != null ? signalArgs.get("id") : null);
+
+                                // NOTIFY SERVICE for aborting the computation as soon as possible
+                                final String serviceJID = message.getFrom();
+                                xmppClient.sendMessage(serviceJID, "topic=abort");
+
+                                // NOTIFY LISTENERS
+                                for (RemoteProcessClientListener listener :
+                                        xmppClient.getRemoteClientListeners()) {
+                                    listener.exceptionOccurred(pID, e, metadata);
+                                }
+                            }
                         }
                     }
                 }

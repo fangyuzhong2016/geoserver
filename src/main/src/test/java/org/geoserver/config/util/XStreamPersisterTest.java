@@ -53,6 +53,7 @@ import org.geoserver.catalog.LayerGroupInfo.Mode;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.MetadataMap;
 import org.geoserver.catalog.NamespaceInfo;
+import org.geoserver.catalog.SLDHandler;
 import org.geoserver.catalog.StyleInfo;
 import org.geoserver.catalog.WMSLayerInfo;
 import org.geoserver.catalog.WMSStoreInfo;
@@ -139,7 +140,7 @@ public class XStreamPersisterTest {
         g1.setUpdateSequence(123);
         g1.setVerbose(true);
         g1.setVerboseExceptions(true);
-        g1.getMetadata().put("one", new Integer(1));
+        g1.getMetadata().put("one", Integer.valueOf(1));
         g1.getMetadata().put("two", new Double(2.2));
 
         ByteArrayOutputStream out = out();
@@ -520,6 +521,21 @@ public class XStreamPersisterTest {
 
         catalog.add(s2);
         assertNull(s2.getWorkspace());
+    }
+
+    @Test
+    public void testLegacyStyle() throws Exception {
+        String xml =
+                "<style>\n"
+                        + "  <id>StyleInfoImpl--570ae188:124761b8d78:-7fe2</id>\n"
+                        + "  <name>raster</name>\n"
+                        + "  <filename>raster.sld</filename>\n"
+                        + "</style>";
+
+        StyleInfo style =
+                persister.load(new ByteArrayInputStream(xml.getBytes("UTF-8")), StyleInfo.class);
+        assertEquals(SLDHandler.FORMAT, style.getFormat());
+        assertEquals(SLDHandler.VERSION_10, style.getFormatVersion());
     }
 
     @Test
@@ -1038,6 +1054,36 @@ public class XStreamPersisterTest {
         assertNotNull(vt2.getNativeSrid(geometryName));
     }
 
+    /* Test for GEOS-8929 */
+    @Test
+    public void testOldJTSBindingConversion() throws Exception {
+        Catalog catalog = new CatalogImpl();
+        CatalogFactory cFactory = catalog.getFactory();
+
+        WorkspaceInfo ws = cFactory.createWorkspace();
+        ws.setName("foo");
+        catalog.add(ws);
+
+        NamespaceInfo ns = cFactory.createNamespace();
+        ns.setPrefix("acme");
+        ns.setURI("http://acme.org");
+        catalog.add(ns);
+
+        DataStoreInfo ds = cFactory.createDataStore();
+        ds.setWorkspace(ws);
+        ds.setName("foo");
+        catalog.add(ds);
+
+        persister.setCatalog(catalog);
+        FeatureTypeInfo ft =
+                persister.load(
+                        getClass().getResourceAsStream("/org/geoserver/config/old_jts_binding.xml"),
+                        FeatureTypeInfo.class);
+        assertNotNull(ft);
+        assertEquals(
+                org.locationtech.jts.geom.LineString.class, ft.getAttributes().get(0).getBinding());
+    }
+
     @Test
     public void testCRSConverter() throws Exception {
         CoordinateReferenceSystem crs = CRS.decode("EPSG:4326");
@@ -1097,7 +1143,7 @@ public class XStreamPersisterTest {
 
         Multimap<String, Object> mmap = ArrayListMultimap.create();
         mmap.put("one", "abc");
-        mmap.put("one", new Integer(2));
+        mmap.put("one", Integer.valueOf(2));
         mmap.put("two", new NumberRange<Integer>(Integer.class, 10, 20));
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();

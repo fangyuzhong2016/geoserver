@@ -22,9 +22,9 @@ import org.geoserver.catalog.ProjectionPolicy;
 import org.geoserver.catalog.StoreInfo;
 import org.geoserver.catalog.impl.AbstractDecorator;
 import org.geotools.data.FeatureSource;
-import org.geotools.factory.Hints;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.measure.Measure;
+import org.geotools.util.factory.Hints;
 import org.opengis.feature.type.FeatureType;
 import org.opengis.feature.type.Name;
 import org.opengis.filter.Filter;
@@ -323,5 +323,55 @@ public abstract class DecoratingFeatureTypeInfo extends AbstractDecorator<Featur
     @Override
     public void setCqlFilter(String cqlFilter) {
         delegate.setCqlFilter(cqlFilter);
+    }
+
+    @Override
+    public boolean getEncodeMeasures() {
+        return delegate.getEncodeMeasures();
+    }
+
+    @Override
+    public void setEncodeMeasures(boolean encodeMeasures) {
+        delegate.setEncodeMeasures(encodeMeasures);
+    }
+
+    @Override
+    public boolean getPadWithZeros() {
+        return delegate.getPadWithZeros();
+    }
+
+    @Override
+    public void setPadWithZeros(boolean padWithZeros) {
+        delegate.setPadWithZeros(padWithZeros);
+    }
+
+    @Override
+    public boolean getForcedDecimal() {
+        return delegate.getForcedDecimal();
+    }
+
+    @Override
+    public void setForcedDecimal(boolean forcedDecimal) {
+        delegate.setForcedDecimal(forcedDecimal);
+    }
+
+    @Override
+    public boolean isServiceConfiguration() {
+        return delegate.isServiceConfiguration();
+    }
+
+    @Override
+    public void setServiceConfiguration(boolean serviceConfiguration) {
+        delegate.setServiceConfiguration(serviceConfiguration);
+    }
+
+    @Override
+    public List<String> getDisabledServices() {
+        return delegate.getDisabledServices();
+    }
+
+    @Override
+    public void setDisabledServices(List<String> disabledServices) {
+        delegate.setDisabledServices(disabledServices);
     }
 }

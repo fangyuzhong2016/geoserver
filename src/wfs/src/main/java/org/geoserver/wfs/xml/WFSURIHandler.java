@@ -39,7 +39,7 @@ import org.geoserver.wfs.kvp.DescribeFeatureTypeKvpRequestReader;
 import org.geoserver.wfs.request.DescribeFeatureTypeRequest;
 import org.geoserver.wfs.xml.v1_1_0.XmlSchemaEncoder;
 import org.geotools.util.logging.Logging;
-import org.geotools.xml.Parser;
+import org.geotools.xsd.Parser;
 
 /**
  * URI handler that handles reflective references back to the server to avoid processing them in a
@@ -74,7 +74,7 @@ public class WFSURIHandler extends URIHandlerImpl {
                 LOGGER.log(Level.WARNING, "Unable to determine network interface info", ex);
             }
 
-            return Collections.list(e);
+            return e != null ? Collections.list(e) : Collections.emptyList();
         }
     }
 

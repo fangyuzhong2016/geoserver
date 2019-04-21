@@ -9,7 +9,7 @@
   <parent>
     <groupId>org.geoserver</groupId>
     <artifactId>geoserver</artifactId>
-    <version>2.14-SNAPSHOT</version>
+    <version>2.16-SNAPSHOT</version>
   </parent>
 
   <groupId>org.geoserver</groupId>
@@ -39,29 +39,27 @@
           <descriptor>release/ext-authkey.xml</descriptor>
           <!-- <descriptor>release/ext-groovy.xml</descriptor> -->
           <!-- <descriptor>release/ext-javascript.xml</descriptor> -->
-          <descriptor>release/ext-spatialite.xml</descriptor>
+          <!-- <descriptor>release/ext-spatialite.xml</descriptor> -->
           <descriptor>release/ext-jdbcconfig.xml</descriptor>
           <descriptor>release/ext-dds.xml</descriptor>
-          <descriptor>release/ext-aggregate.xml</descriptor>
           <descriptor>release/ext-wms-eo.xml</descriptor>
           <descriptor>release/ext-colormap.xml</descriptor>
           <descriptor>release/ext-mbtiles.xml</descriptor>
           <descriptor>release/ext-geopkg.xml</descriptor>
           <descriptor>release/ext-pgraster.xml</descriptor>
           <descriptor>release/ext-dyndimension.xml</descriptor>
+          <!-- If you are re-enabling this, remember to re-add the documentation -->
           <!-- <descriptor>release/ext-rest-ext.xml</descriptor> -->
           <descriptor>release/ext-kmlppio.xml</descriptor>
           <descriptor>release/ext-gpx.xml</descriptor>
           <descriptor>release/ext-wps-download.xml</descriptor>
           <descriptor>release/ext-jms-cluster.xml</descriptor>
           <descriptor>release/ext-hz-cluster.xml</descriptor>
-          <descriptor>release/ext-activeMQ.xml</descriptor>	
-          <descriptor>release/ext-solr.xml</descriptor>		  
-          <descriptor>release/ext-geofence.xml</descriptor>
-          <descriptor>release/ext-sldservice.xml</descriptor>
+          <descriptor>release/ext-activeMQ.xml</descriptor>
+          <descriptor>release/ext-solr.xml</descriptor>
+          <!-- If you are re-enabling this, remember to re-add the documentation -->
           <!-- <descriptor>release/ext-rest-upload.xml</descriptor> -->
-          <descriptor>release/ext-gwc-distributed.xml</descriptor>  
-          <descriptor>release/ext-geofence-server.xml</descriptor>
+          <descriptor>release/ext-gwc-distributed.xml</descriptor>
           <descriptor>release/ext-gwc-s3.xml</descriptor>
           <descriptor>release/ext-gdal-wcs.xml</descriptor>
           <descriptor>release/ext-gdal-wps.xml</descriptor>
@@ -72,7 +70,7 @@
           <descriptor>release/ext-jdbcstore.xml</descriptor>
           <descriptor>release/ext-ncwms.xml</descriptor>
           <descriptor>release/ext-gwc-sqlite.xml</descriptor> 
-          <descriptor>release/ext-geogig.xml</descriptor>
+	  <!--descriptor>release/ext-geogig.xml</descriptor>-->
           <descriptor>release/ext-oauth2-google.xml</descriptor>
           <descriptor>release/ext-oauth2-github.xml</descriptor>
           <descriptor>release/ext-oauth2-geonode.xml</descriptor>
@@ -93,7 +91,13 @@
           <descriptor>release/ext-taskmanager-s3.xml</descriptor>
           <descriptor>release/ext-netcdf-ghrsst.xml</descriptor>
           <descriptor>release/ext-wfs3.xml</descriptor>
-          <descriptor>release/ext-monitor-hibernate.xml</descriptor>
+          <descriptor>release/ext-mapml.xml</descriptor>
+          <!-- <descriptor>release/ext-monitor-hibernate.xml</descriptor> -->
+          <descriptor>release/ext-qos.xml</descriptor>
+          <descriptor>release/ext-web-resource.xml</descriptor>
+          <descriptor>release/ext-s3-geotiff.xml</descriptor>
+          <descriptor>release/ext-wmts-styles.xml</descriptor>
+          <descriptor>release/ext-ogr-datastore.xml</descriptor>
         </descriptors>
       </configuration>
      </plugin>
@@ -139,12 +143,6 @@
       <id>rest</id>
       <modules> 
         <module>rest</module>
-      </modules>
-    </profile>
-    <profile>
-      <id>sldService</id>
-      <modules> 
-        <module>sldService</module>
       </modules>
     </profile>
     <profile>
@@ -203,14 +201,19 @@
       </modules>
     </profile>
     <profile>
+      <id>qos</id>
+      <modules>
+		<module>qos</module>
+      </modules>
+    </profile>
+    <profile>
       <id>communityRelease</id>
       <modules>
         <module>authkey</module>
         <module>dds</module>
-        <module>spatialite</module>
+        <!-- <module>spatialite</module> -->
         <module>jdbcconfig</module>
-        <module>feature-aggregate</module>
-        <!--module>script</module-->
+        <module>script</module>
         <module>wms-eo</module>
         <module>colormap</module>
         <module>mbtiles</module>
@@ -225,14 +228,11 @@
         <module>hz-cluster</module>
         <module>solr</module>
         <!-- <module>rest-upload</module> -->
-        <module>geofence</module>
-        <module>geofence-server</module>
-        <module>sldService</module>
         <module>params-extractor</module>
         <module>wps-remote</module>
         <module>wps-jdbc</module>
         <module>release</module>
-        <module>geogig</module>
+	<!--<module>geogig</module>-->
         <module>gwc-distributed</module>
         <module>jdbcstore</module>
         <module>gdal</module>
@@ -247,7 +247,9 @@
         <module>security/oauth2-github</module>
         <module>security/oauth2-geonode</module>
         <module>security/oauth2-openid-connect</module>
+        <module>security/keycloak</module>
         <module>wmts-multi-dimensional</module>
+        <module>wmts-styles</module>
         <module>onelogin</module>
         <module>notification</module>
         <module>notification-common</module>
@@ -262,7 +264,10 @@
         <module>netcdf-ghrsst</module>
         <module>taskmanager</module>
         <module>wfs3</module>
-        <module>monitor-hibernate</module>
+        <!-- <module>monitor-hibernate</module> -->
+        <module>qos</module>
+        <module>mapml</module>
+        <module>web-ogr</module>
       </modules>
     </profile>
     <profile>
@@ -275,12 +280,6 @@
       <id>sextante</id>
       <modules>
         <module>wps-sextante</module>
-      </modules>
-    </profile>
-    <profile>      
-      <id>feature-aggregate</id>
-      <modules>
-        <module>feature-aggregate</module>
       </modules>
     </profile>
     <profile>      
@@ -395,25 +394,6 @@
       <modules>
         <module>jms-cluster</module>
       </modules>
-    </profile>
-    <profile>
-      <id>geofence</id>
-        <activation>
-          <property><name>geofence</name></property>
-        </activation>
-        <modules>
-          <module>geofence</module>
-        </modules>
-    </profile>
-    <profile>
-      <id>geofence-server</id>
-        <activation>
-          <property><name>geofence</name></property>
-        </activation>
-        <modules>
-          <module>geofence</module>
-	  <module>geofence-server</module>
-        </modules>
     </profile>
     <profile>
       <id>hz-cluster</id>
@@ -536,9 +516,21 @@
       </modules>
     </profile>
     <profile>
+      <id>keycloak</id>
+      <modules>
+        <module>security/keycloak</module>
+      </modules>
+    </profile>    
+    <profile>
       <id>wmts-multi-dimensional</id>
       <modules>
         <module>wmts-multi-dimensional</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>wmts-styles</id>
+      <modules>
+        <module>wmts-styles</module>
       </modules>
     </profile>
     <profile>
@@ -611,6 +603,18 @@
       <id>monitor-hibernate</id>
       <modules>
         <module>monitor-hibernate</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>mapml</id>
+      <modules>
+        <module>mapml</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>web-ogr</id>
+      <modules>
+        <module>web-ogr</module>
       </modules>
     </profile>
   </profiles>  

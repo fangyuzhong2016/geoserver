@@ -35,9 +35,9 @@ import org.geoserver.rest.RestException;
 import org.geoserver.rest.converters.XStreamMessageConverter;
 import org.geoserver.rest.util.MediaTypeExtensions;
 import org.geoserver.rest.wrapper.RestWrapper;
-import org.geotools.data.ows.Layer;
-import org.geotools.data.wmts.WebMapTileServer;
-import org.geotools.data.wmts.model.WMTSLayer;
+import org.geotools.ows.wms.Layer;
+import org.geotools.ows.wmts.WebMapTileServer;
+import org.geotools.ows.wmts.model.WMTSLayer;
 import org.geotools.util.logging.Logging;
 import org.opengis.filter.Filter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,9 +58,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -435,13 +432,7 @@ public class WMTSLayerController extends AbstractCatalogController {
                     @Override
                     protected CatalogInfo getCatalogObject() {
                         @SuppressWarnings("unchecked")
-                        Map<String, String> uriTemplateVars =
-                                (Map<String, String>)
-                                        RequestContextHolder.getRequestAttributes()
-                                                .getAttribute(
-                                                        HandlerMapping
-                                                                .URI_TEMPLATE_VARIABLES_ATTRIBUTE,
-                                                        RequestAttributes.SCOPE_REQUEST);
+                        Map<String, String> uriTemplateVars = getURITemplateVariables();
                         String workspaceName = uriTemplateVars.get("workspaceName");
                         String storeName = uriTemplateVars.get("storeName");
                         String layerName = uriTemplateVars.get("layerName");

@@ -130,7 +130,7 @@ public abstract class XStreamCatalogListConverter
                             throw new RuntimeException(
                                     "Could not determine identifier for: " + clazz.getName());
                         }
-                        writer.startNode("name");
+                        writer.startNode(wrapper.getItemAttributeName());
                         writer.setValue(ref);
                         writer.endNode();
 
@@ -214,7 +214,7 @@ public abstract class XStreamCatalogListConverter
 
         @Override
         protected XStream createXStreamInstance() {
-            return new XStream(new JettisonMappedXmlDriver());
+            return new SecureXStream(new JettisonMappedXmlDriver());
         }
 
         @Override

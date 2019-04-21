@@ -10,8 +10,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.geotools.factory.FactoryCreator;
-import org.geotools.factory.FactoryRegistry;
+import org.geotools.util.factory.FactoryCreator;
+import org.geotools.util.factory.FactoryRegistry;
 
 /**
  * Enable programs to find all available DWFWriter implementations.
@@ -40,7 +40,6 @@ public final class DXFWriterFinder {
      * Create a new DXFWriter instance for the requested version (null => any available version)
      *
      * @param version requested version compatibility
-     * @param mew writer
      */
     public static DXFWriter getWriter(String version, Writer writer) {
         FactoryRegistry writerRegistry = getServiceRegistry();

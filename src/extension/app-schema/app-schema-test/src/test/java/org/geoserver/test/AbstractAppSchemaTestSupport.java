@@ -6,9 +6,12 @@
 
 package org.geoserver.test;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.awt.Color;
 import java.awt.image.BufferedImage;
@@ -16,23 +19,34 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.TimeZone;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import net.sf.json.JSON;
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
 import org.custommonkey.xmlunit.SimpleNamespaceContext;
 import org.custommonkey.xmlunit.XMLAssert;
 import org.custommonkey.xmlunit.XMLUnit;
 import org.custommonkey.xmlunit.XpathEngine;
 import org.custommonkey.xmlunit.exceptions.XpathException;
 import org.geoserver.data.test.SystemTestData;
+import org.geoserver.util.IOUtils;
 import org.geoserver.wfs.WFSInfo;
+import org.geotools.appschema.jdbc.NestedFilterToSQL;
+import org.geotools.appschema.resolver.xml.AppSchemaValidator;
+import org.geotools.appschema.resolver.xml.AppSchemaXSDRegistry;
 import org.geotools.data.DataAccess;
 import org.geotools.data.complex.AppSchemaDataAccess;
 import org.geotools.data.complex.AppSchemaDataAccessRegistry;
@@ -44,12 +58,9 @@ import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.jdbc.BasicSQLDialect;
 import org.geotools.jdbc.JDBCDataStore;
-import org.geotools.jdbc.NestedFilterToSQL;
 import org.geotools.jdbc.PreparedFilterToSQL;
 import org.geotools.jdbc.PreparedStatementSQLDialect;
 import org.geotools.jdbc.SQLDialect;
-import org.geotools.xml.AppSchemaValidator;
-import org.geotools.xml.AppSchemaXSDRegistry;
 import org.geotools.xml.resolver.SchemaCache;
 import org.geotools.xml.resolver.SchemaCatalog;
 import org.geotools.xml.resolver.SchemaResolver;
@@ -136,6 +147,7 @@ public abstract class AbstractAppSchemaTestSupport extends GeoServerSystemTestSu
         getGeoServer().save(wfs);
         // disable schema caching in tests, as schemas are expected to provided on the classpath
         SchemaCache.disableAutomaticConfiguration();
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
     }
 
     /**
@@ -602,5 +614,67 @@ public abstract class AbstractAppSchemaTestSupport extends GeoServerSystemTestSu
         NestedFilterToSQL nestedFilterToSQL = new NestedFilterToSQL(mapping, original);
         nestedFilterToSQL.setInline(true);
         return nestedFilterToSQL;
+    }
+
+    /**
+     * Returns xml String from Document Object
+     *
+     * @param document
+     * @return
+     * @throws TransformerException
+     */
+    protected String toString(Document document) throws TransformerException {
+        TransformerFactory tf = TransformerFactory.newInstance();
+        Transformer transformer = tf.newTransformer();
+        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+        StringWriter writer = new StringWriter();
+        transformer.transform(new DOMSource(document), new StreamResult(writer));
+        return writer.getBuffer().toString();
+    }
+
+    /**
+     * Helper method that reads a resource from the class path converting it to text.
+     *
+     * @param resourcePath non relative path to the class path resource
+     * @return the content of the resource as text
+     */
+    protected String readResource(String resourcePath) {
+        try (InputStream input =
+                NormalizedMultiValuesTest.class.getResourceAsStream(resourcePath)) {
+            return IOUtils.toString(input);
+        } catch (Exception exception) {
+            throw new RuntimeException(String.format("Error reading resource '%s'.", resourcePath));
+        }
+    }
+
+    /** Drills into nested JSON objects (won't traverse arrays though) */
+    protected JSONObject getNestedObject(JSONObject root, String... keys) {
+        JSONObject curr = root;
+        for (String key : keys) {
+            if (!curr.has(key)) {
+                fail("Could not find property " + key + " in " + curr);
+            }
+            curr = curr.getJSONObject(key);
+        }
+        return curr;
+    }
+
+    /**
+     * Helper method that just extracts \ looks for a station in the provided GeoJSON response based
+     * on its ID.
+     */
+    protected JSONObject getFeaturePropertiesById(JSON geoJson, String id) {
+        assertThat(geoJson, instanceOf(JSONObject.class));
+        JSONObject json = (JSONObject) geoJson;
+        JSONArray features = json.getJSONArray("features");
+        for (int i = 0; i < features.size(); i++) {
+            JSONObject feature = features.getJSONObject(i);
+            if (Objects.equals(id, feature.get("id"))) {
+                // we found the feature we are looking for
+                return feature.getJSONObject("properties");
+            }
+        }
+        // feature matching the provided ID not found
+        return null;
     }
 }

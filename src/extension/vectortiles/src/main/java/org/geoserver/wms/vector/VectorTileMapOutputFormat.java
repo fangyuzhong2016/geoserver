@@ -17,18 +17,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.geoserver.platform.ServiceException;
 import org.geoserver.wms.MapProducerCapabilities;
-import org.geoserver.wms.WMS;
 import org.geoserver.wms.WMSMapContent;
 import org.geoserver.wms.WebMap;
 import org.geoserver.wms.map.AbstractMapOutputFormat;
 import org.geotools.data.FeatureSource;
 import org.geotools.data.Query;
-import org.geotools.factory.Hints;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.FeatureIterator;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.Layer;
 import org.geotools.renderer.lite.VectorMapRenderUtils;
+import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
 import org.locationtech.jts.geom.Geometry;
 import org.opengis.feature.Attribute;
@@ -46,9 +45,6 @@ public class VectorTileMapOutputFormat extends AbstractMapOutputFormat {
     /** A logger for this class. */
     private static final Logger LOGGER = Logging.getLogger(VectorTileMapOutputFormat.class);
 
-    /** WMS Service configuration * */
-    private final WMS wms;
-
     private final VectorTileBuilderFactory tileBuilderFactory;
 
     private boolean clipToMapBounds;
@@ -58,9 +54,8 @@ public class VectorTileMapOutputFormat extends AbstractMapOutputFormat {
 
     private boolean transformToScreenCoordinates;
 
-    public VectorTileMapOutputFormat(WMS wms, VectorTileBuilderFactory tileBuilderFactory) {
+    public VectorTileMapOutputFormat(VectorTileBuilderFactory tileBuilderFactory) {
         super(tileBuilderFactory.getMimeType(), tileBuilderFactory.getOutputFormats());
-        this.wms = wms;
         this.tileBuilderFactory = tileBuilderFactory;
     }
 
@@ -94,12 +89,16 @@ public class VectorTileMapOutputFormat extends AbstractMapOutputFormat {
         checkArgument(mapContent.getMapWidth() > 0);
         checkArgument(mapContent.getMapHeight() > 0);
 
-        // mapContent.setMapWidth(5 * mapContent.getMapWidth());
-        // mapContent.setMapHeight(5 * mapContent.getMapHeight());
-
         final ReferencedEnvelope renderingArea = mapContent.getRenderingArea();
-        final Rectangle paintArea =
-                new Rectangle(mapContent.getMapWidth(), mapContent.getMapHeight());
+        int mapWidth = mapContent.getMapWidth();
+        int mapHeight = mapContent.getMapHeight();
+        Rectangle paintArea = new Rectangle(mapWidth, mapHeight);
+        if (this.tileBuilderFactory.shouldOversampleScale()) {
+            paintArea =
+                    new Rectangle(
+                            this.tileBuilderFactory.getOversampleX() * mapWidth,
+                            this.tileBuilderFactory.getOversampleY() * mapHeight);
+        }
 
         VectorTileBuilder vectorTileBuilder;
         vectorTileBuilder = this.tileBuilderFactory.newBuilder(paintArea, renderingArea);
@@ -153,8 +152,8 @@ public class VectorTileMapOutputFormat extends AbstractMapOutputFormat {
             pipeline =
                     builder.preprocess()
                             .transform(transformToScreenCoordinates)
-                            .simplify(transformToScreenCoordinates)
                             .clip(clipToMapBounds, transformToScreenCoordinates)
+                            .simplify(transformToScreenCoordinates)
                             .collapseCollections()
                             .build();
         } catch (FactoryException e) {

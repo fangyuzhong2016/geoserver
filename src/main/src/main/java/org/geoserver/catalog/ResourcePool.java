@@ -5,35 +5,16 @@
  */
 package org.geoserver.catalog;
 
-import java.awt.RenderingHints;
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.Closeable;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.Serializable;
+import java.awt.*;
+import java.io.*;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.logging.Level;
@@ -42,17 +23,13 @@ import javax.measure.Unit;
 import javax.measure.UnitConverter;
 import javax.measure.quantity.Length;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.SerializationUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.SerializationUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.xsd.XSDElementDeclaration;
 import org.eclipse.xsd.XSDParticle;
 import org.eclipse.xsd.XSDSchema;
 import org.eclipse.xsd.XSDTypeDefinition;
-import org.geoserver.catalog.event.CatalogAddEvent;
-import org.geoserver.catalog.event.CatalogListener;
-import org.geoserver.catalog.event.CatalogModifyEvent;
-import org.geoserver.catalog.event.CatalogPostModifyEvent;
-import org.geoserver.catalog.event.CatalogRemoveEvent;
+import org.geoserver.catalog.event.*;
 import org.geoserver.catalog.impl.ModificationProxy;
 import org.geoserver.catalog.impl.StoreInfoImpl;
 import org.geoserver.config.GeoServerDataDirectory;
@@ -70,30 +47,14 @@ import org.geoserver.util.EntityResolverProvider;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
-import org.geotools.data.DataAccess;
-import org.geotools.data.DataAccessFactory;
+import org.geotools.data.*;
 import org.geotools.data.DataAccessFactory.Param;
-import org.geotools.data.DataAccessFinder;
-import org.geotools.data.DataSourceException;
-import org.geotools.data.DataStore;
-import org.geotools.data.DataUtilities;
-import org.geotools.data.FeatureSource;
-import org.geotools.data.Join;
-import org.geotools.data.Repository;
 import org.geotools.data.ows.HTTPClient;
-import org.geotools.data.ows.Layer;
-import org.geotools.data.ows.MultithreadedHttpClient;
 import org.geotools.data.ows.SimpleHttpClient;
-import org.geotools.data.ows.WMSCapabilities;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.data.store.ContentDataStore;
 import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.data.store.ContentState;
-import org.geotools.data.wms.WebMapServer;
-import org.geotools.data.wms.xml.WMSSchema;
-import org.geotools.data.wmts.WebMapTileServer;
-import org.geotools.data.wmts.model.WMTSCapabilities;
-import org.geotools.factory.Hints;
 import org.geotools.feature.AttributeTypeBuilder;
 import org.geotools.feature.FeatureTypes;
 import org.geotools.feature.NameImpl;
@@ -102,6 +63,13 @@ import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.gml2.GML;
 import org.geotools.measure.Measure;
+import org.geotools.ows.wms.Layer;
+import org.geotools.ows.wms.MultithreadedHttpClient;
+import org.geotools.ows.wms.WMSCapabilities;
+import org.geotools.ows.wms.WebMapServer;
+import org.geotools.ows.wms.xml.WMSSchema;
+import org.geotools.ows.wmts.WebMapTileServer;
+import org.geotools.ows.wmts.model.WMTSCapabilities;
 import org.geotools.referencing.CRS;
 import org.geotools.styling.Style;
 import org.geotools.styling.StyleImpl;
@@ -109,21 +77,18 @@ import org.geotools.styling.StyledLayerDescriptor;
 import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.URLs;
 import org.geotools.util.Utilities;
+import org.geotools.util.factory.Hints;
 import org.geotools.util.logging.Logging;
 import org.geotools.xml.DocumentFactory;
-import org.geotools.xml.Schemas;
 import org.geotools.xml.XMLHandlerHints;
 import org.geotools.xml.handlers.DocumentHandler;
+import org.geotools.xsd.Schemas;
 import org.opengis.coverage.grid.GridCoverage;
 import org.opengis.coverage.grid.GridCoverageReader;
 import org.opengis.feature.Feature;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.feature.type.AttributeDescriptor;
-import org.opengis.feature.type.FeatureType;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.feature.type.Name;
-import org.opengis.feature.type.PropertyDescriptor;
+import org.opengis.feature.type.*;
 import org.opengis.filter.Filter;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.crs.GeographicCRS;
@@ -191,9 +156,6 @@ public class ResourcePool {
 
     /** Default number of hard references */
     static int FEATURETYPE_CACHE_SIZE_DEFAULT = 100;
-
-    private static final String IMAGE_PYRAMID = "ImagePyramid";
-    private static final String IMAGE_MOSAIC = "ImageMosaic";
 
     Catalog catalog;
     Map<String, CoordinateReferenceSystem> crsCache;
@@ -1464,7 +1426,7 @@ public class ResourcePool {
     /**
      * Returns a coverage reader, caching the result.
      *
-     * @param info The coverage metadata.
+     * @param storeInfo The coverage metadata.
      * @param hints Hints to use when loading the coverage, may be <code>null</code>.
      * @throws IOException Any errors that occur loading the reader.
      */
@@ -1594,12 +1556,12 @@ public class ResourcePool {
         // Check to see if our "url" points to a file or not, otherwise we use the string
         // itself for reading
         Object readObject = urlString;
-        boolean isFile = false;
+        boolean isFile = true;
         URI uri;
         try {
             uri = new URI(urlString);
-            if (uri.getScheme() == null || "file".equalsIgnoreCase(uri.getScheme())) {
-                isFile = true;
+            if (uri.getScheme() != null && !"file".equalsIgnoreCase(uri.getScheme())) {
+                isFile = false;
             }
         } catch (URISyntaxException e) {
             LOGGER.warning(
@@ -1644,7 +1606,8 @@ public class ResourcePool {
      * <p>
      *
      * @param info The grid coverage metadata.
-     * @param envelope The section of the coverage to load.
+     * @param coverageName The grid coverage to load
+     * @param env The section of the coverage to load.
      * @param hints Hints to use while loading the coverage.
      * @throws IOException Any errors that occur loading the coverage.
      */
@@ -1666,7 +1629,7 @@ public class ResourcePool {
      * <p>
      *
      * @param info The grid coverage metadata.
-     * @param envelope The section of the coverage to load.
+     * @param env The section of the coverage to load.
      * @param hints Hints to use while loading the coverage.
      * @throws IOException Any errors that occur loading the coverage.
      */
@@ -1928,7 +1891,7 @@ public class ResourcePool {
 
         WMSCapabilities caps = info.getStore().getWebMapServer(null).getCapabilities();
         for (Layer layer : caps.getLayerList()) {
-            if (name.equals(layer.getName())) {
+            if (layer != null && name.equals(layer.getName())) {
                 return layer;
             }
         }
@@ -1955,7 +1918,7 @@ public class ResourcePool {
         caps = info.getStore().getWebMapTileServer(null).getCapabilities();
 
         for (Layer layer : caps.getLayerList()) {
-            if (name.equals(layer.getName())) {
+            if (layer != null && name.equals(layer.getName())) {
                 return layer;
             }
         }
@@ -2178,7 +2141,7 @@ public class ResourcePool {
      * Deletes a style from the configuration.
      *
      * @param style The configuration for the style.
-     * @param purge Whether to delete the file from disk.
+     * @param purgeFile Whether to delete the file from disk.
      */
     public void deleteStyle(StyleInfo style, boolean purgeFile) throws IOException {
         synchronized (styleCache) {
@@ -2862,11 +2825,12 @@ public class ResourcePool {
     }
 
     /**
-     * Package private on purpose, using it for testing
+     * The catalog repository, used to gather store references by name by some GeoTools stores like
+     * pre-generalized or image mosaic
      *
      * @return
      */
-    CatalogRepository getRepository() {
+    public CatalogRepository getRepository() {
         return repository;
     }
 }
