@@ -108,6 +108,10 @@
    <artifactId>gt-wms</artifactId>
   </dependency>
   <dependency>
+   <groupId>org.geotools</groupId>
+   <artifactId>gt-wmts</artifactId>
+  </dependency>
+  <dependency>
    <groupId>org.geotools.xsd</groupId>
    <artifactId>gt-xsd-sld</artifactId>
   </dependency>
@@ -139,6 +143,10 @@
    <groupId>javax.activation</groupId>
    <artifactId>activation</artifactId>
   </dependency>
+  <dependency>
+	<groupId>com.github.oshi</groupId>
+	<artifactId>oshi-core</artifactId>
+  </dependency>
 
 
   <dependency>
@@ -154,11 +162,6 @@
   <dependency>
    <groupId>org.easymock</groupId>
    <artifactId>easymock</artifactId>
-   <scope>test</scope>
-  </dependency>
-  <dependency>
-   <groupId>org.easymock</groupId>
-   <artifactId>easymockclassextension</artifactId>
    <scope>test</scope>
   </dependency>
   <dependency>
@@ -179,7 +182,6 @@
   <dependency>
    <groupId>org.geotools</groupId>
    <artifactId>gt-geotiff</artifactId>
-   <scope>test</scope>
   </dependency>
   <dependency>
    <groupId>org.geotools</groupId>

@@ -27,6 +27,7 @@ import org.geoserver.catalog.LayerGroupInfo;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.PublishedInfo;
 import org.geoserver.catalog.StyleInfo;
+import org.geoserver.catalog.impl.ResolvingProxy;
 import org.geoserver.config.util.XStreamPersister;
 import org.geoserver.rest.ObjectToMapWrapper;
 import org.geoserver.rest.ResourceNotFoundException;
@@ -129,6 +130,11 @@ public class LayerGroupController extends AbstractCatalogController {
             throw new RestException("layer group must not be empty", HttpStatus.BAD_REQUEST);
         }
 
+        // force resolve layers because catalog may leave null references
+        for (int i = 0; i < lg.getLayers().size(); i++) {
+            lg.getLayers().set(i, ResolvingProxy.resolve(catalog, lg.getLayers().get(i)));
+        }
+
         if (lg.getBounds() == null) {
             LOGGER.fine("Auto calculating layer group bounds");
             new CatalogBuilder(catalog).calculateLayerGroupBounds(lg);
@@ -152,7 +158,7 @@ public class LayerGroupController extends AbstractCatalogController {
                 builder.path("/layergroups/{layerGroupName}").buildAndExpand(layerGroupName);
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.setLocation(uriComponents.toUri());
-
+        httpHeaders.setContentType(MediaType.TEXT_PLAIN);
         return new ResponseEntity<>(layerGroupName, httpHeaders, HttpStatus.CREATED);
     }
 

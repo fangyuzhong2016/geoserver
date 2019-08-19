@@ -126,7 +126,7 @@ class NetCDFCRSWriter {
 
         // Get the proper type of axisCoordinates depending on
         // the type of CoordinateReferenceSystem
-        NetCDFCoordinate[] axisCoordinates = netcdfCrsType.getCoordinates();
+        NetCDFCoordinate[] axisCoordinates = netcdfCrsType.getCoordinates(crs);
 
         // Setup resolutions and bbox extrema to populate regularly gridded coordinate data
         // TODO: investigate whether we need to do some Y axis flipping
@@ -199,10 +199,7 @@ class NetCDFCRSWriter {
 
         // Set the coordinate values
         for (int pos = 0; pos < size; pos++) {
-            dimensionData.setFloat(
-                    index.set(pos),
-                    // new Float(ymax - (new Float(yPos).floatValue() * periodY)).floatValue());
-                    new Float(min + (new Float(pos).floatValue() * period)).floatValue());
+            dimensionData.setFloat(index.set(pos), (float) (min + (pos * period)));
         }
 
         // Add the dimension mapping to the coordinates dimensions

@@ -11,8 +11,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Reader;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -58,9 +56,10 @@ import org.apache.wicket.model.PropertyModel;
 import org.apache.wicket.request.IRequestParameters;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
 import org.apache.wicket.request.resource.PackageResourceReference;
-import org.apache.wicket.request.resource.ResourceReference;
-import org.apache.wicket.resource.FileSystemResourceReference;
+import org.apache.wicket.request.resource.ResourceStreamResource;
 import org.apache.wicket.util.io.IOUtils;
+import org.apache.wicket.util.resource.AbstractResourceStream;
+import org.apache.wicket.util.resource.ResourceStreamNotFoundException;
 import org.apache.wicket.util.string.StringValue;
 import org.apache.wicket.util.string.Strings;
 import org.geoserver.catalog.Catalog;
@@ -190,37 +189,31 @@ public abstract class AbstractStylePage extends GeoServerSecuredPage {
                     new DropDownChoice<String>(
                             "image", imageModel, new ArrayList<String>(imageSet));
 
-            URI stylesDir = dd.getStyles(ws).dir().toURI();
-
             Image display =
                     new Image(
                             "display",
-                            new IModel<ResourceReference>() {
+                            new ResourceStreamResource(
+                                    new AbstractResourceStream() {
+                                        InputStream is;
 
-                                @Override
-                                public ResourceReference getObject() {
-                                    if (imageModel.getObject() != null) {
-                                        try {
-                                            return new FileSystemResourceReference(
-                                                    imageModel.getObject(),
-                                                    FileSystemResourceReference.getPath(
-                                                            stylesDir.resolve(
-                                                                    imageModel.getObject())));
-                                        } catch (IOException | URISyntaxException e) {
-                                            LOGGER.log(Level.WARNING, e.getMessage(), e);
-                                            return null;
+                                        @Override
+                                        public InputStream getInputStream()
+                                                throws ResourceStreamNotFoundException {
+                                            GeoServerDataDirectory dd =
+                                                    GeoServerApplication.get()
+                                                            .getBeanOfType(
+                                                                    GeoServerDataDirectory.class);
+                                            is = dd.getStyles(ws).get(imageModel.getObject()).in();
+                                            return is;
                                         }
-                                    } else {
-                                        return null;
-                                    }
-                                }
 
-                                @Override
-                                public void setObject(ResourceReference object) {}
-
-                                @Override
-                                public void detach() {}
-                            });
+                                        @Override
+                                        public void close() throws IOException {
+                                            if (is != null) {
+                                                is.close();
+                                            }
+                                        }
+                                    }));
             display.setOutputMarkupPlaceholderTag(true).setVisible(false);
 
             image.setNullValid(true)
@@ -470,8 +463,9 @@ public abstract class AbstractStylePage extends GeoServerSecuredPage {
                                 try {
                                     tabPanel =
                                             panelClass
-                                                    .getConstructor(String.class, IModel.class)
-                                                    .newInstance(panelId, styleModel);
+                                                    .getConstructor(
+                                                            String.class, AbstractStylePage.class)
+                                                    .newInstance(panelId, AbstractStylePage.this);
                                 } catch (Exception e) {
                                     throw new WicketRuntimeException(e);
                                 }
@@ -554,69 +548,78 @@ public abstract class AbstractStylePage extends GeoServerSecuredPage {
         GeoServerDialog dialog = new GeoServerDialog("dialog");
         dialog.setOutputMarkupId(true);
         add(dialog);
-        GeoServerDialog.DialogDelegate imagePanelDelegate =
-                new GeoServerDialog.DialogDelegate() {
-
-                    private ChooseImagePanel imagePanel;
-
-                    @Override
-                    protected Component getContents(String id) {
-                        return imagePanel =
-                                new ChooseImagePanel(id, styleModel.getObject().getWorkspace());
-                    }
-
-                    @Override
-                    protected boolean onSubmit(AjaxRequestTarget target, Component contents) {
-                        String imageFileName = imagePanel.getChoice();
-                        if (Strings.isEmpty(imageFileName)) {
-                            FileUpload fu = imagePanel.getFileUpload();
-                            imageFileName = fu.getClientFileName();
-                            int teller = 0;
-                            GeoServerDataDirectory dd =
-                                    GeoServerApplication.get()
-                                            .getBeanOfType(GeoServerDataDirectory.class);
-                            Resource res = dd.getStyles(style.getWorkspace(), imageFileName);
-                            while (Resources.exists(res)) {
-                                imageFileName =
-                                        FilenameUtils.getBaseName(fu.getClientFileName())
-                                                + "."
-                                                + (++teller)
-                                                + "."
-                                                + FilenameUtils.getExtension(
-                                                        fu.getClientFileName());
-                                res = dd.getStyles(style.getWorkspace(), imageFileName);
-                            }
-                            try (InputStream is = fu.getInputStream()) {
-                                try (OutputStream os = res.out()) {
-                                    IOUtils.copy(is, os);
-                                }
-                            } catch (IOException e) {
-                                error(e.getMessage());
-                                target.add(imagePanel.getFeedback());
-                                return false;
-                            }
-                        }
-                        target.appendJavaScript(
-                                "replaceSelection('"
-                                        + styleHandler().insertImageCode(imageFileName)
-                                        + "');");
-                        return true;
-                    }
-
-                    @Override
-                    public void onError(AjaxRequestTarget target, Form<?> form) {
-                        target.add(imagePanel.getFeedback());
-                    }
-                };
         editor.addCustomButton(
                 new ParamResourceModel("insertImage", getPage()).getString(),
                 "button-picture",
                 target -> {
+                    String input = editor.getInput();
                     dialog.setTitle(new ParamResourceModel("insertImage", getPage()));
                     dialog.setInitialWidth(385);
                     dialog.setInitialHeight(175);
 
-                    dialog.showOkCancel(target, imagePanelDelegate);
+                    dialog.showOkCancel(
+                            target,
+                            new GeoServerDialog.DialogDelegate() {
+
+                                private ChooseImagePanel imagePanel;
+
+                                @Override
+                                protected Component getContents(String id) {
+                                    return imagePanel =
+                                            new ChooseImagePanel(
+                                                    id, styleModel.getObject().getWorkspace());
+                                }
+
+                                @Override
+                                protected boolean onSubmit(
+                                        AjaxRequestTarget target, Component contents) {
+                                    String imageFileName = imagePanel.getChoice();
+                                    if (Strings.isEmpty(imageFileName)) {
+                                        FileUpload fu = imagePanel.getFileUpload();
+                                        imageFileName = fu.getClientFileName();
+                                        int teller = 0;
+                                        GeoServerDataDirectory dd =
+                                                GeoServerApplication.get()
+                                                        .getBeanOfType(
+                                                                GeoServerDataDirectory.class);
+                                        Resource res =
+                                                dd.getStyles(
+                                                        styleModel.getObject().getWorkspace(),
+                                                        imageFileName);
+                                        while (Resources.exists(res)) {
+                                            imageFileName =
+                                                    FilenameUtils.getBaseName(
+                                                                    fu.getClientFileName())
+                                                            + "."
+                                                            + (++teller)
+                                                            + "."
+                                                            + FilenameUtils.getExtension(
+                                                                    fu.getClientFileName());
+                                            res = dd.getStyles(style.getWorkspace(), imageFileName);
+                                        }
+                                        try (InputStream is = fu.getInputStream()) {
+                                            try (OutputStream os = res.out()) {
+                                                IOUtils.copy(is, os);
+                                            }
+                                        } catch (IOException e) {
+                                            error(e.getMessage());
+                                            target.add(imagePanel.getFeedback());
+                                            return false;
+                                        }
+                                    }
+                                    target.appendJavaScript(
+                                            "replaceSelection('"
+                                                    + styleHandler()
+                                                            .insertImageCode(imageFileName, input)
+                                                    + "');");
+                                    return true;
+                                }
+
+                                @Override
+                                public void onError(AjaxRequestTarget target, Form<?> form) {
+                                    target.add(imagePanel.getFeedback());
+                                }
+                            });
                 });
 
         editor.addCustomButton(

@@ -306,7 +306,7 @@ public class ImporterIntegrationTest extends ImporterTestSupport {
                 "--AaB03x\r\nContent-Disposition: form-data; name=filedata; filename=data.csv\r\n"
                         + "Content-Type: text/plain\n"
                         + "\r\n\r\n"
-                        + FileUtils.readFileToString(locations)
+                        + FileUtils.readFileToString(locations, "UTF-8")
                         + "\r\n\r\n--AaB03x--";
 
         post("/rest/imports/" + importId + "/tasks", body, "multipart/form-data; boundary=AaB03x");
@@ -553,7 +553,9 @@ public class ImporterIntegrationTest extends ImporterTestSupport {
                 }
             }
         } else {
-            json = (JSONObject) getAsJSON("/rest/imports/" + importId);
+            MockHttpServletResponse response = getAsServletResponse("/rest/imports/" + importId);
+            assertEquals("application/json", response.getContentType());
+            json = (JSONObject) json(response);
             state = json.getJSONObject("import").getString("state");
         }
         Thread.sleep(500);
@@ -797,7 +799,7 @@ public class ImporterIntegrationTest extends ImporterTestSupport {
         // write out a simple shell script in the data dir and make it executable
         File scripts = getDataDirectory().findOrCreateDir("importer", "scripts");
         File script = new File(scripts, "test.sh");
-        FileUtils.writeStringToFile(script, "touch test.properties\n");
+        FileUtils.writeStringToFile(script, "touch test.properties\n", "UTF-8");
         script.setExecutable(true, true);
 
         // create context with default name
@@ -847,7 +849,7 @@ public class ImporterIntegrationTest extends ImporterTestSupport {
         // write out a simple shell script in the data dir and make it executable
         File scripts = getDataDirectory().findOrCreateDir("importer", "scripts");
         File script = new File(scripts, "test.sh");
-        FileUtils.writeStringToFile(script, "touch $1\n");
+        FileUtils.writeStringToFile(script, "touch $1\n", "UTF-8");
         script.setExecutable(true, true);
 
         // create context with default name
@@ -1117,5 +1119,61 @@ public class ImporterIntegrationTest extends ImporterTestSupport {
         assertEquals(
                 polygon.getId(),
                 catalog.getLayerByName(basicPolygonsName).getDefaultStyle().getId());
+    }
+    // GEOS-9073
+    @Test
+    public void testCharsetEncodingOption() throws Exception {
+        File dir = unpack("shape/bad_char_shp.zip");
+        String wsName = getCatalog().getDefaultWorkspace().getName();
+
+        File locations = new File(dir, "bad_char.shp");
+
+        // @formatter:off
+        String contextDefinition =
+                "{\n"
+                        + "   \"import\": {\n"
+                        + "      \"targetWorkspace\": {\n"
+                        + "         \"workspace\": {\n"
+                        + "            \"name\": \""
+                        + wsName
+                        + "\"\n"
+                        + "         }\n"
+                        + "      },\n"
+                        + "      \"data\": {\n"
+                        + "        \"type\": \"file\",\n"
+                        + "        \"file\": \""
+                        + jsonSafePath(locations)
+                        + "\",\n"
+                        + "    \"charsetEncoding\":\"UTF-8\"\n"
+                        + "      }\n"
+                        + "   }\n"
+                        + "}";
+
+        JSONObject json =
+                (JSONObject)
+                        json(
+                                postAsServletResponse(
+                                        "/rest/imports", contextDefinition, "application/json"));
+        int importId = json.getJSONObject("import").getInt("id");
+
+        ImportContext context = importer.getContext(importId);
+        assertEquals(ImportContext.State.PENDING, context.getState());
+
+        assertTrue(new File(context.getUploadDirectory().getFile(), ".locking").exists());
+
+        assertEquals(1, context.getTasks().size());
+        ImportTask task = context.getTasks().get(0);
+        LayerInfo layer = task.getLayer();
+        ResourceInfo resource = layer.getResource();
+        resource.setSRS("EPSG:4326");
+        importer.changed(task);
+        assertEquals(ImportTask.State.READY, task.getState());
+        context.updated();
+        assertEquals(ImportContext.State.PENDING, context.getState());
+        importer.run(context);
+        assertEquals(ImportContext.State.COMPLETE, context.getState());
+        assertTrue(context.getState() == ImportContext.State.COMPLETE);
+
+        assertTrue(new File(context.getUploadDirectory().getFile(), ".locking").exists());
     }
 }

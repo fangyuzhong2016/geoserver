@@ -20,14 +20,9 @@
  <dependencies>
    <dependency>
      <groupId>org.geoserver.community</groupId>
-     <artifactId>gs-authkey</artifactId>
-     <version>${project.version}</version>
-   </dependency>
-   <dependency>
-     <groupId>org.geoserver.community</groupId>
      <artifactId>gs-gpxppio</artifactId>
      <version>${project.version}</version>
-   </dependency>   
+   </dependency>
    <dependency>
      <groupId>org.geoserver.community</groupId>
      <artifactId>gs-wps-download</artifactId>
@@ -137,6 +132,11 @@
      <version>${project.version}</version>
    </dependency>
    <dependency>
+      <groupId>org.geoserver.community</groupId>
+      <artifactId>gs-gwc-azure-blob</artifactId>
+     <version>${project.version}</version>
+   </dependency>
+   <dependency>
      <groupId>org.geoserver.community</groupId>
      <artifactId>gs-gdal-wcs</artifactId>
      <version>${project.version}</version>
@@ -235,7 +235,7 @@
    </dependency>
    <dependency>
      <groupId>org.geoserver.community</groupId>
-     <artifactId>gs-onelogin</artifactId>
+     <artifactId>gs-saml</artifactId>
      <version>${project.version}</version>
    </dependency>
    <!-- <dependency>
@@ -281,11 +281,6 @@
    <dependency>
      <groupId>org.geoserver.community</groupId>
      <artifactId>gs-mbstyle</artifactId>
-     <version>${project.version}</version>
-   </dependency>
-   <dependency>
-     <groupId>org.geoserver.community</groupId>
-     <artifactId>gs-status-monitoring</artifactId>
      <version>${project.version}</version>
    </dependency>
    <dependency>
@@ -349,7 +344,22 @@
      <groupId>org.geoserver.community</groupId>
      <artifactId>gs-web-ogr</artifactId>
      <version>${project.version}</version>
-   </dependency>    
+   </dependency>  
+   <dependency>
+     <groupId>org.geoserver.community</groupId>
+     <artifactId>gs-ogcapi-features</artifactId>
+     <version>${project.version}</version>
+   </dependency>
+   <dependency>
+     <groupId>org.geoserver.community</groupId>
+     <artifactId>gs-ogcapi-styles</artifactId>
+     <version>${project.version}</version>
+   </dependency>
+   <dependency>
+     <groupId>org.geoserver.csw</groupId>
+     <artifactId>gs-csw-iso</artifactId>
+     <version>${project.version}</version>
+   </dependency>  
  </dependencies>
  <build>
   <plugins>

@@ -352,7 +352,7 @@ public class GeoServerSystemTestSupport extends GeoServerBaseTestSupport<SystemT
             disposeIfExists(getXSD10());
 
             // kill the context
-            applicationContext.destroy();
+            applicationContext.close();
 
             // kill static caches
             GeoServerExtensionsHelper.init(null);
@@ -1122,6 +1122,23 @@ public class GeoServerSystemTestSupport extends GeoServerBaseTestSupport<SystemT
 
         MockHttpServletRequest request = createRequest(path);
         request.setMethod("PUT");
+        request.setContentType(contentType);
+        request.setContent(body);
+
+        return dispatch(request);
+    }
+
+    protected MockHttpServletResponse patchAsServletResponse(
+            String path, String body, String contentType) throws Exception {
+        return patchAsServletResponse(
+                path, body != null ? body.getBytes() : (byte[]) null, contentType);
+    }
+
+    protected MockHttpServletResponse patchAsServletResponse(
+            String path, byte[] body, String contentType) throws Exception {
+
+        MockHttpServletRequest request = createRequest(path);
+        request.setMethod("PATCH");
         request.setContentType(contentType);
         request.setContent(body);
 

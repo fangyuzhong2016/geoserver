@@ -21,7 +21,7 @@ Installation
 Configuration
 -------------
 
-Configuration can be done using the Geoserver administrator GUI. The MapML configuration is accessible in the *MapML Settings* section under the *Publishing* tab of the Layer Configuration page for the layer being configured. Here is the MapML Settings section, with some example values filled in:
+Configuration can be done using the Geoserver administrator GUI. The MapML configuration is accessible in the *MapML Settings* section under the *Publishing* tab of the Layer or Layer Group Configuration page for the layer or layer group being configured. Here is the MapML Settings section, with some example values filled in:
 
 .. figure:: images/mapml_config_ui.png
 
@@ -42,11 +42,17 @@ Together these two attributes all the administrator to define the contents of th
 Tile Settings
 ^^^^^^^^^^^^^
 
-Using tiles to access the WMS layer can increase the perceived performance of the web map. This is especially true if there is some kind of tile cache mechanism in use, either at the Geoserver datastore level, or at the web server level.
+Using tiles to access the layer can increase the performance of your web map. This is especially true if there is a tile cache mechanism in use between GeoServer and the browser client.
 
 **Use Tiles**
-  If the Use Tiles checkbox is checked, the output MapML will define a tile-based reference to the WMS server. Otherwise, an image-based reference will be used.
+  If the "Use Tiles" checkbox is checked, by default the output MapML will define a tile-based reference to the WMS server. Otherwise, an image-based reference will be used.  If one or more of the MapML-defined GridSets is referenced by the layer or layer group in its "Tile Caching" profile, GeoServer will generate tile references instead of generating WMS GetMap URLs in the MapML document body.
 
+Tile Caching
+^^^^^^^^^^^^
+
+In the Tile Caching tab panel of the Edit Layer or Edit Layer Group page, at the bottom of the page you will see the table of GridSets that are assigned to the layer or layer group.  The values "WGS84" and "OSMTILE" are equivalent to the EPSG:4326 and EPSG:900913 built in GeoWebCache GridSets. However, for the MapML module to recognize these GridSets, you must select and use the MapML names.   For new layers or layer groups, or newly created grid subsets for a layer or layer group, the MapML values are selected by default.  For existing layers that you wish to enable the use of cached tile references by the MapML service, you will have to select and add those values you wish to support from the dropdown of available GridSets.  The set of recognized values for MapML is "WGS84" (equivalent to EPSG:4326), "OSMTILE" (equivalent to EPSG:900913), "CBMTILE" (Canada Base Map) and "APSTILE" (Alaska Polar Stereographic).
+
+.. figure:: images/mapml_tile_caching_panel_ui.png
 
 Sharding Config
 ^^^^^^^^^^^^^^^^
@@ -110,7 +116,13 @@ Each of the URL query string parameters are optional, but if provided they are e
 MapML Visualization
 -------------------
 
-The only tool which is presently able to display MapML is a Leaflet-based MapML client. This client can be imported into an HTML page with the appropriate ``<map>`` and ``<layer>`` elements to reference the MapML resources defined above. Here is a simple, self-contained example of such an HTML page: 
+With the MapML Community Module installed, the GeoServer Layer Preview page is modified to add a link to the MapML resources for each layer and layer group.  The MapML link in the Layer Preview table intercepted by the MapML module, and an HTML Web map page is created on the fly which refers to the MapML resource:
+
+.. figure:: images/mapml_preview_ui.png
+
+You can add layers to the map as you like, by dragging the link URL from the Layer Preview table and dropping it onto another layer's MapML preview.  If all goes well, you should see the layers stacked on the map and in the layer control.
+
+The only tool which is presently able to display MapML is a Leaflet-based MapML client. You can get your own copy of the client by using the npm "bower" package management tool.  Once you have bower installed, you can install the web-map client in a directory of your choice, by running the "bower install web-map" command in that directory. This will create a "bower_components" directory in the directory in which you execute the command. This client can be imported into an HTML page with the appropriate ``<map>`` and ``<layer>`` elements to reference the MapML resources defined above. Here is a simple, self-contained example of such an HTML page: 
 
 .. code-block:: html
 
@@ -118,8 +130,8 @@ The only tool which is presently able to display MapML is a Leaflet-based MapML 
         <head>
             <title>MapML Test Map</title>
             <meta charset="utf-8" />
-            <script src="http://geogratis.gc.ca/api/beta/mapml/client/bower_components/webcomponentsjs/webcomponents-lite.min.js"></script>
-            <link rel="import" href="http://geogratis.gc.ca/api/beta/mapml/client/bower_components/web-map/web-map.html">
+            <script src="./bower_components/webcomponentsjs/webcomponents-lite.min.js"></script>
+            <link rel="import" href="./bower_components/web-map/web-map.html">
             <style>
                 /* make the map fullscreen */
                 html, body {
@@ -138,10 +150,10 @@ The only tool which is presently able to display MapML is a Leaflet-based MapML 
             </style>
         </head>
         <body>
-            <map is="web-map" projection="{projectionName}" zoom="2" lat="61.209125" lon="-90.850837" controls>
-                <layer- label="{layerName}" src="http://{serverName}/geoserver/mapml/{layerName}/{projectionName}?style={styleName}" checked hidden></layer->
+            <map is="web-map" projection="osmtile" zoom="2" lat="61.209125" lon="-90.850837" controls>
+                <layer- label="US States" src="http://localhost:8080/geoserver/mapml/topp:states/osmtile?style=population" checked></layer->
             </map>
         </body>
     </html>
     
-In the above example, the place-holders ``{layerName}``, ``{serverName}``, ``{projectionName}``, and ``{styleName}`` would need to be replaced with the appropriate values, and/or the ``style`` parameter could be removed entirely from the URL if not needed.
+In the above example, the place-holders ``topp:states``, ``localhost:8080``, ``osmtile``, and ``population`` would need to be replaced with the appropriate values, and/or the ``style`` parameter could be removed entirely from the URL if not needed.  You may also like to "View Source" on the preview page to see what the markup looks like for any layer.  This code can be copied and pasted without harm, and you should try it and see what works and what the limitations are.  For further information about MapML, and the Maps for HTML Community Group, please visit http://maps4html.org.

@@ -41,6 +41,8 @@ import org.geotools.util.URLs;
  */
 public class Resources {
 
+    private static final int MAX_RENAME_ATTEMPTS = 100;
+
     /**
      * Test if the file or directory denoted by this resource exists.
      *
@@ -118,6 +120,40 @@ public class Resources {
 
             default:
                 return null;
+        }
+    }
+
+    /**
+     * Checks {@link Resource#getType()} and returns existing file() or dir() as appropriate, or
+     * null for {@link Resource.Type#UNDEFINED}.
+     *
+     * <p>This approach is a reproduction of GeoServerResourceLoader find logic.
+     *
+     * @see Resource#dir()
+     * @see Resource#file()
+     * @param resource Resource indicated
+     * @param force false to return null for {@link Resource.Type#UNDEFINED}, true to force a File
+     *     to be created.
+     * @return The file if exists, null if {@link Resource.Type#UNDEFINED} and force is false, a
+     *     File with the resource path otherwise
+     */
+    public static File find(Resource resource, boolean force) {
+        if (resource == null) {
+            return null;
+        }
+        switch (resource.getType()) {
+            case DIRECTORY:
+                return resource.dir();
+
+            case RESOURCE:
+                return resource.file();
+
+            default:
+                if (force) {
+                    return new File(resource.path());
+                } else {
+                    return null;
+                }
         }
     }
 
@@ -817,5 +853,39 @@ public class Resources {
             return null;
         }
         return new SerializableResourceWrapper(resource);
+    }
+
+    /**
+     * Determine unique name of the form <code>newName.extension</code>. newName will have a number
+     * appended as required to produce a unique resource name.
+     *
+     * @param resource Resource being renamed
+     * @param newName proposed name to use as a template
+     * @param extension extension
+     * @return New UNDEFINED resource suitable for use with rename
+     * @throws IOException If unique resource cannot be produced
+     */
+    public static Resource uniqueResource(Resource resource, String newName, String extension)
+            throws IOException {
+        Resource target = resource.parent().get(newName + "." + extension);
+
+        int i = 0;
+        while (target.getType() != Type.UNDEFINED && ++i <= MAX_RENAME_ATTEMPTS) {
+            target = resource.parent().get(newName + i + "." + extension);
+        }
+        if (i > MAX_RENAME_ATTEMPTS) {
+            throw new IOException(
+                    "All target files between "
+                            + newName
+                            + "1."
+                            + extension
+                            + " and "
+                            + newName
+                            + MAX_RENAME_ATTEMPTS
+                            + "."
+                            + extension
+                            + " are in use already, giving up");
+        }
+        return target;
     }
 }
