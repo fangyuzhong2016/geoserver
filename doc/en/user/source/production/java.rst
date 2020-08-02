@@ -3,113 +3,125 @@
 Java Considerations
 ===================
 
-Use supported JRE
------------------
+Use a supported Java version 
+----------------------------
 
-GeoServer's speed depends a lot on the chosen Java Runtime Environment (JRE). The latest versions of GeoServer are tested with both Oracle JRE and OpenJDK. Implementations other than those tested may work correctly, but are generally not recommended.
+GeoServer's speed depends a lot on the chosen Java Runtime Environment (JRE). The latest versions of GeoServer are tested with both OpenJDK and Oracle. Implementations other than those tested may work correctly, but are generally not recommended.
 
-Tested:
+GeoServer is built and tested with Java 8 (Recommended), `supported up to 2026 <https://adoptopenjdk.net/support.html#roadmap>`_, and Java 11, `supported up to 2024 <https://adoptopenjdk.net/support.html#roadmap>`_. We recommend these long-term-support releases for production. Java has adopted development cycle with a release every six months containing experimental features. These releases are not tested with GeoServer and are not recommended for production.
 
-* Java 11 - GeoServer 2.15.x and above (OpenJDK tested)
-* Java 8 - GeoServer 2.9.x and above (OpenJDK and Oracle JRE tested)
-* Java 7 - GeoServer 2.6.x to GeoServer 2.8.x (OpenJDK and Oracle JRE tested)
-* Java 6 - GeoServer 2.3.x to GeoServer 2.5.x (Oracle JRE tested)
-* Java 5 - GeoServer 2.2.x and earlier (Sun JRE tested)
+For best performance we recommend the use *OpenJDK 8* (also known as JRE 1.8).
 
-For best performance we recommend the use *Oracle JRE 8* (also known as JRE 1.8).
+.. list-table:: Title
+   :widths: 20, 10, 10, 10, 50
+   :header-rows: 1
 
-.. Further speed improvements can be released using `Marlin renderer <https://github.com/bourgesl/marlin-renderer>`__ alternate renderer.
+   * - Java Version
+     - OpenJDK
+     - Oracle
+     - Sun
+     - GeoServer Compatibility
+   * - **Java 11**
+     - tested
+     - tested
+     -
+     - GeoServer 2.15.x and above
+   * - **Java 8**
+     - tested
+     - tested
+     -
+     - GeoServer 2.9.x and above
+   * - Java 7 
+     - tested
+     - tested
+     -
+     - GeoServer 2.6.x to 2.8.x
+   * - Java 6 
+     - 
+     - tested
+     -
+     - GeoServer 2.3.x to 2.5.x
+   * - Java 5 
+     - 
+     - 
+     - tested
+     - GeoServer 2.2.x and earlier
 
-As of GeoServer 2.0, a Java Runtime Environment (JRE) is sufficient to run GeoServer.  GeoServer no longer requires a Java Development Kit (JDK).
+As of GeoServer 2.0, a Java Runtime Environment (JRE) is sufficient to run GeoServer.  GeoServer no longer requires installation of a complete Java Development Kit (JDK) with compiler.
 
-Running on Java 11
-------------------
+Running on Java 8 (Recommended)
+-------------------------------
 
-GeoServer 2.15 will run under Java 11 with no additional configuration on **Tomcat 9** or newer and **Jetty 9.4.12** or newer.
+GeoServer is built and tested with Java 8, long-term-support with industry `support up to 2026 <https://adoptopenjdk.net/support.html#roadmap>`_.
 
-Running GeoServer under Java 11 on other Application Servers may require some additional configuration. Some Application Servers do not support Java 11 yet.
+Recommended:
 
-* **Wildfly 14** supports Java 11, with some additional configuration - in the run configuration, under VM arguments add:
+* We recommend installation of the Marlin Renderer described next section
+* Unlimited Strength Jurisdiction Policy Files are available for separate intallation
 
-      --add-modules=java.se
+Available, but not recommended:
 
-  Future WildFly releases should support Java 11 with no additional configuration.
+* Java 8 is the last release to offer a native extension mechanism. GeoServer uses our own JAI-EXT image processing operations. In rare circumstances you may wish to disable JAI-EXT, and install Native JAI and ImageIO extensions.
 
-* **GlassFish** does not currently Java 11, although the upcoming 5.0.1 release is expected to include support for it.
+.. _java_marlin:
 
-* **WebLogic** do not yet support Java 11.
+Marlin renderer (Recommended)
+`````````````````````````````
 
- 
-GeoServer cleanup
-`````````````````
+Further speed improvements can be released using `Marlin renderer <https://github.com/bourgesl/marlin-renderer>`__ alternate renderer for Java 8.
 
-Once the installation is complete, you may optionally remove the original JAI files from the GeoServer ``WEB-INF/lib`` folder::
+Before Java 9, OpenJDK the Pisces renderer, and Oracle used the Ductus renderer, to rasterize vector data respectively.  In Java 9 onward they use Marlin renderer which has better overall performance in most situations than either Pisces or Ductus.
 
-   jai_core-x.y.z.jar
-   jai_imageio-x.y.jar 
-   jai_codec-x.y.z.jar
-   
-
-where ``x``, ``y``, and ``z`` refer to specific version numbers.
+In order to enable Marlin on Java 8, see :ref:`production_container.marlin` on the next page.
 
 .. _java_policyfiles:
 
 Installing Unlimited Strength Jurisdiction Policy Files
--------------------------------------------------------
+```````````````````````````````````````````````````````
 These policy files are needed for unlimited cryptography. As an example, Java does not support AES
-with a key length of 256 bit. Installing the policy files removes these restrictions.
-
-Open JDK
-````````
-
-Since Open JDK is Open Source, the policy files are already installed.   
-
-Oracle Java
-```````````
-
-The policy files are available at   
-
-* `Java 8 JCE policy jars <http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html>`_ 
-* `Java 7 JCE policy jars <http://www.oracle.com/technetwork/java/javase/downloads/jce-7-download-432124.html>`_
-* `Java 6 JCE policy jars <http://www.oracle.com/technetwork/java/javase/downloads/jce-6-download-429243.html>`_
-
-The download contains two files, **local_policy.jar** and  **US_export_policy.jar**. The default
-versions of these two files are stored in JRE_HOME/lib/security. Replace these two files with the
-versions from the download. 
+with a key length of 256 bit.
 
 
-Test if unlimited key length is available
-"""""""""""""""""""""""""""""""""""""""""
+#. Installing the policy files removes these restrictions.
 
-Start or restart GeoServer and login as administrator. The annotated warning should have disappeared.
+   * OpenJDK
 
-.. figure:: ../security/webadmin/images/unlimitedkey.png
+     Since Open JDK is Open Source, the policy files are already installed.   
 
-Additionally, the GeoServer log file should contain the following line::
+   * Oracle Java
 
-   "Strong cryptography is available"
+     The policy files are available at `Java 8 JCE policy jars <http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html>`__.
+
+     The download contains two files, **local_policy.jar** and  **US_export_policy.jar**. The default ersions of these two files are stored in :file:`JRE_HOME/lib/security`. Replace these two files with the versions from the download. 
+
+   * IBM Java
+
+     The policy files are available at `IBM JCE policy jars <https://www14.software.ibm.com/webapp/iwm/web/preLogin.do?source=jcesdk>`__. 
+
+     An IBM ID is needed to log in. The installation is identical to Oracle.
+
+#. Test if unlimited key length is available
+
+   Start or restart GeoServer and login as administrator. The annotated warning should have disappeared.
+
+   .. figure:: ../security/webadmin/images/unlimitedkey.png
+
+#. Additionally, the GeoServer log file should contain the following line::
+
+      "Strong cryptography is available"
 
 .. note::
 
-   The replacement has to be done for each update of the Java runtime. 
+   The installing these policy files needs to be done for each update of the Java runtime. 
 
-IBM Java
-````````
+Native JAI and ImageIO extensions (not recommended)
+```````````````````````````````````````````````````
 
-The policy files are available at
+The `Java Advanced Imaging API <http://www.oracle.com/technetwork/java/javase/tech/jai-142803.html>`_ (JAI) is an image processing library built by Oracle:
 
-* `IBM JCE policy jars <https://www14.software.ibm.com/webapp/iwm/web/preLogin.do?source=jcesdk>`_ 
+* GeoServer uses JAI-EXT, a set of replacement operations with bug fixes and NODATA support, for all image processing operations.
 
-An IBM ID is needed to log in. The installation is identical to Oracle.
-
- 
-Outdated: install native JAI and ImageIO extensions
----------------------------------------------------
-
-The `Java Advanced Imaging API <http://www.oracle.com/technetwork/java/javase/tech/jai-142803.html>`_ (JAI) is an advanced image processing library built by Oracle.  GeoServer uses JAI-EXT, a set
-of replacement operations with bug fixes and NODATA support, for  all image processing. 
-
-In case there is no interest in NODATA support, one can disable JAI-EXT and install the native JAI extensions to improve raster processing performance.
+* In case there is no interest in NODATA support, one can disable JAI-EXT and install the native JAI extensions to improve raster processing performance.
 
 .. warning:: Users should take care that *JAI* native libraries remove support for NODATA pixels, provided instead by the pure Java JAI-EXT libraries.
 
@@ -148,7 +160,15 @@ Installing native JAI on Windows
 #. Run the installer and point it to the JDK/JRE install that GeoServer will use to run.
 #. Go to the `JAI Image I/O download page <http://download.java.net/media/jai-imageio/builds/release/1.1/>`_ and download the Windows installer for version 1.1. At the time of writing only the 32 bit version of the installer is available, so if you are using a JDK, you will want to download `jai_imageio-1_1-lib-windows-i586-jdk.exe <http://download.java.net/media/jai-imageio/builds/release/1.1/jai_imageio-1_1-lib-windows-i586-jdk.exe>`_, and if you are using a JRE, you will want to download `jai_imageio-1_1-lib-windows-i586-jre.exe <http://download.java.net/media/jai-imageio/builds/release/1.1/jai_imageio-1_1-lib-windows-i586-jre.exe>`_
 #. Run the installer and point it to the JDK/JRE install that GeoServer will use to run.
+#. Once the installation is complete, you may optionally remove the original JAI files from the GeoServer ``WEB-INF/lib`` folder::
 
+   * jai_core-x.y.z.jar
+   * jai_imageio-x.y.jar 
+   * jai_codec-x.y.z.jar
+   
+
+   where ``x``, ``y``, and ``z`` refer to specific version numbers.
+   
 .. note:: These installers are limited to allow adding native extensions to just one version of the JDK/JRE on your system.  If native extensions are needed on multiple versions, manually unpacking the extensions will be necessary.  See the section on :ref:`native_JAI_manual_install`.
 
 .. note:: These installers are also only able to apply the extensions to the currently used JDK/JRE.  If native extensions are needed on a different JDK/JRE than that which is currently used, it will be necessary to uninstall the current one first, then run the setup program against the remaining JDK/JRE.
@@ -185,6 +205,16 @@ Installing native JAI on Linux
     $ rm ./jai_imageio-1_1-lib-linux-i586-jdk.bin
     $ exit
 
+#. Once the installation is complete, you may optionally remove the original JAI files from the GeoServer ``WEB-INF/lib`` folder::
+
+   * jai_core-x.y.z.jar
+   * jai_imageio-x.y.jar 
+   * jai_codec-x.y.z.jar
+   
+
+   where ``x``, ``y``, and ``z`` refer to specific version numbers.
+
+
 .. _native_JAI_manual_install:
 
 Installing native JAI manually
@@ -193,3 +223,15 @@ Installing native JAI manually
 You can install the native JAI manually if you encounter problems using the above installers, or if you wish to install the native JAI for more than one JDK/JRE.
 
 Please refer to the `GeoTools page on JAI installation <http://docs.geotools.org/latest/userguide/build/install/jdk.html#java-extensions-optional>`_ for details.
+
+Running on Java 11
+------------------
+
+GeoServer is tested with Java 11 (LTS), with industry `support up to 2024 <https://adoptopenjdk.net/support.html#roadmap>`_. 
+
+GeoServer 2.15 onward will run under Java 11 with no additional configuration on **Tomcat 9** or newer and **Jetty 9.4.12** or newer. Running GeoServer using Java 11 on other Application Servers may require some additional configuration as not all Application Servers support Java 11 yet.
+
+* Java 11 already includes Marlin Renderer, although you may wish to consider installing a newer version
+* Java 11 includes the Unlimited Strength Jurisdiction Policy Files, no need for a separate installation
+* Java 11 does not support Native JAI and ImageIO extensions
+

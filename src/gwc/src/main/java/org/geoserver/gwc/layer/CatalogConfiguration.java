@@ -89,10 +89,6 @@ public class CatalogConfiguration implements TileLayerConfiguration {
             } finally {
                 lock.releaseReadLock();
             }
-            if (null == tileLayer) {
-                throw new IllegalArgumentException(
-                        "GeoServer layer or layer group '" + layerId + "' does not exist");
-            }
             return tileLayer;
         }
     }
@@ -229,9 +225,8 @@ public class CatalogConfiguration implements TileLayerConfiguration {
             if (pendingDeletes.contains(layerName)) {
                 return false;
             }
-            Set<String> layerNames = tileLayerCatalog.getLayerNames();
-            boolean hasLayer = layerNames.contains(layerName);
-            return hasLayer;
+            String layerId = tileLayerCatalog.getLayerId(layerName);
+            return layerId != null;
         } finally {
             lock.releaseReadLock();
         }
@@ -718,6 +713,7 @@ public class CatalogConfiguration implements TileLayerConfiguration {
         try {
             this.layerCache.invalidateAll();
             this.tileLayerCatalog.reset();
+            this.tileLayerCatalog.initialize();
         } finally {
             lock.releaseWriteLock();
         }

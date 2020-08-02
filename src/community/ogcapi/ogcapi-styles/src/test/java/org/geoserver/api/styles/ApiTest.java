@@ -21,12 +21,13 @@ import io.swagger.v3.oas.models.Paths;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.servers.Server;
 import java.io.ByteArrayInputStream;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
+import org.geoserver.api.OpenAPIMessageConverter;
 import org.hamcrest.CoreMatchers;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -39,7 +40,7 @@ public class ApiTest extends StylesTestSupport {
         MockHttpServletResponse response = getAsMockHttpServletResponse("ogc/styles/api", 200);
         assertThat(
                 response.getContentType(),
-                CoreMatchers.startsWith("application/openapi+json;version=3.0"));
+                CoreMatchers.startsWith(OpenAPIMessageConverter.OPEN_API_MEDIA_TYPE_VALUE));
         String json = response.getContentAsString();
         LOGGER.log(Level.INFO, json);
 
@@ -76,7 +77,7 @@ public class ApiTest extends StylesTestSupport {
         assertThat(
                 html,
                 containsString(
-                        "url: \"http://localhost:8080/geoserver/ogc/features/api?f=application%2Fopenapi%2Bjson%3Bversion%3D3.0\""));
+                        "url: \"http://localhost:8080/geoserver/ogc/styles/api?f=application%2Fvnd.oai.openapi%2Bjson%3Bversion%3D3.0\""));
     }
 
     @Test
@@ -139,21 +140,72 @@ public class ApiTest extends StylesTestSupport {
         assertThat(
                 (List<String>) styleId.getSchema().getEnum(),
                 containsInAnyOrder(
+                        "BasicStyleGroupStyle",
+                        "cssSample",
+                        "PolygonComment",
+                        "ws:NamedPlacesWS",
                         "generic",
                         "polygon",
                         "line",
                         "point",
+                        "Streams",
+                        "RoadSegments",
+                        "Ponds",
+                        "NamedPlaces",
+                        "MapNeatline",
+                        "Lakes",
+                        "Forests",
+                        "DividedRoutes",
+                        "Buildings",
+                        "Bridges",
+                        "BasicPolygons",
                         "raster",
-                        "Default",
-                        "ws__NamedPlaces",
-                        "PolygonComment",
-                        "cssSample"));
+                        "Default"));
     }
 
     @Test
-    @Ignore // workspace specific services not working yet
     public void testWorkspaceQualifiedAPI() throws Exception {
-        MockHttpServletRequest request = createRequest("cdf/ogc/styles/api");
+        OpenAPI api = getOpenAPI("ws/ogc/styles/api");
+        Map<String, Parameter> params = api.getComponents().getParameters();
+        Parameter styleId = params.get("styleId");
+        List<String> styleIdValues = styleId.getSchema().getEnum();
+        List<String> expectedStyleIds =
+                getCatalog()
+                        .getStyles()
+                        .stream()
+                        .filter(
+                                s ->
+                                        s.getWorkspace() == null
+                                                || "ws".equals(s.getWorkspace().getName()))
+                        .map(s -> s.getName())
+                        .collect(Collectors.toList());
+        // does not work and I cannot fathom why, both lists have the same size and same elements
+        // by visual inspection
+        // assertThat(styleIdValues, Matchers.containsInAnyOrder(expectedStyleIds));
+        Collections.sort(styleIdValues);
+        Collections.sort(expectedStyleIds);
+        assertEquals(styleIdValues, expectedStyleIds);
+    }
+
+    @Test
+    public void testWorkspaceQualifiedAPIGlobalOnly() throws Exception {
+        // cdf has no local styles, only global ones
+        OpenAPI api = getOpenAPI("cdf/ogc/styles/api");
+        Map<String, Parameter> params = api.getComponents().getParameters();
+        Parameter collectionId = params.get("styleId");
+        List<String> collectionIdValues = collectionId.getSchema().getEnum();
+        List<String> expectedStyleIds =
+                getCatalog()
+                        .getStyles()
+                        .stream()
+                        .filter(s -> s.getWorkspace() == null)
+                        .map(s -> s.getName())
+                        .collect(Collectors.toList());
+        assertThat(collectionIdValues, equalTo(expectedStyleIds));
+    }
+
+    private OpenAPI getOpenAPI(String path) throws Exception {
+        MockHttpServletRequest request = createRequest(path);
         request.setMethod("GET");
         request.setContent(new byte[] {});
         request.addHeader(HttpHeaders.ACCEPT, "foo/bar, application/x-yaml, text/html");
@@ -163,16 +215,6 @@ public class ApiTest extends StylesTestSupport {
         String yaml = string(new ByteArrayInputStream(response.getContentAsString().getBytes()));
 
         ObjectMapper mapper = Yaml.mapper();
-        OpenAPI api = mapper.readValue(yaml, OpenAPI.class);
-        Map<String, Parameter> params = api.getComponents().getParameters();
-        Parameter collectionId = params.get("collectionId");
-        List<String> collectionIdValues = collectionId.getSchema().getEnum();
-        List<String> expectedCollectionIds =
-                getCatalog()
-                        .getFeatureTypesByNamespace(getCatalog().getNamespaceByPrefix("cdf"))
-                        .stream()
-                        .map(ft -> ft.getName())
-                        .collect(Collectors.toList());
-        assertThat(collectionIdValues, equalTo(expectedCollectionIds));
+        return mapper.readValue(yaml, OpenAPI.class);
     }
 }

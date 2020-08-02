@@ -425,10 +425,7 @@ public class LegendUtils {
      *
      * <p>1.0 is returned in case the provided {@link ColorMapEntry} is null or invalid.
      *
-     * @param entry
      * @return the opacity from the provided {@link ColorMapEntry} or 1.0 if something bad happens.
-     * @throws IllegalArgumentException
-     * @throws MissingResourceException
      */
     public static double getOpacity(final ColorMapEntry entry)
             throws IllegalArgumentException, MissingResourceException {
@@ -548,8 +545,6 @@ public class LegendUtils {
     /**
      * Finds the applicable Rules for the given scale denominator.
      *
-     * @param ftStyles
-     * @param scaleDenominator
      * @return an array of {@link Rule}s.
      */
     public static Rule[] getApplicableRules(
@@ -653,7 +648,9 @@ public class LegendUtils {
             rlg.setRenderingHint(
                     RenderingHints.KEY_TEXT_ANTIALIASING,
                     g.getRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING));
-
+            rlg.setRenderingHint(
+                    RenderingHints.KEY_FRACTIONALMETRICS,
+                    g.getRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS));
             int y = 0 - g.getFontMetrics().getDescent();
             int c = 0;
 
@@ -668,13 +665,17 @@ public class LegendUtils {
             int height = (int) Math.ceil(g.getFontMetrics().getStringBounds(label, g).getHeight());
             int width = (int) Math.ceil(g.getFontMetrics().getStringBounds(label, g).getWidth());
             renderedLabel = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-
             Graphics2D rlg = renderedLabel.createGraphics();
             rlg.setColor(labelColor);
             rlg.setFont(g.getFont());
             rlg.setRenderingHint(
                     RenderingHints.KEY_TEXT_ANTIALIASING,
                     g.getRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING));
+            if (g.getRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS) != null) {
+                rlg.setRenderingHint(
+                        RenderingHints.KEY_FRACTIONALMETRICS,
+                        g.getRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS));
+            }
             rlg.drawString(label, 0, height - rlg.getFontMetrics().getDescent());
             rlg.dispose();
         }
@@ -787,12 +788,7 @@ public class LegendUtils {
         return false;
     }
 
-    /**
-     * Locates the specified rule by name
-     *
-     * @param fts
-     * @param rule
-     */
+    /** Locates the specified rule by name */
     public static Rule getRule(FeatureTypeStyle[] fts, String rule) {
         Rule sldRule = null;
         for (int i = 0; i < fts.length; i++) {

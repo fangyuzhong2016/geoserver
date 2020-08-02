@@ -46,6 +46,8 @@ import org.opengis.filter.Filter;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobParameter;
 import org.springframework.batch.core.StepExecution;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 public abstract class AbstractBackupRestoreController extends RestBaseController {
 
@@ -74,7 +76,11 @@ public abstract class AbstractBackupRestoreController extends RestBaseController
 
     /** @return the backupFacade */
     public Backup getBackupFacade() {
-        backupFacade.authenticate();
+        if (backupFacade.getAuth() == null) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            backupFacade.setAuth(auth);
+            backupFacade.authenticate();
+        }
         return backupFacade;
     }
 
@@ -87,11 +93,7 @@ public abstract class AbstractBackupRestoreController extends RestBaseController
         return executionId;
     }
 
-    /**
-     * @param allowAll
-     * @param mustExist
-     * @return
-     */
+    /** */
     protected Object lookupBackupExecutionsContext(String i, boolean allowAll, boolean mustExist) {
         if (i != null) {
             BackupExecutionAdapter backupExecution = null;
@@ -112,11 +114,7 @@ public abstract class AbstractBackupRestoreController extends RestBaseController
         }
     }
 
-    /**
-     * @param allowAll
-     * @param mustExist
-     * @return
-     */
+    /** */
     protected Object lookupRestoreExecutionsContext(String i, boolean allowAll, boolean mustExist) {
         if (i != null) {
             RestoreExecutionAdapter restoreExecution = null;
@@ -391,10 +389,7 @@ public abstract class AbstractBackupRestoreController extends RestBaseController
 
         private String fieldName;
 
-        /**
-         * @param mapper
-         * @param reflectionProvider
-         */
+        /** */
         public FilterConverter(
                 String fieldName, Mapper mapper, ReflectionProvider reflectionProvider) {
             super(mapper, reflectionProvider);

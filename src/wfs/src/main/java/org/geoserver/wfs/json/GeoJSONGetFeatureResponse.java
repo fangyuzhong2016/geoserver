@@ -18,6 +18,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.sf.json.JSONException;
 import org.geoserver.config.GeoServer;
+import org.geoserver.data.util.TemporalUtils;
 import org.geoserver.ows.Dispatcher;
 import org.geoserver.ows.Request;
 import org.geoserver.platform.GeoServerExtensions;
@@ -90,14 +91,12 @@ public class GeoJSONGetFeatureResponse extends WFSGetFeatureOutputFormat {
     }
 
     @Override
+    @SuppressWarnings(
+            "PMD.CloseResource") // the output stream is managed outside, only wrappers here
     protected void write(
             FeatureCollectionResponse featureCollection, OutputStream output, Operation operation)
             throws IOException {
         if (LOGGER.isLoggable(Level.INFO)) LOGGER.info("about to encode JSON");
-
-        // prepare to write out
-        OutputStreamWriter osw = null;
-        Writer outWriter = null;
 
         // get feature count for request
         BigInteger totalNumberOfFeatures = featureCollection.getTotalNumberOfFeatures();
@@ -107,8 +106,9 @@ public class GeoJSONGetFeatureResponse extends WFSGetFeatureOutputFormat {
                         : totalNumberOfFeatures;
 
         try {
-            osw = new OutputStreamWriter(output, gs.getGlobal().getSettings().getCharset());
-            outWriter = new BufferedWriter(osw);
+            OutputStreamWriter osw =
+                    new OutputStreamWriter(output, gs.getGlobal().getSettings().getCharset());
+            Writer outWriter = new BufferedWriter(osw);
 
             if (jsonp) {
                 outWriter.write(getCallbackFunction() + "(");
@@ -159,13 +159,7 @@ public class GeoJSONGetFeatureResponse extends WFSGetFeatureOutputFormat {
         }
     }
 
-    /**
-     * Builds, configures and returns {@link GeoJSONBuilder}
-     *
-     * @param featureCollection
-     * @param outWriter
-     * @return
-     */
+    /** Builds, configures and returns {@link GeoJSONBuilder} */
     protected GeoJSONBuilder getGeoJSONBuilder(
             FeatureCollectionResponse featureCollection, Writer outWriter) {
         final GeoJSONBuilder jsonWriter = new GeoJSONBuilder(outWriter);
@@ -176,29 +170,14 @@ public class GeoJSONGetFeatureResponse extends WFSGetFeatureOutputFormat {
         return jsonWriter;
     }
 
-    /**
-     * Is WFS configured to return feature and collection bounds?
-     *
-     * @return
-     */
+    /** Is WFS configured to return feature and collection bounds? */
     protected boolean isFeatureBounding() {
         WFSInfo wfs = getInfo();
         return wfs.isFeatureBounding();
     }
 
-    /**
-     * Writes the feature to the output
-     *
-     * @param featureCollection
-     * @param operation
-     * @param featureBounding
-     * @param id_option
-     * @param isComplex
-     * @param jsonWriter
-     * @param resultsList
-     * @return
-     */
-    protected FeaturesInfo writeFeatures(
+    /** Writes the feature to the output */
+    public FeaturesInfo writeFeatures(
             List<FeatureCollection> resultsList,
             Operation operation,
             boolean isComplex,
@@ -233,11 +212,7 @@ public class GeoJSONGetFeatureResponse extends WFSGetFeatureOutputFormat {
         return featuresInfo;
     }
 
-    /**
-     * Writes a WFS3 compliant timeStamp collection attribute
-     *
-     * @param jw
-     */
+    /** Writes a WFS3 compliant timeStamp collection attribute */
     protected void writeCollectionTimeStamp(GeoJSONBuilder jw) {
         jw.key("timeStamp").value(new ISO8601Formatter().format(new Date()));
     }
@@ -250,10 +225,6 @@ public class GeoJSONGetFeatureResponse extends WFSGetFeatureOutputFormat {
      *   <li>WFS 3 numberMatched (same as totalFeatures)
      *   <li>WFS 3 numberReturned
      * </ul>
-     *
-     * @param featureCount
-     * @param numberReturned
-     * @param jsonWriter
      */
     protected void writeCollectionCounts(
             BigInteger featureCount, long numberReturned, GeoJSONBuilder jsonWriter) {
@@ -269,14 +240,7 @@ public class GeoJSONGetFeatureResponse extends WFSGetFeatureOutputFormat {
         jsonWriter.key("numberReturned").value(numberReturned);
     }
 
-    /**
-     * Writes the collection bounds
-     *
-     * @param featureBounding
-     * @param jsonWriter
-     * @param resultsList
-     * @param hasGeom
-     */
+    /** Writes the collection bounds */
     protected void writeCollectionBounds(
             boolean featureBounding,
             GeoJSONBuilder jsonWriter,
@@ -316,13 +280,7 @@ public class GeoJSONGetFeatureResponse extends WFSGetFeatureOutputFormat {
         }
     }
 
-    /**
-     * Writes WFS3 compliant paging links
-     *
-     * @param response
-     * @param operation
-     * @param jw
-     */
+    /** Writes WFS3 compliant paging links */
     protected void writePagingLinks(
             FeatureCollectionResponse response, Operation operation, GeoJSONBuilder jw) {
 
@@ -340,9 +298,15 @@ public class GeoJSONGetFeatureResponse extends WFSGetFeatureOutputFormat {
             GeoJSONBuilder jw, String title, String mimeType, String rel, String href) {
         if (href != null) {
             jw.object();
-            jw.key("title").value(title);
-            jw.key("type").value(mimeType);
-            jw.key("rel").value(rel);
+            if (title != null) {
+                jw.key("title").value(title);
+            }
+            if (mimeType != null) {
+                jw.key("type").value(mimeType);
+            }
+            if (rel != null) {
+                jw.key("rel").value(rel);
+            }
             jw.key("href").value(href);
             jw.endObject();
         }
@@ -460,18 +424,39 @@ public class GeoJSONGetFeatureResponse extends WFSGetFeatureOutputFormat {
                                     jsonWriter.writeGeom((Geometry) value);
                                 }
                             }
+                        } else if (Date.class.isAssignableFrom(ad.getType().getBinding())
+                                && TemporalUtils.isDateTimeFormatEnabled()) {
+                            // Temporal types print handling
+                            jsonWriter.key(ad.getLocalName());
+                            jsonWriter.value(TemporalUtils.printDate((Date) value));
                         } else {
                             jsonWriter.key(ad.getLocalName());
-                            jsonWriter.value(value);
+                            if ((value instanceof Double && Double.isNaN((Double) value))
+                                    || value instanceof Float && Float.isNaN((Float) value)) {
+                                jsonWriter.value(null);
+                            } else if ((value instanceof Double
+                                            && ((Double) value) == Double.POSITIVE_INFINITY)
+                                    || value instanceof Float
+                                            && ((Float) value) == Float.POSITIVE_INFINITY) {
+                                jsonWriter.value("Infinity");
+                            } else if ((value instanceof Double
+                                            && ((Double) value) == Double.NEGATIVE_INFINITY)
+                                    || value instanceof Float
+                                            && ((Float) value) == Float.NEGATIVE_INFINITY) {
+                                jsonWriter.value("-Infinity");
+                            } else {
+                                jsonWriter.value(value);
+                            }
                         }
                     }
+                    jsonWriter.endObject(); // end the properties
+
                     // Bounding box for feature in properties
                     ReferencedEnvelope refenv =
                             ReferencedEnvelope.reference(simpleFeature.getBounds());
                     if (featureBounding && !refenv.isEmpty()) {
                         jsonWriter.writeBoundingBox(refenv);
                     }
-                    jsonWriter.endObject(); // end the properties
 
                     writeExtraFeatureProperties(simpleFeature, operation, jsonWriter);
 

@@ -14,10 +14,8 @@ import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 import java.awt.*;
 import java.awt.image.RenderedImage;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -53,13 +51,14 @@ import org.geotools.data.Query;
 import org.geotools.data.util.NullProgressListener;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.FeatureCollection;
-import org.geotools.feature.visitor.CalcResult;
-import org.geotools.feature.visitor.StandardDeviationVisitor;
+import org.geotools.feature.visitor.*;
 import org.geotools.filter.function.RangedClassifier;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.util.ImageUtilities;
 import org.geotools.styling.ChannelSelection;
 import org.geotools.styling.ColorMap;
+import org.geotools.styling.ColorMapEntry;
+import org.geotools.styling.ColorMapEntryImpl;
 import org.geotools.styling.ContrastEnhancement;
 import org.geotools.styling.FeatureTypeStyle;
 import org.geotools.styling.NamedLayer;
@@ -84,6 +83,7 @@ import org.opengis.feature.type.PropertyDescriptor;
 import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory2;
 import org.opengis.filter.PropertyIsBetween;
+import org.opengis.filter.expression.Literal;
 import org.opengis.filter.spatial.BBOX;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.operation.TransformException;
@@ -168,6 +168,8 @@ public class ClassifierController extends BaseSLDServiceController {
             @RequestParam(value = "bbox", required = false) ReferencedEnvelope bbox,
             @RequestParam(value = "stddevs", required = false) Double stddevs,
             @RequestParam(value = "env", required = false) String env,
+            @RequestParam(value = "percentages", required = false) boolean percentages,
+            @RequestParam(value = "percentagesScale", required = false) Integer percentagesScale,
             final HttpServletResponse response)
             throws Exception {
         LayerInfo layerInfo = catalog.getLayerByName(layerName);
@@ -222,7 +224,9 @@ public class ClassifierController extends BaseSLDServiceController {
                                 (FeatureTypeInfo) obj,
                                 ramp,
                                 bbox,
-                                stddevs);
+                                stddevs,
+                                percentages,
+                                percentagesScale);
             } else if (obj instanceof CoverageInfo) {
                 rules =
                         getRasterRules(
@@ -238,7 +242,9 @@ public class ClassifierController extends BaseSLDServiceController {
                                 ramp,
                                 continuous,
                                 bbox,
-                                stddevs);
+                                stddevs,
+                                percentages,
+                                percentagesScale);
             } else {
                 throw new RestException(
                         "The classifier can only work against vector or raster data, "
@@ -337,11 +343,7 @@ public class ClassifierController extends BaseSLDServiceController {
         private static final long serialVersionUID = -5538194136398411147L;
     }
 
-    /**
-     * @param layer
-     * @param rules
-     * @return
-     */
+    /** */
     private RulesList generateRulesList(String layer, List<Rule> rules) {
         final RulesList ruleList = new RulesList(layer);
         for (Rule rule : rules) {
@@ -391,7 +393,9 @@ public class ClassifierController extends BaseSLDServiceController {
             ColorRamp ramp,
             boolean continuous,
             ReferencedEnvelope bbox,
-            Double stddevs)
+            Double stddevs,
+            boolean percentages,
+            Integer percentagesScale)
             throws Exception {
         int selectedBand = getRequestedBand(property); // one based band name
         // read the image to be classified
@@ -404,8 +408,8 @@ public class ClassifierController extends BaseSLDServiceController {
                         .invoke();
         boolean bandSelected = imageReader.isBandSelected();
         RenderedImage image = imageReader.getImage();
-
-        RasterSymbolizerBuilder builder = new RasterSymbolizerBuilder();
+        RasterSymbolizerBuilder builder =
+                new RasterSymbolizerBuilder(percentages, percentagesScale);
         builder.setStandardDeviations(stddevs);
         ColorMap colorMap;
         try {
@@ -426,15 +430,24 @@ public class ClassifierController extends BaseSLDServiceController {
             } else {
                 RangedClassifier classifier =
                         getCustomClassifier(customClasses, Double.class, normalize);
-                colorMap = builder.createCustomColorMap(classifier, open, continuous);
+                colorMap = builder.createCustomColorMap(image, classifier, open, continuous);
             }
         } finally {
             cleanImage(image);
         }
 
         // apply the color ramp
-        boolean skipFirstEntry = !"uniqueInterval".equals(method) && !open && !continuous;
+        boolean skipFirstEntry =
+                !"uniqueInterval".equals(method)
+                        && !open
+                        && !continuous
+                        && colorMap.getColorMapEntries().length > 1;
         builder.applyColorRamp(colorMap, ramp, skipFirstEntry, reverse);
+
+        // check for single valued colormaps
+        if (colorMap.getColorMapEntries().length == 1) {
+            adaptSingleValueColorMap(image, colorMap);
+        }
 
         // wrap the colormap into a raster symbolizer and rule
         RasterSymbolizer rasterSymbolizer = SF.createRasterSymbolizer();
@@ -453,12 +466,39 @@ public class ClassifierController extends BaseSLDServiceController {
         return Collections.singletonList(rule);
     }
 
-    /**
-     * Returns the selected band
-     *
-     * @param property
-     * @return
-     */
+    private void adaptSingleValueColorMap(RenderedImage image, ColorMap colorMap) {
+        // force it to be visible, depending on the method the first entry might be
+        // transparent
+        ColorMapEntry cm0 = colorMap.getColorMapEntry(0);
+        cm0.setOpacity(FF.literal(1));
+
+        // should always be a literal, just covering for possible future changes
+        if (cm0.getQuantity() instanceof Literal) {
+            // wrap it between two values that are slightly below and above
+            Float value = cm0.getQuantity().evaluate(null, Float.class);
+            if (Float.isInfinite(value)) {
+                // all must be the same color, switch to ramp mode
+                colorMap.setType(ColorMap.TYPE_RAMP);
+            } else {
+                int intBits = Float.floatToIntBits(value);
+                ColorMapEntry cm1 = new ColorMapEntryImpl();
+                cm1.setQuantity(FF.literal(Float.intBitsToFloat(intBits + 1)));
+                cm0.setQuantity(FF.literal(Float.intBitsToFloat(intBits - 1)));
+
+                cm1.setColor(cm0.getColor());
+                cm1.setLabel(cm0.getLabel());
+                cm1.setOpacity(cm0.getOpacity());
+
+                colorMap.addColorMapEntry(cm1);
+                colorMap.setType(ColorMap.TYPE_INTERVALS);
+            }
+        } else {
+            // make it formally valid, but the value match will not really not work
+            colorMap.setType(ColorMap.TYPE_VALUES);
+        }
+    }
+
+    /** Returns the selected band */
     private int getRequestedBand(String property) {
         // if no selection is provided, the code picks the first band
         if (property == null) {
@@ -474,11 +514,7 @@ public class ClassifierController extends BaseSLDServiceController {
         return selectedBand;
     }
 
-    /**
-     * Performs a full disposal of the coverage in question
-     *
-     * @param coverage
-     */
+    /** Performs a full disposal of the coverage in question */
     private void cleanImage(RenderedImage image) {
         if (image instanceof PlanarImage) {
             ImageUtilities.disposePlanarImageChain((PlanarImage) image);
@@ -501,21 +537,23 @@ public class ClassifierController extends BaseSLDServiceController {
             FeatureTypeInfo obj,
             ColorRamp ramp,
             ReferencedEnvelope bbox,
-            Double stddevs)
+            Double stddevs,
+            Boolean percentages,
+            Integer percentagesScale)
             throws IOException, TransformException, FactoryException {
         if (property == null || property.isEmpty()) {
             throw new IllegalArgumentException(
                     "Vector classification requires a classification property to be specified");
         }
 
-        RulesBuilder builder = new RulesBuilder();
+        RulesBuilder builder = new RulesBuilder(percentages, percentagesScale);
         builder.setStrokeColor(strokeColor);
         builder.setStrokeWeight(strokeWeight);
         builder.setPointSize(pointSize);
 
         final FeatureType ftType = obj.getFeatureType();
         FeatureCollection ftCollection = null;
-        if (customClasses.isEmpty()) {
+        if (customClasses.isEmpty() || percentages) {
             Query query = new Query(ftType.getName().getLocalPart(), Filter.INCLUDE);
             if (bbox != null) {
                 ReferencedEnvelope nativeBBOX =
@@ -593,6 +631,12 @@ public class ClassifierController extends BaseSLDServiceController {
             }
         } else {
             RangedClassifier groups = getCustomClassifier(customClasses, propertyType, normalize);
+            if (percentages) {
+                double[] percentagesAr =
+                        builder.getCustomPercentages(
+                                ftCollection, groups, property, propertyType, normalize);
+                groups.setPercentages(percentagesAr);
+            }
             rules =
                     open
                             ? builder.openRangedRules(groups, property, propertyType, normalize)

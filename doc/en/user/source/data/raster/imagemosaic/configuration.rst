@@ -109,7 +109,7 @@ If needed, different storage can be used for the index — like a spatial DBMS, 
 
 .. note:: A shapefile is created automagically if it does not exist or if there is no :file:`datastore.properties` file.
 
-.. warning:: At the time of writing the following spatial DBMS have been tested successfully: Oracle, PostgreSQL, H2. SQl Server is not yet supported.
+.. warning:: At the time of writing the following spatial DBMS have been tested successfully: Oracle, PostgreSQL, H2, SQLServer.
 
 
 .. list-table::
@@ -139,6 +139,7 @@ If needed, different storage can be used for the index — like a spatial DBMS, 
        * PostGIS: ``org.geotools.data.postgis.PostgisNGDataStoreFactory`` 
        * Oracle: ``org.geotools.data.oracle.OracleNGDataStoreFactory`` 
        * H2: ``org.geotools.data.h2.H2DataStoreFactory``
+       * SQLServer: ``org.geotools.data.sqlserver.SQLServerDataStoreFactory``
 
        :ref:`JNDI <tomcat_jndi>` can also be used with any of these stores. If JNDI is used, the DataStoreFactory name will differ from the above.
 
@@ -149,6 +150,7 @@ If needed, different storage can be used for the index — like a spatial DBMS, 
        * `PostGIS <http://docs.geotools.org/latest/userguide/library/jdbc/postgis.html>`_
        * `Oracle <http://docs.geotools.org/latest/userguide/library/jdbc/oracle.html>`_
        * `H2 <http://docs.geotools.org/latest/userguide/library/jdbc/h2.html>`_
+       * `SQLServer <http://docs.geotools.org/latest/userguide/library/jdbc/sqlserver.html>`_
 
        If JNDI is used, the connection parameters will include ``jndiReferenceName`` instead of ``host``, ``port``, etc.
        Note that for any connection parameters that include a space (such as ``loose bbox``), the space must be escaped by preceding it with a backslash (``loose\ bbox``).
@@ -260,6 +262,10 @@ In addition to the required envelope and location attributes, the schema for the
    * - MosaicCRS
      - N
      - The "native" CRS of the mosaic, that is, the one in which footprints are collected. Useful when dealing with granules in multiple CRSs (see tutorial)
+   * - AdditionalDomainAttributes
+     - N
+     - Comma separate list of custom dimensions to be exposed. Each custom dimension declaration can be a simple attribute name from the
+       schema, e.g., ``runtime``, a mapping from dimension name to attribute name, e.g. ``time2(runtime)``, or a mapping from a range dimension name to two attributes, e.g., ``timerange(timeStart,timeEnd)`` 
 
 Here is a sample :file:`indexer.properties` file::
 
@@ -331,6 +337,28 @@ In case of custom format datetimes in filename, an additional *format* element s
 | In that case, the timeregex.properties file should be like this:
 
     regex=.*([0-9]{10}).*,format=yyyyMMddHH
+
+In case of reduced precision of temporal information, where there is the need to get the higher time included in that reduced value, an additional *,useHighTime=true* element should be added.
+
+| Example:
+| Temperature_2017111319.tif
+| an hourly Temperature file with datetime = November, 13 2017 at 19h 00m 00s 000ms
+| You want to get the max time included in that reduced precision, which is November, 13 2017 at 19h 59m 59s 999ms 
+|
+| In that case, the timeregex.properties file should be like this:
+
+    regex=.*([0-9]{10}).*,format=yyyyMMddHH,useHighTime=true
+
+In case the temporal information is spread along the whole file path, an additional *,fullPath=true* element should be added.
+
+| Example:
+| /data/20120202/Temperature.T1800.tif
+| an hourly Temperature tif file with Year,Month and Day specified in the parent folder (20120202) and time value embeeded in the name (Temperature.T1800.tif)
+|
+| In that case, the timeregex.properties file should be like this:
+
+    regex=(?:\/)(\\d{8})(?:\/)(?:Temperature.)(T\\d{4})(?:.tif),fullPath=true
+
 
 
 :file:`elevationregex.properties`::

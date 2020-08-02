@@ -237,15 +237,6 @@ public class GeofenceAccessManager
         }
     }
 
-    // private WorkspaceAccessLimits buildAccessLimits(WorkspaceInfo workspace, AccessInfo rule) {
-    // if (rule == null) {
-    // return new WorkspaceAccessLimits(DEFAULT_CATALOG_MODE, true, true);
-    // } else {
-    // return new WorkspaceAccessLimits(DEFAULT_CATALOG_MODE, rule.getGrant() == GrantType.ALLOW,
-    // rule.getGrant() == GrantType.ALLOW);
-    // }
-    // }
-
     @Override
     public StyleAccessLimits getAccessLimits(Authentication user, StyleInfo style) {
         // return getAccessLimits(user, style.getResource());
@@ -385,10 +376,7 @@ public class GeofenceAccessManager
         }
     }
 
-    /**
-     * @param resource
-     * @param rule
-     */
+    /** */
     DataAccessLimits buildAccessLimits(ResourceInfo resource, AccessInfo rule) {
         // basic filter
         Filter readFilter = (rule.getGrant() == GrantType.ALLOW) ? Filter.INCLUDE : Filter.EXCLUDE;
@@ -411,22 +399,22 @@ public class GeofenceAccessManager
                 toPropertyNames(rule.getAttributes(), PropertyAccessMode.WRITE);
 
         // reproject the area if necessary
-        Geometry area = null;
+        Geometry reprojArea = null;
         String areaWkt = rule.getAreaWkt();
         if (areaWkt != null) {
             try {
 
                 // Geometry area = rule.getArea();
                 WKTReader wktReader = new WKTReader();
-                area = wktReader.read(areaWkt);
+                reprojArea = wktReader.read(areaWkt);
 
-                if (area != null) {
+                if (reprojArea != null) {
                     // rule area is always expressed as 4326
                     CoordinateReferenceSystem geomCrs = CRS.decode("EPSG:4326");
                     CoordinateReferenceSystem resourceCrs = resource.getCRS();
                     if ((resourceCrs != null) && !CRS.equalsIgnoreMetadata(geomCrs, resourceCrs)) {
                         MathTransform mt = CRS.findMathTransform(geomCrs, resourceCrs, true);
-                        area = JTS.transform(area, mt);
+                        reprojArea = JTS.transform(reprojArea, mt);
                     }
                 }
             } catch (ParseException e) {
@@ -460,47 +448,38 @@ public class GeofenceAccessManager
 
         if (resource instanceof FeatureTypeInfo) {
             // merge the area among the filters
-            if (area != null) {
-                Filter areaFilter = FF.intersects(FF.property(""), FF.literal(area));
+            if (reprojArea != null) {
+                Filter areaFilter = FF.intersects(FF.property(""), FF.literal(reprojArea));
                 readFilter = mergeFilter(readFilter, areaFilter);
                 writeFilter = mergeFilter(writeFilter, areaFilter);
             }
 
             return new VectorAccessLimits(
                     catalogMode, readAttributes, readFilter, writeAttributes, writeFilter);
+
         } else if (resource instanceof CoverageInfo) {
-            MultiPolygon rasterFilter = buildRasterFilter(rule);
+            return new CoverageAccessLimits(catalogMode, readFilter, toMultiPoly(reprojArea), null);
 
-            return new CoverageAccessLimits(catalogMode, readFilter, rasterFilter, null);
         } else if (resource instanceof WMSLayerInfo) {
-            MultiPolygon rasterFilter = buildRasterFilter(rule);
+            return new WMSAccessLimits(catalogMode, readFilter, toMultiPoly(reprojArea), true);
 
-            return new WMSAccessLimits(catalogMode, readFilter, rasterFilter, true);
         } else if (resource instanceof WMTSLayerInfo) {
-            MultiPolygon rasterFilter = buildRasterFilter(rule);
+            return new WMTSAccessLimits(catalogMode, readFilter, toMultiPoly(reprojArea));
 
-            return new WMTSAccessLimits(catalogMode, readFilter, rasterFilter);
         } else {
             throw new IllegalArgumentException("Don't know how to handle resource " + resource);
         }
     }
 
-    private MultiPolygon buildRasterFilter(AccessInfo rule) {
+    private MultiPolygon toMultiPoly(Geometry reprojArea) {
         MultiPolygon rasterFilter = null;
-        if (rule.getAreaWkt() != null) {
-            WKTReader reader = new WKTReader();
-            Geometry area = null;
-            try {
-                area = reader.read(rule.getAreaWkt());
-            } catch (ParseException e) {
-                throw new RuntimeException("Failed to unmarshal the restricted area wkt", e);
-            }
-            rasterFilter = Converters.convert(area, MultiPolygon.class);
+        if (reprojArea != null) {
+            rasterFilter = Converters.convert(reprojArea, MultiPolygon.class);
             if (rasterFilter == null) {
                 throw new RuntimeException(
                         "Error applying security rules, cannot convert "
                                 + "the Geofence area restriction "
-                                + rule.getAreaWkt()
+                                + reprojArea.toText()
                                 + " to a multi-polygon");
             }
         }
@@ -508,12 +487,7 @@ public class GeofenceAccessManager
         return rasterFilter;
     }
 
-    /**
-     * Merges the two filters into one by AND
-     *
-     * @param filter
-     * @param areaFilter
-     */
+    /** Merges the two filters into one by AND */
     private Filter mergeFilter(Filter filter, Filter areaFilter) {
         if ((filter == null) || (filter == Filter.INCLUDE)) {
             return areaFilter;
@@ -524,12 +498,7 @@ public class GeofenceAccessManager
         }
     }
 
-    /**
-     * Builds the equivalent {@link PropertyName} list for the specified access mode
-     *
-     * @param attributes
-     * @param mode
-     */
+    /** Builds the equivalent {@link PropertyName} list for the specified access mode */
     private List<PropertyName> toPropertyNames(
             Set<LayerAttribute> attributes, PropertyAccessMode mode) {
         // handle simple case
@@ -697,6 +666,7 @@ public class GeofenceAccessManager
             String request,
             Authentication user,
             GetMapRequest getMap) {
+
         if (gsRequest.getKvp().get("layers") == null
                 && gsRequest.getKvp().get("sld") == null
                 && gsRequest.getKvp().get("sld_body") == null) {
@@ -837,7 +807,7 @@ public class GeofenceAccessManager
         String rawLayersParameter = (String) gsRequest.getRawKvp().get("LAYERS");
         if (rawLayersParameter != null) {
             List<String> layersNames = KvpUtils.readFlat(rawLayersParameter);
-            return new LayersParser()
+            return LayersParser.getInstance()
                     .parseLayers(layersNames, getMap.getRemoteOwsURL(), getMap.getRemoteOwsType());
         }
         return new ArrayList<>();
@@ -854,7 +824,14 @@ public class GeofenceAccessManager
     /** An helper that avoids duplicating the code to parse the layers parameter */
     static final class LayersParser extends GetMapKvpRequestReader {
 
-        public LayersParser() {
+        private static LayersParser singleton = null;
+
+        public static LayersParser getInstance() {
+            if (singleton == null) singleton = new LayersParser();
+            return singleton;
+        }
+
+        private LayersParser() {
             super(WMS.get());
         }
 

@@ -1,11 +1,10 @@
-/* (c) 2014 - 2017 Open Source Geospatial Foundation - all rights reserved
- * (c) 2001 - 2013 OpenPlans
+/* (c) 2014 - 2020 Open Source Geospatial Foundation - all rights reserved
  * This code is licensed under the GPL 2.0 license, available at the root
  * application directory.
  */
 package org.geoserver.catalog;
 
-import java.awt.*;
+import java.awt.RenderingHints;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -20,8 +19,6 @@ import java.io.OutputStreamWriter;
 import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -95,6 +93,7 @@ import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.gce.geotiff.GeoTiffFormat;
 import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.gml2.FeatureTypeCache;
 import org.geotools.gml2.GML;
 import org.geotools.measure.Measure;
 import org.geotools.ows.wms.Layer;
@@ -137,6 +136,7 @@ import org.opengis.referencing.operation.TransformException;
 import org.springframework.context.ApplicationContext;
 import org.vfny.geoserver.global.GeoServerFeatureLocking;
 import org.vfny.geoserver.global.GeoServerFeatureSource;
+import org.vfny.geoserver.global.GeoserverComplexFeatureSource;
 import org.vfny.geoserver.util.DataStoreUtils;
 import org.xml.sax.EntityResolver;
 import si.uom.NonSI;
@@ -177,6 +177,7 @@ public class ResourcePool {
     /** Hint to specify additional joined attributes when loading a feature type */
     public static Hints.Key JOINS = new Hints.Key(List.class);
 
+    public static Hints.Key MAP_CRS = new Hints.Key(CoordinateReferenceSystem.class);
     /** logging */
     static Logger LOGGER = Logging.getLogger("org.geoserver.catalog");
 
@@ -432,20 +433,12 @@ public class ResourcePool {
         listeners.remove(l);
     }
 
-    /**
-     * Sets the entity resolver provider injected in the code doing XML parsing
-     *
-     * @param entityResolverProvider
-     */
+    /** Sets the entity resolver provider injected in the code doing XML parsing */
     public void setEntityResolverProvider(EntityResolverProvider entityResolverProvider) {
         this.entityResolverProvider = entityResolverProvider;
     }
 
-    /**
-     * Returns the entity resolver provider injected in the code doing XML parsing
-     *
-     * @return
-     */
+    /** Returns the entity resolver provider injected in the code doing XML parsing */
     public EntityResolverProvider getEntityResolverProvider() {
         return entityResolverProvider;
     }
@@ -832,18 +825,18 @@ public class ResourcePool {
             File oldSchemaFile = Resources.file(dd.get(ft, "schema.xml"));
             if (oldSchemaFile != null) {
                 schemaFile = new File(oldSchemaFile.getParentFile(), "schema.xsd");
-                BufferedWriter out =
+                try (BufferedWriter out =
                         new BufferedWriter(
-                                new OutputStreamWriter(new FileOutputStream(schemaFile)));
-                out.write("<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'");
-                out.write(" xmlns:gml='http://www.opengis.net/gml'");
-                out.write(">");
-                try (FileInputStream fis = new FileInputStream(oldSchemaFile)) {
-                    IOUtils.copy(fis, out, "UTF-8");
+                                new OutputStreamWriter(new FileOutputStream(schemaFile)))) {
+                    out.write("<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema'");
+                    out.write(" xmlns:gml='http://www.opengis.net/gml'");
+                    out.write(">");
+                    try (FileInputStream fis = new FileInputStream(oldSchemaFile)) {
+                        IOUtils.copy(fis, out, "UTF-8");
+                    }
+                    out.write("</xs:schema>");
+                    out.flush();
                 }
-                out.write("</xs:schema>");
-                out.flush();
-                out.close();
             }
         }
 
@@ -1001,12 +994,6 @@ public class ResourcePool {
     /**
      * Builds a temporary name for a feature type making sure there is no conflict with other
      * existing type names in the store
-     *
-     * @param info
-     * @param dataAccess
-     * @param initializer
-     * @return
-     * @throws IOException
      */
     protected Name getTemporaryName(
             FeatureTypeInfo info,
@@ -1040,10 +1027,6 @@ public class ResourcePool {
      * Looks up a FetureTypeInitializer for this FeatureTypeInfo and DataAccess.
      * FeatureTypeInitializer are used to init and dispose configured feature types (as opposed to
      * ones that natively originate from the source)
-     *
-     * @param info
-     * @param dataAccess
-     * @param initializer
      */
     FeatureTypeCallback getFeatureTypeInitializer(
             FeatureTypeInfo info, DataAccess<? extends FeatureType, ? extends Feature> dataAccess) {
@@ -1108,7 +1091,13 @@ public class ResourcePool {
                 }
             }
             ft = tb.buildFeatureType();
+            // extension point for retyping the feature type
+            for (RetypeFeatureTypeCallback callback :
+                    GeoServerExtensions.extensions(RetypeFeatureTypeCallback.class)) {
+                ft = callback.retypeFeatureType(info, ft);
+            }
         } // end special case for SimpleFeatureType
+
         return ft;
     }
 
@@ -1120,8 +1109,6 @@ public class ResourcePool {
      * Returns true if this object is saved in the catalog and not a modified proxy. We don't want
      * to cache the result of computations made against a dirty object, nor the ones made against an
      * object that still haven't been saved
-     *
-     * @param info
      */
     boolean isCacheable(CatalogInfo info) {
         // saved?
@@ -1304,10 +1291,19 @@ public class ResourcePool {
             CoordinateReferenceSystem nativeCRS =
                     gd != null ? gd.getCoordinateReferenceSystem() : null;
 
-            if (ppolicy == ProjectionPolicy.NONE && nativeCRS != null) {
+            if (ppolicy == ProjectionPolicy.NONE
+                    && info.getNativeCRS() != null
+                    && info.getMetadata().get(FeatureTypeInfo.OTHER_SRS) != null)
+                resultCRS = info.getNativeCRS();
+            else if (ppolicy == ProjectionPolicy.NONE && nativeCRS != null) {
                 resultCRS = nativeCRS;
             } else {
                 resultCRS = getCRS(info.getSRS());
+                // force remoting re-projection incase of WFS-NG only
+                if (hints != null)
+                    if (hints.get(ResourcePool.MAP_CRS) != null
+                            && info.getMetadata().get(FeatureTypeInfo.OTHER_SRS) != null)
+                        resultCRS = (CoordinateReferenceSystem) hints.get(ResourcePool.MAP_CRS);
             }
 
             // make sure we create the appropriate schema, with the right crs
@@ -1369,6 +1365,13 @@ public class ResourcePool {
                 schema = typeBuilder.buildFeatureType();
             }
 
+            // applying wrappers using implementations of RetypeFeatureTypeCallback
+            for (RetypeFeatureTypeCallback callback :
+                    GeoServerExtensions.extensions(RetypeFeatureTypeCallback.class)) {
+                if (SimpleFeatureSource.class.isAssignableFrom(fs.getClass()))
+                    fs = (SimpleFeatureSource) callback.wrapFeatureSource(info, fs);
+            }
+
             // return a normal
             return GeoServerFeatureLocking.create(
                     fs,
@@ -1387,12 +1390,14 @@ public class ResourcePool {
      * type info on the provided data access. We will first search based on the published name
      * (layer name) and only if this search fails we will search based on the native name.
      */
+    @SuppressWarnings("unchecked")
     private FeatureSource<? extends FeatureType, ? extends Feature> getFeatureSource(
             DataAccess<? extends FeatureType, ? extends Feature> dataAccess, FeatureTypeInfo info)
             throws IOException {
+        FeatureSource<? extends FeatureType, ? extends Feature> featureSource;
         try {
             // first try to search based on the published name, to avoid any unexpected aliasing
-            return dataAccess.getFeatureSource(info.getQualifiedName());
+            featureSource = dataAccess.getFeatureSource(info.getQualifiedName());
         } catch (Exception exception) {
             LOGGER.log(
                     Level.FINE,
@@ -1400,8 +1405,12 @@ public class ResourcePool {
                             "Error retrieving feature type using published name '%s'.",
                             info.getQualifiedName()));
             // let's try now to search based on the native name
-            return dataAccess.getFeatureSource(info.getQualifiedNativeName());
+            featureSource = dataAccess.getFeatureSource(info.getQualifiedNativeName());
         }
+        // return a decorated feature source, capable of handling the layer definition default CQL
+        // filter
+        return new GeoserverComplexFeatureSource(
+                (FeatureSource<FeatureType, Feature>) featureSource, info);
     }
 
     private Double getTolerance(FeatureTypeInfo info) {
@@ -1550,7 +1559,7 @@ public class ResourcePool {
                     //
                     // /////////////////////////////////////////////////////////
                     final String urlString = expandedStore.getURL();
-                    Object readObject = getObjectToRead(urlString);
+                    Object readObject = getObjectToRead(urlString, coverageInfo, hints);
 
                     // readers might change the provided hints, pass down a defensive copy
                     reader = gridFormat.getReader(readObject, hints);
@@ -1625,39 +1634,18 @@ public class ResourcePool {
      * @param urlString the url string to parse, which may actually be a path
      * @return an object appropriate for passing to a grid coverage reader
      */
-    private Object getObjectToRead(String urlString) {
-        // Check to see if our "url" points to a file or not, otherwise we use the string
-        // itself for reading
-        Object readObject = urlString;
-        boolean isFile = true;
-        URI uri;
-        try {
-            uri = new URI(urlString);
-            if (uri.getScheme() != null && !"file".equalsIgnoreCase(uri.getScheme())) {
-                isFile = false;
+    private Object getObjectToRead(String urlString, CoverageInfo coverageInfo, Hints hints) {
+        List<CoverageReaderInputObjectConverter> converters =
+                GeoServerExtensions.extensions(CoverageReaderInputObjectConverter.class);
+
+        for (CoverageReaderInputObjectConverter converter : converters) {
+            Optional<?> convertedValue = converter.convert(urlString, coverageInfo, hints);
+            if (convertedValue.isPresent()) {
+                return convertedValue.get();
             }
-        } catch (URISyntaxException e) {
-            LOGGER.warning(
-                    "Unable to convert coverage URL to a URI, attempting to use " + "it as a path");
-            LOGGER.log(
-                    Level.FINEST,
-                    "Can't convert URL string to URI, this may be "
-                            + "fine if the URL is actually a path",
-                    e);
         }
 
-        if (isFile) {
-            GeoServerResourceLoader loader = catalog.getResourceLoader();
-            final File readerFile =
-                    Resources.find(
-                            Resources.fromURL(
-                                    Files.asResource(loader.getBaseDirectory()), urlString),
-                            true);
-            if (readerFile != null) {
-                readObject = readerFile;
-            }
-        }
-        return readObject;
+        return urlString;
     }
 
     /** Clears any cached readers for the coverage. */
@@ -1807,7 +1795,6 @@ public class ResourcePool {
      * Returns the {@link WebMapServer} for a {@link WMSStoreInfo} object
      *
      * @param info The WMS configuration
-     * @throws IOException
      */
     public WebMapServer getWebMapServer(WMSStoreInfo info) throws IOException {
 
@@ -1861,7 +1848,6 @@ public class ResourcePool {
      * Returns the {@link WebMapTileServer} for a {@link WMTSStoreInfo} object
      *
      * @param info The WMTS configuration
-     * @throws IOException
      */
     public WebMapTileServer getWebMapTileServer(WMTSStoreInfo info) throws IOException {
         WMTSStoreInfo expandedStore = (WMTSStoreInfo) clone(info, true);
@@ -1909,8 +1895,6 @@ public class ResourcePool {
     /**
      * Returns the entity resolver from the {@link EntityResolverProvider}, or null if none is
      * configured
-     *
-     * @return
      */
     public EntityResolver getEntityResolver() {
         EntityResolver entityResolver = null;
@@ -1954,11 +1938,7 @@ public class ResourcePool {
         return client;
     }
 
-    /**
-     * Locates and returns a WMS {@link Layer} based on the configuration stored in WMSLayerInfo
-     *
-     * @param info
-     */
+    /** Locates and returns a WMS {@link Layer} based on the configuration stored in WMSLayerInfo */
     public Layer getWMSLayer(WMSLayerInfo info) throws IOException {
         // check which actual name we have to use
         String name = info.getName();
@@ -1979,9 +1959,6 @@ public class ResourcePool {
 
     /**
      * Locates and returns a WTMS {@link Layer} based on the configuration stored in WMTSLayerInfo
-     *
-     * @param info
-     * @throws IOException
      */
     public WMTSLayer getWMTSLayer(WMTSLayerInfo info) throws IOException {
 
@@ -2205,7 +2182,6 @@ public class ResourcePool {
      *
      * @param in the new stream to write to styleFile
      * @param styleFile file to update
-     * @throws IOException
      */
     public static void writeStyle(final InputStream in, final Resource styleFile)
             throws IOException {
@@ -2461,6 +2437,7 @@ public class ResourcePool {
                 // dispose the client, and the connection pool hosted into it as a consequence
                 // the connection pool additionally holds a few threads that are also getting
                 // disposed with this call
+                @SuppressWarnings("PMD.CloseResource") // actually closing here
                 Closeable closeable = (Closeable) client;
                 try {
                     closeable.close();
@@ -2483,6 +2460,7 @@ public class ResourcePool {
                 // dispose the client, and the connection pool hosted into it as a consequence
                 // the connection pool additionally holds a few threads that are also getting
                 // disposed with this call
+                @SuppressWarnings("PMD.CloseResource") // actually closing here
                 Closeable closeable = (Closeable) client;
                 try {
                     closeable.close();
@@ -2553,7 +2531,6 @@ public class ResourcePool {
      * <p>The DataStore is still active as the listeners are called allowing any required clean up
      * to occur.
      *
-     * @param dataStoreInfo
      * @param da Data access
      */
     void fireDisposed(DataStoreInfo dataStore, DataAccess da) {
@@ -2846,10 +2823,7 @@ public class ResourcePool {
         return target;
     }
 
-    /**
-     * @param source
-     * @param target
-     */
+    /** */
     private void setConnectionParameters(final WMSStoreInfo source, WMSStoreInfo target) {
         target.setCapabilitiesURL(source.getCapabilitiesURL());
         target.setUsername(source.getUsername());
@@ -2860,10 +2834,7 @@ public class ResourcePool {
         target.setReadTimeout(source.getReadTimeout());
     }
 
-    /**
-     * @param source
-     * @param target
-     */
+    /** */
     private void setConnectionParameters(final WMTSStoreInfo source, WMTSStoreInfo target) {
         target.setCapabilitiesURL(source.getCapabilitiesURL());
         target.setUsername(source.getUsername());
@@ -2910,8 +2881,6 @@ public class ResourcePool {
     /**
      * The catalog repository, used to gather store references by name by some GeoTools stores like
      * pre-generalized or image mosaic
-     *
-     * @return
      */
     public CatalogRepository getRepository() {
         return repository;

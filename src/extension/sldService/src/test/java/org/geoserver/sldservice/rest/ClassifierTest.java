@@ -22,15 +22,10 @@ import static org.junit.Assert.fail;
 
 import java.awt.image.RenderedImage;
 import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TreeSet;
+import java.io.IOException;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.media.jai.PlanarImage;
 import javax.xml.namespace.QName;
@@ -50,6 +45,7 @@ import org.geoserver.rest.RestBaseController;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
+import org.geotools.data.DataUtilities;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.function.EnvFunction;
 import org.geotools.filter.function.FilterFunction_parseDouble;
@@ -61,25 +57,13 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.util.ImageUtilities;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
-import org.geotools.styling.ChannelSelection;
-import org.geotools.styling.ColorMap;
-import org.geotools.styling.ColorMapEntry;
-import org.geotools.styling.FeatureTypeStyle;
-import org.geotools.styling.Mark;
-import org.geotools.styling.NamedLayer;
-import org.geotools.styling.PointSymbolizer;
-import org.geotools.styling.RasterSymbolizer;
-import org.geotools.styling.Rule;
-import org.geotools.styling.SelectedChannelType;
-import org.geotools.styling.Style;
-import org.geotools.styling.StyledLayerDescriptor;
-import org.geotools.styling.Symbolizer;
+import org.geotools.styling.*;
 import org.geotools.xml.styling.SLDParser;
 import org.hamcrest.Matchers;
 import org.junit.Test;
-import org.opengis.filter.Filter;
-import org.opengis.filter.PropertyIsEqualTo;
-import org.opengis.filter.PropertyIsLessThan;
+import org.opengis.feature.simple.SimpleFeature;
+import org.opengis.feature.simple.SimpleFeatureType;
+import org.opengis.filter.*;
 import org.opengis.geometry.Envelope;
 import org.opengis.parameter.GeneralParameterDescriptor;
 import org.opengis.parameter.GeneralParameterValue;
@@ -94,9 +78,18 @@ public class ClassifierTest extends SLDServiceBaseTest {
     static final QName CLASSIFICATION_POINTS =
             new QName(SystemTestData.CITE_URI, "ClassificationPoints", SystemTestData.CITE_PREFIX);
 
+    static final QName CLASSIFICATION_POINTS2 =
+            new QName(SystemTestData.CITE_URI, "ClassificationPoints2", SystemTestData.CITE_PREFIX);
+
+    static final QName CLASSIFICATION_POINTS3 =
+            new QName(SystemTestData.CITE_URI, "ClassificationPoints3", SystemTestData.CITE_PREFIX);
+
     static final QName CLASSIFICATION_POLYGONS =
             new QName(
                     SystemTestData.CITE_URI, "ClassificationPolygons", SystemTestData.CITE_PREFIX);
+
+    static final QName CLASSIFICATION_LINES =
+            new QName(SystemTestData.CITE_URI, "ClassificationLines", SystemTestData.CITE_PREFIX);
 
     static final QName FILTERED_POINTS =
             new QName(SystemTestData.CITE_URI, "FilteredPoints", SystemTestData.CITE_PREFIX);
@@ -115,6 +108,12 @@ public class ClassifierTest extends SLDServiceBaseTest {
 
     static final QName SFDEM_MOSAIC =
             new QName(SystemTestData.CITE_URI, "sfdem_mosaic", SystemTestData.CITE_PREFIX);
+
+    static final QName SINGLE_FLOAT =
+            new QName(SystemTestData.CITE_URI, "singleFloatNoData", SystemTestData.CITE_PREFIX);
+
+    static final QName SINGLE_BYTE =
+            new QName(SystemTestData.CITE_URI, "singleByteNoData", SystemTestData.CITE_PREFIX);
 
     private static final String sldPrefix =
             "<StyledLayerDescriptor><NamedLayer><Name>feature</Name><UserStyle><FeatureTypeStyle>";
@@ -141,6 +140,27 @@ public class ClassifierTest extends SLDServiceBaseTest {
                 catalog);
 
         testData.addVectorLayer(
+                CLASSIFICATION_POINTS2,
+                props,
+                "ClassificationPoints2.properties",
+                this.getClass(),
+                catalog);
+
+        testData.addVectorLayer(
+                CLASSIFICATION_POINTS3,
+                props,
+                "ClassificationPoints3.properties",
+                this.getClass(),
+                catalog);
+
+        testData.addVectorLayer(
+                CLASSIFICATION_LINES,
+                props,
+                "ClassificationLines.properties",
+                this.getClass(),
+                catalog);
+
+        testData.addVectorLayer(
                 CLASSIFICATION_POLYGONS,
                 props,
                 "ClassificationPolygons.properties",
@@ -155,6 +175,12 @@ public class ClassifierTest extends SLDServiceBaseTest {
         testData.addRasterLayer(DEM_FLOAT, "dem_float.tif", "tif", null, this.getClass(), catalog);
 
         testData.addRasterLayer(SRTM, "srtm.tif", "tif", null, this.getClass(), catalog);
+
+        testData.addRasterLayer(
+                SINGLE_FLOAT, "singleFloatNoData.tif", "tif", null, this.getClass(), catalog);
+
+        testData.addRasterLayer(
+                SINGLE_BYTE, "singleByteNoData.tif", "tif", null, this.getClass(), catalog);
 
         // for coverage view band selection testing
         testData.addDefaultRasterLayer(SystemTestData.MULTIBAND, catalog);
@@ -866,6 +892,75 @@ public class ClassifierTest extends SLDServiceBaseTest {
         checkRule(rules[2], "#0000FF", PropertyIsEqualTo.class);
     }
 
+    @Test
+    public void testCustomRampOneEntry() throws Exception {
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=foo&intervals=1&method=jenks&ramp=custom&open=false&startColor=0x00ff00&midColor=0xffff00&endColor=0xff0000";
+        MockHttpServletResponse response = getAsServletResponse(restPath);
+        assertTrue(response.getStatus() == 200);
+        Document dom = getAsDOM(restPath, 200);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        print(dom, baos);
+        String resultXml = baos.toString().replace("\r", "").replace("\n", "");
+        System.out.println(baos.toString());
+        Rule[] rules =
+                checkRules(
+                        resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix), 1);
+
+        checkRule(rules[0], "#00FF00", And.class);
+    }
+
+    @Test
+    public void testCustomRampTwoEntries() throws Exception {
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=foo&intervals=2&method=jenks&ramp=custom&open=true&startColor=0x00ff00&midColor=0xffff00&endColor=0xff0000";
+        MockHttpServletResponse response = getAsServletResponse(restPath);
+        assertTrue(response.getStatus() == 200);
+        Document dom = getAsDOM(restPath, 200);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        print(dom, baos);
+        String resultXml = baos.toString().replace("\r", "").replace("\n", "");
+        System.out.println(baos.toString());
+        Rule[] rules =
+                checkRules(
+                        resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix), 2);
+
+        checkRule(rules[0], "#00FF00", PropertyIsLessThan.class);
+        checkRule(rules[1], "#FF0000", PropertyIsGreaterThanOrEqualTo.class);
+    }
+
+    @Test
+    public void testCustomRampThreeEntries() throws Exception {
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=foo&intervals=3&method=jenks&ramp=custom&open=true&startColor=0x00ff00&midColor=0xffff00&endColor=0xff0000";
+        MockHttpServletResponse response = getAsServletResponse(restPath);
+        assertTrue(response.getStatus() == 200);
+        Document dom = getAsDOM(restPath, 200);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        print(dom, baos);
+        String resultXml = baos.toString().replace("\r", "").replace("\n", "");
+        System.out.println(baos.toString());
+        Rule[] rules =
+                checkRules(
+                        resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix), 3);
+
+        checkRule(rules[0], "#00FF00", PropertyIsLessThan.class);
+        checkRule(rules[1], "#FFFF00", And.class);
+        checkRule(rules[2], "#FF0000", PropertyIsGreaterThanOrEqualTo.class);
+    }
+
     private Rule[] checkRules(String resultXml, int classes) {
         Rule[] rules = checkSLD(resultXml);
         assertEquals(classes, rules.length);
@@ -887,10 +982,10 @@ public class ClassifierTest extends SLDServiceBaseTest {
 
     private Filter checkRule(Rule rule, String color, Class<?> filterType) {
         assertNotNull(rule.getFilter());
-        assertTrue(filterType.isAssignableFrom(rule.getFilter().getClass()));
+        assertThat(rule.getFilter(), instanceOf(filterType));
         assertNotNull(rule.symbolizers());
         assertEquals(1, rule.symbolizers().size());
-        assertTrue(rule.symbolizers().get(0) instanceof PointSymbolizer);
+        assertThat(rule.symbolizers().get(0), instanceOf(PointSymbolizer.class));
         PointSymbolizer symbolizer = (PointSymbolizer) rule.symbolizers().get(0);
         assertNotNull(symbolizer.getGraphic());
         assertEquals(1, symbolizer.getGraphic().graphicalSymbols().size());
@@ -1157,11 +1252,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
         assertEntry(entries[4], 1796, "1796", "#FF0000", 1);
     }
 
-    /**
-     * Same as testQuantileContinuousSrtm, but with reversed colormap
-     *
-     * @throws Exception
-     */
+    /** Same as testQuantileContinuousSrtm, but with reversed colormap */
     @Test
     public void testQuantileContinuousSrtmReverse() throws Exception {
         final String restPath =
@@ -1686,6 +1777,815 @@ public class ClassifierTest extends SLDServiceBaseTest {
             assertEquals(ECQL.toFilter("direction = 'NE'"), filter);
         } finally {
             EnvFunction.clearLocalValues();
+        }
+    }
+
+    @Test
+    public void testClassifyRasterSingleFloat() throws Exception {
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:singleFloatNoData/"
+                        + getServiceUrl()
+                        + ".xml?continuous=false&fullSLD=true&method=quantile"
+                        + "&colors=0xFF071C,0xFFA92E&ramp=custom";
+        Document dom = getAsDOM(restPath, 200);
+        print(dom);
+        RasterSymbolizer rs = getRasterSymbolizer(dom);
+        ColorMap cm = rs.getColorMap();
+        assertEquals(ColorMap.TYPE_INTERVALS, cm.getType());
+        ColorMapEntry[] entries = cm.getColorMapEntries();
+        assertEquals(2, entries.length);
+        ColorMapEntry cm0 = cm.getColorMapEntry(0);
+        assertThat(cm0.getQuantity().evaluate(null, Float.class), Matchers.lessThanOrEqualTo(10f));
+        assertEquals("#FF071C", cm0.getColor().evaluate(null, String.class));
+        assertEquals(1, cm0.getOpacity().evaluate(null, Double.class), 0);
+        ColorMapEntry cm1 = cm.getColorMapEntry(1);
+        assertThat(
+                cm1.getQuantity().evaluate(null, Float.class), Matchers.greaterThanOrEqualTo(10f));
+        assertEquals("#FF071C", cm1.getColor().evaluate(null, String.class));
+        assertEquals(1, cm1.getOpacity().evaluate(null, Double.class), 0);
+    }
+
+    /**
+     * Was hoping for a simpler solution for integer data (single entry, type "values"), but the
+     * output does not really render when tested, unsure why... keeping the code to cover both types
+     * of data anyways
+     */
+    @Test
+    public void testClassifyRasterSingleByte() throws Exception {
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:singleByteNoData/"
+                        + getServiceUrl()
+                        + ".xml?continuous=false&fullSLD=true&method=quantile"
+                        + "&colors=0xFF071C,0xFFA92E&ramp=custom";
+        Document dom = getAsDOM(restPath, 200);
+        print(dom);
+        RasterSymbolizer rs = getRasterSymbolizer(dom);
+        ColorMap cm = rs.getColorMap();
+        assertEquals(ColorMap.TYPE_INTERVALS, cm.getType());
+        ColorMapEntry[] entries = cm.getColorMapEntries();
+        assertEquals(2, entries.length);
+        ColorMapEntry cm0 = cm.getColorMapEntry(0);
+        assertThat(cm0.getQuantity().evaluate(null, Float.class), Matchers.lessThanOrEqualTo(10f));
+        assertEquals("#FF071C", cm0.getColor().evaluate(null, String.class));
+        assertEquals(1, cm0.getOpacity().evaluate(null, Double.class), 0);
+        ColorMapEntry cm1 = cm.getColorMapEntry(1);
+        assertThat(
+                cm1.getQuantity().evaluate(null, Float.class), Matchers.greaterThanOrEqualTo(10f));
+        assertEquals("#FF071C", cm1.getColor().evaluate(null, String.class));
+        assertEquals(1, cm1.getOpacity().evaluate(null, Double.class), 0);
+    }
+
+    @Test
+    public void testCustomRampSingleValue() throws Exception {
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:singleByteNoData/"
+                        + getServiceUrl()
+                        + ".xml?continuous=false&endColor=0xff0000&fullSLD=true"
+                        + "&intervals=7&method=jenks&midColor=0xffff00&ramp=custom"
+                        + "&reverse=true&startColor=0x00ff00&strokeWeight=-1&open=true";
+        Document dom = getAsDOM(restPath, 200);
+        print(dom);
+        RasterSymbolizer rs = getRasterSymbolizer(dom);
+        ColorMap cm = rs.getColorMap();
+        assertEquals(ColorMap.TYPE_RAMP, cm.getType());
+        ColorMapEntry[] entries = cm.getColorMapEntries();
+        assertEquals(1, entries.length);
+        ColorMapEntry cm0 = cm.getColorMapEntry(0);
+        assertEquals("#00FF00", cm0.getColor().evaluate(null, String.class));
+        assertEquals(1, cm0.getOpacity().evaluate(null, Double.class), 0);
+    }
+
+    @Test
+    public void testRasterNoDuplicatedClasses() throws Exception {
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:milanogeo/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "method=quantile&ramp=custom&intervals=7"
+                        + "&colors=#FF071C,#CC0616,#82040E,#68030B,#530209,#420207,#350206&fullSLD=true";
+        Document dom = getAsDOM(restPath, 200);
+        RasterSymbolizer rs = getRasterSymbolizer(dom);
+        ColorMap cm = rs.getColorMap();
+        ColorMapEntry[] entries = cm.getColorMapEntries();
+        assertEquals(2, entries.length);
+        // first color map entry got skipped when applying color ramp, taking the second
+        ColorMapEntry cm1 = cm.getColorMapEntry(1);
+        assertEquals("#FF071C", cm1.getColor().evaluate(null, String.class));
+        final String restPathJenks =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:milanogeo/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "method=jenks&ramp=custom&intervals=7&open=true"
+                        + "&colors=#FF071C,#CC0616,#82040E,#68030B,#530209,#420207,#350206&fullSLD=true";
+        Document domJenks = getAsDOM(restPathJenks, 200);
+        RasterSymbolizer rsJenks = getRasterSymbolizer(domJenks);
+        ColorMap cmJenks = rsJenks.getColorMap();
+        ColorMapEntry[] entriesJenks = cmJenks.getColorMapEntries();
+        assertEquals(2, entriesJenks.length);
+        ColorMapEntry cm0Jenks = cmJenks.getColorMapEntry(0);
+        assertEquals("#FF071C", cm0Jenks.getColor().evaluate(null, String.class));
+        ColorMapEntry cm1Jenks = cmJenks.getColorMapEntry(1);
+        assertEquals("#CC0616", cm1Jenks.getColor().evaluate(null, String.class));
+    }
+
+    @Test
+    public void testNoDuplicatedClosedRulesVectors() throws Exception {
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationLines/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=cat2&ramp=CUSTOM&method=quantile&intervals=7&"
+                        + "colors=#FF071C,#CC0616,#82040E,#68030B,#530209,#420207,#350206";
+        Document dom = getAsDOM(restPath, 200);
+        print(dom);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        print(dom, baos);
+        String resultXml = baos.toString().replace("\r", "").replace("\n", "");
+        Rule[] rules =
+                checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        assertTrue(rules.length == 4);
+        checkRuleLineSymbolizer(rules[0], "#FF071C");
+        checkRuleLineSymbolizer(rules[1], "#CC0616");
+        checkRuleLineSymbolizer(rules[2], "#82040E");
+        checkRuleLineSymbolizer(rules[3], "#68030B");
+
+        final String restPathJenks =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationLines/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=cat2&ramp=CUSTOM&method=jenks&intervals=7&"
+                        + "colors=#FF071C,#CC0616,#82040E,#68030B,#530209,#420207,#350206";
+        Document domJenks = getAsDOM(restPathJenks, 200);
+        print(domJenks);
+        ByteArrayOutputStream baosJenks = new ByteArrayOutputStream();
+        print(domJenks, baosJenks);
+        String resultJenks = baosJenks.toString().replace("\r", "").replace("\n", "");
+        Rule[] rulesJenks =
+                checkSLD(resultJenks.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        assertTrue(rulesJenks.length == 3);
+        checkRuleLineSymbolizer(rulesJenks[0], "#FF071C");
+        checkRuleLineSymbolizer(rulesJenks[1], "#CC0616");
+        checkRuleLineSymbolizer(rulesJenks[2], "#82040E");
+    }
+
+    @Test
+    public void testNoDuplicatedOpenRulesVectors() throws Exception {
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationLines/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=cat2&ramp=CUSTOM&method=quantile&intervals=7&open=true&"
+                        + "colors=#FF071C,#CC0616,#82040E,#68030B,#530209,#420207,#350206";
+        Document dom = getAsDOM(restPath, 200);
+        print(dom);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        print(dom, baos);
+        String resultXml = baos.toString().replace("\r", "").replace("\n", "");
+        Rule[] rules =
+                checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        assertTrue(rules.length == 5);
+        checkRuleLineSymbolizer(rules[0], "#FF071C");
+        checkRuleLineSymbolizer(rules[1], "#CC0616");
+        checkRuleLineSymbolizer(rules[2], "#82040E");
+        checkRuleLineSymbolizer(rules[3], "#68030B");
+        checkRuleLineSymbolizer(rules[4], "#530209");
+        final String restPathJenks =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationLines/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=cat2&ramp=CUSTOM&method=jenks&intervals=7&open=true&"
+                        + "colors=#FF071C,#CC0616,#82040E,#68030B,#530209,#420207,#350206";
+        Document domJenks = getAsDOM(restPathJenks, 200);
+        print(domJenks);
+        ByteArrayOutputStream baosJenks = new ByteArrayOutputStream();
+        print(domJenks, baosJenks);
+        String resultJenks = baosJenks.toString().replace("\r", "").replace("\n", "");
+        Rule[] rulesJenks =
+                checkSLD(resultJenks.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        assertTrue(rulesJenks.length == 3);
+        checkRuleLineSymbolizer(rulesJenks[0], "#FF071C");
+        checkRuleLineSymbolizer(rulesJenks[1], "#CC0616");
+        checkRuleLineSymbolizer(rulesJenks[2], "#82040E");
+    }
+
+    @Test
+    public void testNoDuplicatedExplicitRulesVectors() throws Exception {
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationLines/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=cat2&ramp=CUSTOM&method=uniqueInterval&intervals=7&"
+                        + "colors=#FF071C,#CC0616,#82040E,#68030B,#530209,#420207,#350206";
+        Document dom = getAsDOM(restPath, 200);
+        print(dom);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        print(dom, baos);
+        String resultXml = baos.toString().replace("\r", "").replace("\n", "");
+        Rule[] rules =
+                checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        assertTrue(rules.length == 4);
+        checkRuleLineSymbolizer(rules[0], "#FF071C");
+        checkRuleLineSymbolizer(rules[1], "#CC0616");
+        checkRuleLineSymbolizer(rules[2], "#82040E");
+        checkRuleLineSymbolizer(rules[3], "#68030B");
+    }
+
+    private void checkRuleLineSymbolizer(Rule rule, String color) {
+        assertNotNull(rule.symbolizers());
+        assertEquals(1, rule.symbolizers().size());
+        assertThat(rule.symbolizers().get(0), instanceOf(LineSymbolizer.class));
+        LineSymbolizer symbolizer = (LineSymbolizer) rule.symbolizers().get(0);
+        assertNotNull(symbolizer.getStroke());
+        assertEquals(color, symbolizer.getStroke().getColor().toString());
+    }
+
+    @Test
+    public void testOpenIntervalFirstRuleConsistency() throws Exception {
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints2/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=bar&ramp=red&method=quantile&intervals=2&open=true";
+        Document dom = getAsDOM(restPath, 200);
+        print(dom);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        print(dom, baos);
+        String resultXml = baos.toString().replace("\r", "").replace("\n", "");
+        Rule[] rules =
+                checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        assertTrue(rules.length == 2);
+        assertTrue(rules[0].getFilter() instanceof PropertyIsEqualTo);
+        assertTrue(rules[1].getFilter() instanceof PropertyIsGreaterThan);
+        checkNotOverlappingRules(rules[0], rules[1]);
+        final String restPathJenks =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints2/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=bar&ramp=red&method=jenks&intervals=2&open=true";
+        Document domJenks = getAsDOM(restPathJenks, 200);
+        print(domJenks);
+        ByteArrayOutputStream baosJenks = new ByteArrayOutputStream();
+        print(domJenks, baosJenks);
+        String resultXmlJenks = baosJenks.toString().replace("\r", "").replace("\n", "");
+        Rule[] rulesJenks =
+                checkSLD(
+                        resultXmlJenks
+                                .replace("<Rules>", sldPrefix)
+                                .replace("</Rules>", sldPostfix));
+        assertTrue(rulesJenks.length == 2);
+        assertTrue(rulesJenks[0].getFilter() instanceof PropertyIsEqualTo);
+        assertTrue(rulesJenks[1].getFilter() instanceof PropertyIsGreaterThan);
+        checkNotOverlappingRules(rulesJenks[0], rulesJenks[1]);
+    }
+
+    @Test
+    public void testNotOverlappingRulesClosed() throws Exception {
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints2/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=bar&ramp=red&method=quantile&intervals=2";
+        Document dom = getAsDOM(restPath, 200);
+        print(dom);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        print(dom, baos);
+        String resultXml = baos.toString().replace("\r", "").replace("\n", "");
+        Rule[] rules =
+                checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        assertTrue(rules.length == 2);
+        Rule first = rules[0];
+        Rule second = rules[1];
+        checkNotOverlappingRules(first, second);
+        final String restPathJenks =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints2/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=bar&ramp=red&method=jenks&intervals=2&";
+        Document domJenks = getAsDOM(restPathJenks, 200);
+        print(domJenks);
+        ByteArrayOutputStream baosJenks = new ByteArrayOutputStream();
+        print(domJenks, baosJenks);
+        String resultXmlJenks = baosJenks.toString().replace("\r", "").replace("\n", "");
+        Rule[] rulesJenks =
+                checkSLD(
+                        resultXmlJenks
+                                .replace("<Rules>", sldPrefix)
+                                .replace("</Rules>", sldPostfix));
+        assertTrue(rulesJenks.length == 2);
+        Rule firstJenks = rulesJenks[0];
+        Rule secondJenks = rulesJenks[1];
+        checkNotOverlappingRules(firstJenks, secondJenks);
+    }
+
+    @Test
+    public void testNotOverlappingRulesOpen() throws Exception {
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints2/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=bar&ramp=red&method=quantile&intervals=3&open=true";
+        Document dom = getAsDOM(restPath, 200);
+        print(dom);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        print(dom, baos);
+        String resultXml = baos.toString().replace("\r", "").replace("\n", "");
+        Rule[] rules =
+                checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        assertTrue(rules.length == 3);
+        Rule first = rules[0];
+        Rule second = rules[1];
+        checkNotOverlappingRules(first, second);
+        final String restPathJenks =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints2/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=bar&ramp=red&method=jenks&intervals=3&open=true";
+        Document domJenks = getAsDOM(restPathJenks, 200);
+        print(domJenks);
+        ByteArrayOutputStream baosJenks = new ByteArrayOutputStream();
+        print(domJenks, baosJenks);
+        String resultXmlJenks = baosJenks.toString().replace("\r", "").replace("\n", "");
+        Rule[] rulesJenks =
+                checkSLD(
+                        resultXmlJenks
+                                .replace("<Rules>", sldPrefix)
+                                .replace("</Rules>", sldPostfix));
+        assertTrue(rulesJenks.length == 2);
+        Rule firstJenks = rulesJenks[0];
+        Rule secondJenks = rulesJenks[1];
+        checkNotOverlappingRules(firstJenks, secondJenks);
+    }
+
+    private void checkNotOverlappingRules(Rule first, Rule second) throws IOException {
+        SimpleFeatureType ft =
+                (SimpleFeatureType)
+                        getCatalog().getFeatureTypeByName("ClassificationPoints2").getFeatureType();
+        SimpleFeature feature = DataUtilities.createFeature(ft, "=1|2.0|POINT(4 2.5)");
+        assertTrue(first.getFilter().evaluate(feature));
+        assertFalse(second.getFilter().evaluate(feature));
+    }
+
+    @Test
+    public void testPercentagesInRulesLabelsVectorsQuantile() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPathQuantile =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPolygons/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=bar&ramp=red&method=quantile"
+                        + "&intervals=3&open=true&percentages=true";
+        Document domQuantile = getAsDOM(restPathQuantile, 200);
+        print(domQuantile);
+        ByteArrayOutputStream baosQuantile = new ByteArrayOutputStream();
+        print(domQuantile, baosQuantile);
+        String resultXml = baosQuantile.toString().replace("\r", "").replace("\n", "");
+        Rule[] rulesQuantile =
+                checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        assertTrue(rulesQuantile.length == 3);
+        for (Rule r : rulesQuantile) {
+            Matcher rgxMatcher = rgx.matcher(r.getDescription().getTitle());
+            assertTrue(rgxMatcher.find());
+        }
+    }
+
+    @Test
+    public void testPercentagesInRulesLabelsVectorsEqualArea() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPathArea =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPolygons/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=foo&ramp=red&method=equalArea"
+                        + "&intervals=5&percentages=true";
+        Document domArea = getAsDOM(restPathArea, 200);
+        print(domArea);
+        ByteArrayOutputStream baosArea = new ByteArrayOutputStream();
+        print(domArea, baosArea);
+        String resultArea = baosArea.toString().replace("\r", "").replace("\n", "");
+        Rule[] rulesArea =
+                checkSLD(resultArea.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        for (Rule r : rulesArea) {
+            Matcher rgxMatcher = rgx.matcher(r.getDescription().getTitle());
+            assertTrue(rgxMatcher.find());
+        }
+    }
+
+    @Test
+    public void testPercentagesInRulesLabelsVectorsEqualInterval() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPathArea =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=bar&ramp=red&method=equalInterval"
+                        + "&intervals=3&percentages=true";
+        Document domArea = getAsDOM(restPathArea, 200);
+        print(domArea);
+        ByteArrayOutputStream baosArea = new ByteArrayOutputStream();
+        print(domArea, baosArea);
+        String resultArea = baosArea.toString().replace("\r", "").replace("\n", "");
+        Rule[] rulesArea =
+                checkSLD(resultArea.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        for (Rule r : rulesArea) {
+            Matcher rgxMatcher = rgx.matcher(r.getDescription().getTitle());
+            assertTrue(rgxMatcher.find());
+        }
+    }
+
+    @Test
+    public void testPercentagesInRulesLabelsVectorsEqualIntervalWithOutlier() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPathArea =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints3/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=bar&ramp=red&method=equalInterval"
+                        + "&intervals=3&percentages=true";
+        Document domArea = getAsDOM(restPathArea, 200);
+        print(domArea);
+        ByteArrayOutputStream baosArea = new ByteArrayOutputStream();
+        print(domArea, baosArea);
+        String resultArea = baosArea.toString().replace("\r", "").replace("\n", "");
+        Rule[] rulesArea =
+                checkSLD(resultArea.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        for (Rule r : rulesArea) {
+            Matcher rgxMatcher = rgx.matcher(r.getDescription().getTitle());
+            assertTrue(rgxMatcher.find());
+        }
+    }
+
+    @Test
+    public void testPercentagesInRulesLabelsVectorJenks() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPathJenks =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPolygons/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=bar&ramp=red&method=jenks&intervals=3&open=true"
+                        + "&percentages=true";
+        Document domJenks = getAsDOM(restPathJenks, 200);
+        print(domJenks);
+        ByteArrayOutputStream baosJenks = new ByteArrayOutputStream();
+        print(domJenks, baosJenks);
+        String resultXmlJenks = baosJenks.toString().replace("\r", "").replace("\n", "");
+        Rule[] rulesJenks =
+                checkSLD(
+                        resultXmlJenks
+                                .replace("<Rules>", sldPrefix)
+                                .replace("</Rules>", sldPostfix));
+        assertTrue(rulesJenks.length == 3);
+        for (Rule r : rulesJenks) {
+            Matcher rgxMatcher = rgx.matcher(r.getDescription().getTitle());
+            assertTrue(rgxMatcher.find());
+        }
+    }
+
+    @Test
+    public void testPercentagesInRulesLabelsVectorUnique() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPathUnique =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPolygons/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=bar&ramp=red&method=uniqueInterval&intervals=8&"
+                        + "percentages=true";
+        Document domUnique = getAsDOM(restPathUnique, 200);
+        print(domUnique);
+        ByteArrayOutputStream baosUnique = new ByteArrayOutputStream();
+        print(domUnique, baosUnique);
+        String resultXmlUnique = baosUnique.toString().replace("\r", "").replace("\n", "");
+        Rule[] rulesUnique =
+                checkSLD(
+                        resultXmlUnique
+                                .replace("<Rules>", sldPrefix)
+                                .replace("</Rules>", sldPostfix));
+        assertTrue(rulesUnique.length == 8);
+        for (Rule r : rulesUnique) {
+            Matcher rgxMatcher = rgx.matcher(r.getDescription().getTitle());
+            assertTrue(rgxMatcher.find());
+        }
+    }
+
+    @Test
+    public void testPercentagesInRuleLabelsVectorCustom() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=foo&customClasses=1,30,#FF0000;30,50,#00FF00;50,90,#0000FF"
+                        + "&percentages=true";
+        MockHttpServletResponse response = getAsServletResponse(restPath);
+        assertTrue(response.getStatus() == 200);
+        Document dom = getAsDOM(restPath, 200);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        print(dom, baos);
+        String resultXml = baos.toString().replace("\r", "").replace("\n", "");
+        Rule[] rules =
+                checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        assertTrue(rules.length == 3);
+        for (Rule r : rules) {
+            Matcher rgxMatcher = rgx.matcher(r.getDescription().getTitle());
+            assertTrue(rgxMatcher.find());
+        }
+    }
+
+    @Test
+    public void testPercentagesInRulesLabelsRasterQuantile() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPathQuantile =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:dem/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "method=quantile&intervals=5"
+                        + "&ramp=jet&fullSLD=true&percentages=true";
+        Document domQuantile = getAsDOM(restPathQuantile, 200);
+        RasterSymbolizer rsQuantile = getRasterSymbolizer(domQuantile);
+        ColorMap cmQuantile = rsQuantile.getColorMap();
+        ColorMapEntry[] entriesQuantile = cmQuantile.getColorMapEntries();
+        assertEquals(entriesQuantile.length, 6);
+        for (ColorMapEntry e : entriesQuantile) {
+            if (e.getLabel() != null) {
+                Matcher matcher = rgx.matcher(e.getLabel());
+                matcher.find();
+            }
+        }
+    }
+
+    @Test
+    public void testPercentagesInRulesLabelsRasterEqual() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+
+        final String restPathEqual =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:dem/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "method=equalInterval&intervals=5"
+                        + "&ramp=jet&fullSLD=true&percentages=true";
+        ;
+        Document domEqual = getAsDOM(restPathEqual, 200);
+        RasterSymbolizer rsEqual = getRasterSymbolizer(domEqual);
+        ColorMap cmEqual = rsEqual.getColorMap();
+        ColorMapEntry[] entriesEqual = cmEqual.getColorMapEntries();
+        assertEquals(entriesEqual.length, 6);
+        double percentagesSum = 0.0;
+        for (ColorMapEntry e : entriesEqual) {
+            if (e.getLabel() != null) {
+                String label = e.getLabel();
+                int i = label.lastIndexOf("(");
+                int i2 = label.indexOf("%)");
+                percentagesSum += Double.valueOf(label.substring(i + 1, i2));
+                Matcher matcher = rgx.matcher(e.getLabel());
+                matcher.find();
+            }
+        }
+        assertTrue(100.0 == percentagesSum);
+    }
+
+    @Test
+    public void testPercentagesInRulesLabelsRasterJenks() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPathJenks =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:dem/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "method=jenks&intervals=5"
+                        + "&ramp=red&fullSLD=true&percentages=true";
+        Document domjenks = getAsDOM(restPathJenks, 200);
+        RasterSymbolizer rsJenks = getRasterSymbolizer(domjenks);
+        ColorMap cmJenks = rsJenks.getColorMap();
+        ColorMapEntry[] entriesJenks = cmJenks.getColorMapEntries();
+        assertEquals(entriesJenks.length, 6);
+        for (ColorMapEntry e : entriesJenks) {
+            if (e.getLabel() != null) {
+                Matcher matcher = rgx.matcher(e.getLabel());
+                matcher.find();
+            }
+        }
+    }
+
+    @Test
+    public void testPercentagesInRulesLabelsRasterUnique() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPathUnique =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:tazbyte/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "method=uniqueInterval"
+                        + "&ramp=jet&fullSLD=true&percentages=true&intervals=167";
+        Document domUnique = getAsDOM(restPathUnique, 200);
+        RasterSymbolizer rsUnique = getRasterSymbolizer(domUnique);
+        ColorMap cmUnique = rsUnique.getColorMap();
+        ColorMapEntry[] entriesUnique = cmUnique.getColorMapEntries();
+        assertEquals(entriesUnique.length, 167);
+        for (ColorMapEntry e : entriesUnique) {
+            if (e.getLabel() != null) {
+                Matcher matcher = rgx.matcher(e.getLabel());
+                matcher.find();
+            }
+        }
+    }
+
+    @Test
+    public void testPercentagesInRulesLabelsRasterCustom() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:srtm/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "customClasses=1,8,#FF0000;8,16,#00FF00;16,30,#0000FF&fullSLD=true"
+                        + "&percentages=true";
+        Document dom = getAsDOM(restPath, 200);
+        RasterSymbolizer rs = getRasterSymbolizer(dom);
+        ColorMap cm = rs.getColorMap();
+        ColorMapEntry[] entries = cm.getColorMapEntries();
+        assertEquals(4, entries.length);
+        double percentagesSum = 0.0;
+        for (ColorMapEntry e : entries) {
+            if (e.getLabel() != null) {
+                String label = e.getLabel();
+                int i = label.lastIndexOf("(");
+                int i2 = label.indexOf("%)");
+                percentagesSum += Double.valueOf(label.substring(i + 1, i2));
+                Matcher matcher = rgx.matcher(e.getLabel());
+                matcher.find();
+            }
+        }
+        assertTrue(100.0 == percentagesSum);
+    }
+
+    @Test
+    public void testPercentagesCustomScale() throws Exception {
+        String regex = "\\d+(\\.\\d{1,2})%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPathQuantile =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:dem/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "method=quantile&intervals=5"
+                        + "&ramp=jet&fullSLD=true&percentages=true"
+                        + "&percentagesScale=2";
+        Document domQuantile = getAsDOM(restPathQuantile, 200);
+        RasterSymbolizer rsQuantile = getRasterSymbolizer(domQuantile);
+        ColorMap cmQuantile = rsQuantile.getColorMap();
+        ColorMapEntry[] entriesQuantile = cmQuantile.getColorMapEntries();
+        assertEquals(entriesQuantile.length, 6);
+        for (ColorMapEntry e : entriesQuantile) {
+            if (e.getLabel() != null) {
+                Matcher matcher = rgx.matcher(e.getLabel());
+                matcher.find();
+            }
+        }
+    }
+
+    @Test
+    public void testPercentagesWithOverlappingRules() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints2/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=bar&ramp=red&method=quantile&intervals=3&open=true"
+                        + "&percentages=true";
+        Document dom = getAsDOM(restPath, 200);
+        print(dom);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        print(dom, baos);
+        String resultXml = baos.toString().replace("\r", "").replace("\n", "");
+        Rule[] rules =
+                checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        assertTrue(rules.length == 3);
+        double percentagesSum = 0.0;
+        for (Rule r : rules) {
+            String title = r.getDescription().getTitle().toString();
+            int i = title.lastIndexOf("(");
+            int i2 = title.indexOf("%)");
+            percentagesSum += Double.valueOf(title.substring(i + 1, i2));
+            Matcher rgxMatcher = rgx.matcher(title);
+            assertTrue(rgxMatcher.find());
+        }
+        assertTrue(percentagesSum == 100.0);
+        final String restPathJenks =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints2/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=bar&ramp=red&method=jenks&intervals=3&open=true"
+                        + "&percentages=true";
+        Document domJenks = getAsDOM(restPathJenks, 200);
+        print(domJenks);
+        ByteArrayOutputStream baosJenks = new ByteArrayOutputStream();
+        print(domJenks, baosJenks);
+        String resultXmlJenks = baosJenks.toString().replace("\r", "").replace("\n", "");
+        Rule[] rulesJenks =
+                checkSLD(
+                        resultXmlJenks
+                                .replace("<Rules>", sldPrefix)
+                                .replace("</Rules>", sldPostfix));
+        assertTrue(rulesJenks.length == 2);
+        percentagesSum = 0.0;
+        for (Rule r : rulesJenks) {
+            String title = r.getDescription().getTitle().toString();
+            int i = title.lastIndexOf("(");
+            int i2 = title.indexOf("%)");
+            percentagesSum += Double.valueOf(title.substring(i + 1, i2));
+            Matcher rgxMatcher = rgx.matcher(title);
+            assertTrue(rgxMatcher.find());
+        }
+        assertTrue(percentagesSum == 100.0);
+    }
+
+    @Test
+    public void testPercentagesInRulesLabelsRasterCustomZeroValues() throws Exception {
+        // test custom classes with intervals outside data values
+        // to test 0.0% value is put inside labels
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:srtm/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "customClasses=100000,800000,#FF0000;800000,1600000,#00FF00&fullSLD=true"
+                        + "&percentages=true";
+        Document dom = getAsDOM(restPath, 200);
+        RasterSymbolizer rs = getRasterSymbolizer(dom);
+        ColorMap cm = rs.getColorMap();
+        ColorMapEntry[] entries = cm.getColorMapEntries();
+        assertEquals(3, entries.length);
+        for (ColorMapEntry e : entries) {
+            if (e.getLabel() != null) {
+                String label = e.getLabel();
+                int i = label.lastIndexOf("(");
+                int i2 = label.indexOf("%)");
+                assertEquals(0d, Double.valueOf(label.substring(i + 1, i2)), 0d);
+            }
+        }
+    }
+
+    @Test
+    public void testPercentagesInRuleLabelsVectorCustomZeroValues() throws Exception {
+        // test custom classes with intervals outside data values
+        // to test 0.0% value is put inside labels
+        final String restPath =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=foo&customClasses=10000,30000,#FF0000;30000,50000,#00FF00"
+                        + "&percentages=true";
+        MockHttpServletResponse response = getAsServletResponse(restPath);
+        assertTrue(response.getStatus() == 200);
+        Document dom = getAsDOM(restPath, 200);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        print(dom, baos);
+        String resultXml = baos.toString().replace("\r", "").replace("\n", "");
+        Rule[] rules =
+                checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        assertTrue(rules.length == 2);
+        for (Rule r : rules) {
+            r.getDescription().getTitle().toString().contains("(0.0%)");
         }
     }
 }

@@ -190,18 +190,9 @@ public class DataStoreController extends AbstractCatalogController {
 
         DataStoreInfo original = getExistingDataStore(workspaceName, storeName);
 
-        if (!original.getName().equalsIgnoreCase(info.getName())) {
-            throw new RestException("can not change name of a datastore", HttpStatus.FORBIDDEN);
-        }
-
-        if (!original.getWorkspace().getName().equalsIgnoreCase(info.getWorkspace().getName())) {
-            throw new RestException("can not change name of a workspace", HttpStatus.FORBIDDEN);
-        }
-
         new CatalogBuilder(catalog).updateDataStore(original, info);
         catalog.validate(original, false).throwIfInvalid();
         catalog.save(original);
-        clear(original);
 
         LOGGER.info("PUT datastore " + workspaceName + "," + storeName);
     }
@@ -217,22 +208,15 @@ public class DataStoreController extends AbstractCatalogController {
             throws IOException {
 
         DataStoreInfo ds = getExistingDataStore(workspaceName, storeName);
-        if (!recurse) {
-            if (!catalog.getStoresByWorkspace(workspaceName, DataStoreInfo.class).isEmpty()) {
-                for (DataStoreInfo dataStoreInfo :
-                        catalog.getStoresByWorkspace(workspaceName, DataStoreInfo.class)) {
-                    if (dataStoreInfo.getName().equalsIgnoreCase(storeName)) {
-                        break;
-                    }
-                    throw new RestException("datastore not empty", HttpStatus.FORBIDDEN);
-                }
-            }
-            catalog.remove(ds);
-        } else {
+        if (recurse) {
             new CascadeDeleteVisitor(catalog).visit(ds);
+        } else {
+            try {
+                catalog.remove(ds);
+            } catch (IllegalArgumentException e) {
+                throw new RestException(e.getMessage(), HttpStatus.FORBIDDEN, e);
+            }
         }
-        catalog.remove(ds);
-        clear(ds);
 
         LOGGER.info("DELETE datastore " + workspaceName + ":s" + workspaceName);
     }
@@ -244,10 +228,6 @@ public class DataStoreController extends AbstractCatalogController {
                     "No such datastore: " + workspaceName + "," + storeName);
         }
         return original;
-    }
-
-    void clear(DataStoreInfo info) {
-        catalog.getResourcePool().clear(info);
     }
 
     @Override

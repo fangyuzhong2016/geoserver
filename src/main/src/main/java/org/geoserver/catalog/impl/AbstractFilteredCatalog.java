@@ -415,31 +415,23 @@ public abstract class AbstractFilteredCatalog extends AbstractDecorator<Catalog>
     /**
      * Given a list of resources, returns a copy of it containing only the resources the user can
      * access
-     *
-     * @param resources
      */
     protected abstract <T extends ResourceInfo> List<T> filterResources(List<T> resources);
 
     /**
      * Given a list of stores, returns a copy of it containing only the resources the user can
      * access
-     *
-     * @param resources
      */
     protected abstract <T extends StoreInfo> List<T> filterStores(List<T> resources);
 
     /**
      * Given a list of layer groups, returns a copy of it containing only the groups the user can
      * access
-     *
-     * @param groups
      */
     protected abstract List<LayerGroupInfo> filterGroups(List<LayerGroupInfo> groups);
 
     /**
      * Given a list of layers, returns a copy of it containing only the layers the user can access
-     *
-     * @param layers
      */
     protected abstract List<LayerInfo> filterLayers(List<LayerInfo> layers);
 
@@ -451,16 +443,12 @@ public abstract class AbstractFilteredCatalog extends AbstractDecorator<Catalog>
     /**
      * Given a list of namespaces, returns a copy of it containing only the namespaces the user can
      * access
-     *
-     * @param namespaces
      */
     protected abstract <T extends NamespaceInfo> List<T> filterNamespaces(List<T> namespaces);
 
     /**
      * Given a list of workspaces, returns a copy of it containing only the workspaces the user can
      * access
-     *
-     * @param namespaces
      */
     protected abstract <T extends WorkspaceInfo> List<T> filterWorkspaces(List<T> workspaces);
 
@@ -773,8 +761,8 @@ public abstract class AbstractFilteredCatalog extends AbstractDecorator<Catalog>
 
         Filter securityFilter = securityFilter(of, filter);
 
-        CloseableIterator<T> filtered;
-        filtered = delegate.list(of, securityFilter, offset, count, sortBy);
+        @SuppressWarnings("PMD.CloseResource") // wrapped and returned
+        CloseableIterator<T> filtered = delegate.list(of, securityFilter, offset, count, sortBy);
 
         // create secured decorators on-demand
         final Function<T, T> securityWrapper = securityWrapper(of);

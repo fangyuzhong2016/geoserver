@@ -31,6 +31,7 @@ import org.geoserver.catalog.WorkspaceInfo;
 import org.geoserver.web.ComponentAuthorizer;
 import org.geoserver.web.GeoServerApplication;
 import org.geoserver.web.GeoServerSecuredPage;
+import org.geoserver.web.GeoserverAjaxSubmitLink;
 import org.geoserver.web.data.store.panel.CheckBoxParamPanel;
 import org.geoserver.web.data.store.panel.NamespacePanel;
 import org.geoserver.web.data.store.panel.TextParamPanel;
@@ -63,10 +64,7 @@ abstract class AbstractDataAccessPage extends GeoServerSecuredPage {
 
     public AbstractDataAccessPage() {}
 
-    /**
-     * @param storeInfo
-     * @throws IllegalArgumentException
-     */
+    /** */
     protected void initUI(final DataStoreInfo storeInfo) throws IllegalArgumentException {
 
         if (storeInfo.getWorkspace() == null) {
@@ -173,7 +171,7 @@ abstract class AbstractDataAccessPage extends GeoServerSecuredPage {
                     protected void onSubmit(AjaxRequestTarget target, Form form) {
                         try {
                             DataStoreInfo dataStore = (DataStoreInfo) form.getModelObject();
-                            onSaveDataStore(dataStore, target);
+                            onSaveDataStore(dataStore, target, true);
                         } catch (IllegalArgumentException e) {
                             paramsForm.error(e.getMessage());
                             target.add(paramsForm);
@@ -181,8 +179,32 @@ abstract class AbstractDataAccessPage extends GeoServerSecuredPage {
                     }
                 });
 
+        paramsForm.add(applyLink(paramsForm));
+
         // save the namespace panel as an instance variable. Needed as per GEOS-3149
         makeNamespaceSyncUpWithWorkspace(paramsForm);
+    }
+
+    private GeoserverAjaxSubmitLink applyLink(Form paramsForm) {
+        return new GeoserverAjaxSubmitLink("apply", paramsForm, this) {
+
+            @Override
+            protected void onError(AjaxRequestTarget target, Form form) {
+                super.onError(target, form);
+                target.add(paramsForm);
+            }
+
+            @Override
+            protected void onSubmitInternal(AjaxRequestTarget target, Form<?> form) {
+                try {
+                    DataStoreInfo info = (DataStoreInfo) form.getModelObject();
+                    onSaveDataStore(info, target, false);
+                } catch (IllegalArgumentException e) {
+                    paramsForm.error(e.getMessage());
+                    target.add(paramsForm);
+                }
+            }
+        };
     }
 
     /**
@@ -191,12 +213,11 @@ abstract class AbstractDataAccessPage extends GeoServerSecuredPage {
      * saving the edits to an existing onefinal StoreEditPanel
      *
      * @param info the object to save
-     * @param requestTarget
      * @throws IllegalArgumentException with an appropriate message for the user if the operation
      *     failed
      */
     protected abstract void onSaveDataStore(
-            final DataStoreInfo info, AjaxRequestTarget requestTarget)
+            final DataStoreInfo info, AjaxRequestTarget requestTarget, boolean doReturn)
             throws IllegalArgumentException;
 
     /**

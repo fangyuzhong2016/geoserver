@@ -6,7 +6,12 @@
 package org.geoserver.catalog.impl;
 
 import com.thoughtworks.xstream.XStream;
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectStreamClass;
+import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -61,12 +66,6 @@ class ModificationProxyCloner {
      * Best effort object cloning utility, tries different lightweight strategies, then falls back
      * on copy by XStream serialization (we use that one as we have a number of hooks to avoid deep
      * copying the catalog, and re-attaching to it, in there)
-     *
-     * @param source
-     * @throws IllegalAccessException
-     * @throws InstantiationException
-     * @throws InvocationTargetException
-     * @throws NoSuchMethodException
      */
     static <T> T clone(T source)
             throws InstantiationException, IllegalAccessException, NoSuchMethodException,
@@ -159,9 +158,8 @@ class ModificationProxyCloner {
 
     static <T extends Serializable> T cloneSerializable(T source) {
         byte[] bytes = SerializationUtils.serialize(source);
-        try {
-            ObjectInputStream input =
-                    new ModProxyObjectInputStream(new ByteArrayInputStream(bytes));
+        try (ObjectInputStream input =
+                new ModProxyObjectInputStream(new ByteArrayInputStream(bytes))) {
             return (T) input.readObject();
         } catch (Exception e) {
             throw new RuntimeException("Error cloning serializable object", e);
@@ -213,13 +211,8 @@ class ModificationProxyCloner {
     /**
      * Shallow or deep copies the provided collection
      *
-     * @param source
      * @param deepCopy If true, a deep copy will be done, otherwise the cloned collection will
      *     contain the exact same objects as the source
-     * @throws InstantiationException
-     * @throws IllegalAccessException
-     * @throws InvocationTargetException
-     * @throws NoSuchMethodException
      */
     public static <T> Collection<T> cloneCollection(Collection<T> source, boolean deepCopy)
             throws InstantiationException, IllegalAccessException, NoSuchMethodException,
@@ -256,11 +249,8 @@ class ModificationProxyCloner {
      *
      * @param <K>
      * @param <V>
-     * @param source
      * @param deepCopy If true, a deep copy will be done, otherwise the cloned collection will
      *     contain the exact same objects as the source
-     * @throws InstantiationException
-     * @throws IllegalAccessException
      */
     public static <K, V> Map<K, V> cloneMap(Map<K, V> source, boolean deepCopy)
             throws InstantiationException, IllegalAccessException, NoSuchMethodException,

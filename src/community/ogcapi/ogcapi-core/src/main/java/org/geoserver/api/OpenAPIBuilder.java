@@ -14,13 +14,12 @@ import io.swagger.v3.oas.models.media.BinarySchema;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.StringSchema;
+import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.servers.Server;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -64,7 +63,8 @@ public class OpenAPIBuilder<T extends ServiceInfo> {
      * @param service The service configuration
      */
     public OpenAPI build(T service) {
-        OpenAPI api = readTemplate();
+        GeoServerOpenAPI api = readTemplate();
+        api.setServiceBase(serviceBase);
         addAPIInfo(service, api);
         addServers(api);
         addBasePathFormats(api);
@@ -80,8 +80,6 @@ public class OpenAPIBuilder<T extends ServiceInfo> {
     /**
      * Returns the landing page document class. By default it returns {@link
      * AbstractLandingPageDocument} in case a service has more representations than usual
-     *
-     * @return
      */
     protected Class getLandingPageDocumentClass() {
         return AbstractLandingPageDocument.class;
@@ -125,43 +123,36 @@ public class OpenAPIBuilder<T extends ServiceInfo> {
     protected void declareGetResponseFormats(OpenAPI api, String path, Class<?> binding) {
         PathItem pi = api.getPaths().get(path);
         Operation get = pi.getGet();
-        Content content = get.getResponses().get("200").getContent();
+        ApiResponse okResponse = get.getResponses().get("200");
+        Content content = new Content();
+        okResponse.setContent(content);
         List<String> formats =
                 APIRequestInfo.get()
                         .getProducibleMediaTypes(binding, true)
                         .stream()
                         .map(mt -> mt.toString())
                         .collect(Collectors.toList());
-        // first remove the ones missing
-        Set<String> missingFormats = new HashSet<>(content.keySet());
-        missingFormats.removeAll(formats);
-        missingFormats.forEach(f -> content.remove(f));
-        // then add the ones not already declared
-        Set<String> extraFormats = new HashSet<>(formats);
-        extraFormats.removeAll(content.keySet());
-        for (String extraFormat : extraFormats) {
+        for (String format : formats) {
             MediaType mediaType = new MediaType();
-            if (extraFormat.contains("yaml") && content.get("application/json") != null) {
+            if (format.contains("yaml") && content.get("application/json") != null) {
                 // same schema as JSON
                 mediaType.schema(content.get("application/json").getSchema());
-            } else if (extraFormat.contains("text")) {
+            } else if (format.contains("text")) {
                 mediaType.schema(new StringSchema());
             } else {
                 mediaType.schema(new BinarySchema());
             }
-            content.addMediaType(extraFormat, mediaType);
+            content.addMediaType(format, mediaType);
         }
     }
 
     /**
      * Reads the template to customize (each time, as the object tree is not thread safe nor
      * cloneable not serializable)
-     *
-     * @return
      */
-    protected OpenAPI readTemplate() {
+    protected GeoServerOpenAPI readTemplate() {
         try {
-            return Yaml.mapper().readValue(apiSpecification, OpenAPI.class);
+            return Yaml.mapper().readValue(apiSpecification, GeoServerOpenAPI.class);
         } catch (Exception e) {
             throw new ServiceException(e);
         }

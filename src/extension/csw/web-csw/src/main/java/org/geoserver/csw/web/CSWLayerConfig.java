@@ -32,7 +32,6 @@ public class CSWLayerConfig extends PublishedConfigurationPanel<LayerInfo> {
 
         PropertyModel<MetadataMap> settingsMap =
                 new PropertyModel<MetadataMap>(model, "resource.metadata");
-        MetadataMap map = settingsMap.getObject();
 
         DirectDownloadSettings settings =
                 DirectDownloadSettings.getSettingsFromMetadata(settingsMap.getObject(), null);
@@ -47,7 +46,7 @@ public class CSWLayerConfig extends PublishedConfigurationPanel<LayerInfo> {
         }
         IModel<DirectDownloadSettings> directDownloadModel =
                 new MetadataMapModel<DirectDownloadSettings>(
-                        map,
+                        settingsMap,
                         DirectDownloadSettings.DIRECTDOWNLOAD_KEY,
                         DirectDownloadSettings.class);
 
@@ -65,11 +64,7 @@ public class CSWLayerConfig extends PublishedConfigurationPanel<LayerInfo> {
         add(maxDownloadSize);
     }
 
-    /**
-     * Get DefaultSettings from {@link CSWInfo} config or default value.
-     *
-     * @param cswInfo
-     */
+    /** Get DefaultSettings from {@link CSWInfo} config or default value. */
     private DirectDownloadSettings setDefaultSettings(CSWInfo info) {
         if (info != null) {
             MetadataMap serviceInfoMetadata = info.getMetadata();

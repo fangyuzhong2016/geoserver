@@ -115,6 +115,15 @@ public class ImportTaskController extends ImportBaseController {
                 }
             }
         } catch (JSONException jex) {
+            LOGGER.log(
+                    Level.SEVERE,
+                    "Error occurred while getting progress for import "
+                            + id
+                            + "and task"
+                            + taskId
+                            + ", message is: "
+                            + jex.getMessage(),
+                    jex);
             throw new RestException("Internal Error", HttpStatus.INTERNAL_SERVER_ERROR, jex);
         }
         return (writer, builder, converter) -> writer.write(progress.toString());
@@ -165,6 +174,13 @@ public class ImportTaskController extends ImportBaseController {
             try {
                 data = handleFormPost(request);
             } catch (IOException | ServletException e) {
+                LOGGER.log(
+                        Level.SEVERE,
+                        "Error occurred while creating task (POST) for import "
+                                + id
+                                + ", message is: "
+                                + e.getMessage(),
+                        e);
                 throw new RestException(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR, e);
             }
         }
@@ -228,9 +244,10 @@ public class ImportTaskController extends ImportBaseController {
         if (store == null) {
             throw new RestException("Task has no target store", HttpStatus.NOT_FOUND);
         } else {
-            updateStoreInfo(task(id, taskId), store, importer);
+            ImportTask task = task(id, taskId);
+            updateStoreInfo(task, store, importer);
             try {
-                importer.changed(task(id, taskId));
+                importer.changed(task);
             } catch (IOException e) {
                 throw new RestException(
                         "Error while initializing Importer Context",
@@ -427,6 +444,10 @@ public class ImportTaskController extends ImportBaseController {
             try {
                 importer.changed(orig);
             } catch (IOException e) {
+                LOGGER.log(
+                        Level.SEVERE,
+                        "Error updating Importer Context, message is: " + e.getMessage(),
+                        e);
                 throw new RestException(
                         "Error updating Importer Context", HttpStatus.INTERNAL_SERVER_ERROR, e);
             }
@@ -442,6 +463,7 @@ public class ImportTaskController extends ImportBaseController {
         try {
             return Directory.createNew(importer.getUploadRoot());
         } catch (IOException ioe) {
+            LOGGER.log(Level.SEVERE, "File upload failed, message is: " + ioe.getMessage(), ioe);
             throw new RestException("File upload failed", HttpStatus.INTERNAL_SERVER_ERROR, ioe);
         }
     }
@@ -452,6 +474,7 @@ public class ImportTaskController extends ImportBaseController {
         try {
             directory.accept(taskId.toString(), request.getInputStream());
         } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Error unpacking file, message is: " + e.getMessage(), e);
             throw new RestException("Error unpacking file", HttpStatus.INTERNAL_SERVER_ERROR, e);
         }
 
@@ -519,6 +542,8 @@ public class ImportTaskController extends ImportBaseController {
                 LOGGER.warning(msg + " in PUT request");
                 throw converter.badRequest(msg);
             } catch (FactoryException ex) {
+                LOGGER.log(
+                        Level.SEVERE, "Error with referencing, message is: " + ex.getMessage(), ex);
                 throw new RestException(
                         "Error with referencing", HttpStatus.INTERNAL_SERVER_ERROR, ex);
             }

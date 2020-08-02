@@ -12,9 +12,11 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.URLDecoder;
 import java.net.URLStreamHandler;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -62,10 +64,8 @@ public class Resources {
      * @return true If resource is not UNDEFINED
      */
     public static boolean canRead(Resource resource) {
-        try {
-            InputStream is = resource.in();
+        try (InputStream is = resource.in()) {
             is.read();
-            is.close();
             return true;
         } catch (IOException | IllegalStateException e) {
             return false;
@@ -594,6 +594,12 @@ public class Resources {
         // pgraster://user:pass@server:port or similar custom store URLs.
         if (url.startsWith("file:")) {
             url = url.substring(5); // remove 'file:' prefix
+
+            // revert encoded special characters and spaces
+            try {
+                url = URLDecoder.decode(url, "UTF-8");
+            } catch (UnsupportedEncodingException e) {
+            }
 
             File f = new File(url);
 

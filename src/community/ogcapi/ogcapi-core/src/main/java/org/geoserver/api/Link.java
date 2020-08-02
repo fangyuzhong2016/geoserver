@@ -17,8 +17,13 @@ public class Link {
     public static final String REL_ALTERNATE = "alternate";
     public static final String REL_ABOUT = "about";
     public static final String REL_ITEM = "item";
+    public static final String REL_ITEMS = "items";
     public static final String REL_DESCRIBEDBY = "describedBy";
+    public static final String REL_DATA = "data";
     public static final String REL_COLLECTION = "collection";
+    public static final String REL_SERVICE_DESC = "service-desc";
+    public static final String REL_SERVICE_DOC = "service-doc";
+    public static final String REL_CONFORMANCE = "conformance";
     public static final String ATOM_NS = "http://www.w3.org/2005/Atom";
 
     String href;
@@ -26,6 +31,7 @@ public class Link {
     String type;
     String title;
     String classification;
+    Boolean templated;
 
     public Link() {}
 
@@ -87,5 +93,36 @@ public class Link {
 
     public void setClassification(String classification) {
         this.classification = classification;
+    }
+
+    public Boolean isTemplated() {
+        return templated;
+    }
+
+    public void setTemplated(Boolean templated) {
+        this.templated = templated;
+    }
+
+    @Override
+    public String toString() {
+        return "Link{"
+                + "href='"
+                + href
+                + '\''
+                + ", rel='"
+                + rel
+                + '\''
+                + ", type='"
+                + type
+                + '\''
+                + ", title='"
+                + title
+                + '\''
+                + ", classification='"
+                + classification
+                + '\''
+                + ", templated="
+                + templated
+                + '}';
     }
 }

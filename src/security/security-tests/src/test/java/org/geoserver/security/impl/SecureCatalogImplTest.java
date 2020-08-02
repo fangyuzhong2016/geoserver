@@ -11,6 +11,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.*;
 
 import com.google.common.base.Predicate;
+import com.google.common.collect.Collections2;
 import com.google.common.collect.Iterators;
 import java.io.IOException;
 import java.util.*;
@@ -584,6 +585,22 @@ public class SecureCatalogImplTest extends AbstractAuthorizationTest {
     }
 
     @Test
+    public void testDisabledLayerGroup() throws Exception {
+        CatalogFilterAccessManager manager = new CatalogFilterAccessManager();
+        buildManager("publicRead.properties", manager);
+        manager.setCatalogFilters(Arrays.asList(new DisabledResourceFilter()));
+
+        assertFalse(namedTreeB.isEnabled());
+        Request request = org.easymock.EasyMock.createNiceMock(Request.class);
+        org.easymock.EasyMock.expect(request.getRequest()).andReturn("GetCapabilities").anyTimes();
+        org.easymock.EasyMock.expect(request.getService()).andReturn("WMS").anyTimes();
+        org.easymock.EasyMock.replay(request);
+        Dispatcher.REQUEST.set(request);
+        // buildManager("lockedLayerInLayerGroup.properties");
+        assertNull(sc.getLayerGroupByName(namedTreeB.getName()));
+    }
+
+    @Test
     public void testEoLayerGroupMustBeHiddenIfItsRootLayerIsHidden() throws Exception {
         LayerGroupInfo eoRoadsLayerGroup =
                 buildEOLayerGroup("eoRoadsLayerGroup", roadsLayer, lineStyle, toppWs, statesLayer);
@@ -1070,8 +1087,22 @@ public class SecureCatalogImplTest extends AbstractAuthorizationTest {
         assertNotSame(security2, Filter.EXCLUDE);
         assertNotSame(security3, Filter.INCLUDE);
         assertNotSame(security3, Filter.EXCLUDE);
-        // Checks on the layers
+        // Check the count does not include the groups. Since the catalog is just a mock, we
+        // extract the layers and groups, and do counts using the security filter
         List<LayerInfo> ly = catalog.getLayers();
+        List<LayerGroupInfo> lg = catalog.getLayerGroups();
+        List<PublishedInfo> publisheds = new ArrayList<>();
+        publisheds.addAll(ly);
+        publisheds.addAll(lg);
+        Collection<LayerInfo> filteredLayers =
+                Collections2.filter(ly, new PredicateFilter(security));
+        Collection<LayerGroupInfo> filteredGroups =
+                Collections2.filter(lg, new PredicateFilter(security));
+        Collection<PublishedInfo> filteredPublished =
+                Collections2.filter(publisheds, new PredicateFilter(security));
+        assertEquals(4, filteredLayers.size());
+        assertEquals(0, filteredGroups.size());
+        assertEquals(4, filteredPublished.size());
         // ANON
         Iterator<LayerInfo> it1 = Iterators.filter(ly.iterator(), new PredicateFilter(security));
         // Boolean checking the various layers

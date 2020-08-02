@@ -7,25 +7,27 @@ package org.geoserver.api.features;
 import io.swagger.v3.oas.models.OpenAPI;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.net.URI;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.xml.namespace.QName;
 import net.opengis.wfs20.Wfs20Factory;
+import org.geoserver.api.APIBBoxParser;
 import org.geoserver.api.APIDispatcher;
+import org.geoserver.api.APIFilterParser;
 import org.geoserver.api.APIRequestInfo;
 import org.geoserver.api.APIService;
 import org.geoserver.api.ConformanceDocument;
 import org.geoserver.api.DefaultContentType;
 import org.geoserver.api.HTMLResponseBody;
-import org.geoserver.api.NCNameResourceCodec;
 import org.geoserver.api.OpenAPIMessageConverter;
+import org.geoserver.api.QueryablesDocument;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.FeatureTypeInfo;
 import org.geoserver.config.GeoServer;
@@ -37,13 +39,15 @@ import org.geoserver.wfs.request.FeatureCollectionResponse;
 import org.geoserver.wfs.request.GetFeatureRequest;
 import org.geoserver.wfs.request.Query;
 import org.geotools.factory.CommonFactoryFinder;
-import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.referencing.CRS;
+import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.util.DateRange;
 import org.opengis.feature.type.FeatureType;
 import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory2;
 import org.opengis.filter.expression.Literal;
 import org.opengis.filter.expression.PropertyName;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -63,30 +67,81 @@ import org.springframework.web.context.request.RequestContextHolder;
 @RequestMapping(path = APIDispatcher.ROOT_PATH + "/features")
 public class FeatureService {
 
-    public static final String CORE = "http://www.opengis.net/spec/wfs-1/3.0/req/core";
-    public static final String HTML = "http://www.opengis.net/spec/wfs-1/3.0/req/html";
-    public static final String GEOJSON = "http://www.opengis.net/spec/wfs-1/3.0/req/geojson";
-    public static final String GMLSF0 = "http://www.opengis.net/spec/wfs-1/3.0/req/gmlsf0";
-    public static final String GMLSF2 = "http://www.opengis.net/spec/wfs-1/3.0/req/gmlsf2";
-    public static final String OAS30 = "http://www.opengis.net/spec/wfs-1/3.0/req/oas30";
+    static final Pattern INTEGER = Pattern.compile("\\d+");
+
+    public static final String CORE = "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/core";
+    public static final String HTML = "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/html";
+    public static final String GEOJSON =
+            "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/geojson";
+    public static final String GMLSF0 =
+            "http://www.opengis.net/spec/ogcapi-features-1/1.0/req/gmlsf0";
+    public static final String GMLSF2 =
+            "http://www.opengis.net/spec/ogcapi-features-1/1.0/req/gmlsf2";
+    public static final String OAS30 =
+            "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/oas30";
+    public static final String CQL_TEXT =
+            "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/x-cql-text";
+    public static final String CQL_JSON_OBJECT =
+            "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/x-cql-json-object";
+    public static final String CQL_JSON_ARRAY =
+            "http://www.opengis.net/spec/ogcapi-features-1/1.0/conf/x-cql-json-array";
+
+    public static final String CRS_PREFIX = "http://www.opengis.net/def/crs/EPSG/0/";
+    public static final String DEFAULT_CRS = "http://www.opengis.net/def/crs/OGC/1.3/CRS84";
 
     public static String ITEM_ID = "OGCFeatures:ItemId";
 
     private static final FilterFactory2 FF = CommonFactoryFinder.getFilterFactory2();
 
     private final GeoServer geoServer;
+    private final APIFilterParser filterParser;
 
-    // this could be done in an argument resolver returning a Filter, for example, however
-    // each protocol would need a different thing, so kept the KVP parser as a way to have
-    // private logic here
-    private FeaturesBBoxKvpParser bboxParser = new FeaturesBBoxKvpParser();
     private TimeParser timeParser = new TimeParser();
 
-    public FeatureService(GeoServer geoServer) {
+    public FeatureService(GeoServer geoServer, APIFilterParser filterParser) {
         this.geoServer = geoServer;
+        this.filterParser = filterParser;
     }
 
-    private WFSInfo getService() {
+    /** Returns the provided CRS list, unless the feature type has its own local override */
+    public static List<String> getFeatureTypeCRS(
+            FeatureTypeInfo featureType, List<String> defaultCRS) {
+        // by default use the provided list, unless there is an override
+        if (featureType.isOverridingServiceSRS()) {
+            List<String> result =
+                    featureType
+                            .getResponseSRS()
+                            .stream()
+                            .map(c -> CRS_PREFIX + c)
+                            .collect(Collectors.toList());
+            result.remove(FeatureService.DEFAULT_CRS);
+            result.add(0, FeatureService.DEFAULT_CRS);
+            return result;
+        }
+        return defaultCRS;
+    }
+
+    protected List<String> getServiceCRSList() {
+        List<String> result = getService().getSRS();
+
+        if (result == null || result.isEmpty()) {
+            // consult the EPSG databasee
+            result =
+                    CRS.getSupportedCodes("EPSG")
+                            .stream()
+                            .filter(c -> INTEGER.matcher(c).matches())
+                            .map(c -> CRS_PREFIX + c)
+                            .collect(Collectors.toList());
+        } else {
+            // the configured ones are just numbers, prefix
+            result = result.stream().map(c -> CRS_PREFIX + c).collect(Collectors.toList());
+        }
+        // the Features API default CRS (cannot be contained due to the different prefixing)
+        result.add(0, DEFAULT_CRS);
+        return result;
+    }
+
+    public WFSInfo getService() {
         return geoServer.getService(WFSInfo.class);
     }
 
@@ -105,7 +160,7 @@ public class FeatureService {
         path = "api",
         name = "getApi",
         produces = {
-            OpenAPIMessageConverter.OPEN_API_VALUE,
+            OpenAPIMessageConverter.OPEN_API_MEDIA_TYPE_VALUE,
             "application/x-yaml",
             MediaType.TEXT_XML_VALUE
         }
@@ -120,7 +175,17 @@ public class FeatureService {
     @ResponseBody
     @HTMLResponseBody(templateName = "collections.ftl", fileName = "collections.html")
     public CollectionsDocument getCollections() {
-        return new CollectionsDocument(geoServer);
+        return new CollectionsDocument(geoServer, getServiceCRSList());
+    }
+
+    @GetMapping(path = "filter-capabilities", name = "getFilterCapabilities")
+    @ResponseBody
+    @HTMLResponseBody(
+        templateName = "filter-capabilities.ftl",
+        fileName = "filter-capabilities.html"
+    )
+    public FilterCapabilitiesDocument getFilterCapabilities() {
+        return new FilterCapabilitiesDocument();
     }
 
     @GetMapping(path = "collections/{collectionId}", name = "describeCollection")
@@ -128,33 +193,37 @@ public class FeatureService {
     @HTMLResponseBody(templateName = "collection.ftl", fileName = "collection.html")
     public CollectionDocument collection(@PathVariable(name = "collectionId") String collectionId) {
         FeatureTypeInfo ft = getFeatureType(collectionId);
-        CollectionsDocument collections = new CollectionsDocument(geoServer, ft);
-        CollectionDocument collection = collections.getCollections().next();
+        CollectionDocument collection =
+                new CollectionDocument(geoServer, ft, getFeatureTypeCRS(ft, getServiceCRSList()));
 
         return collection;
     }
 
+    @GetMapping(path = "collections/{collectionId}/queryables", name = "getQueryables")
+    @ResponseBody
+    @HTMLResponseBody(templateName = "queryables.ftl", fileName = "queryables.html")
+    public QueryablesDocument queryables(@PathVariable(name = "collectionId") String collectionId)
+            throws IOException {
+        FeatureTypeInfo ft = getFeatureType(collectionId);
+        return new QueryablesDocument(ft);
+    }
+
     private FeatureTypeInfo getFeatureType(String collectionId) {
         // single collection
-        Optional<FeatureTypeInfo> featureType =
-                NCNameResourceCodec.getLayers(getCatalog(), collectionId)
-                        .stream()
-                        .filter(l -> l.getResource() instanceof FeatureTypeInfo)
-                        .map(l -> (FeatureTypeInfo) l.getResource())
-                        .findFirst();
-        if (!featureType.isPresent()) {
+        FeatureTypeInfo featureType = getCatalog().getFeatureTypeByName(collectionId);
+        if (featureType == null) {
             throw new ServiceException(
                     "Unknown collection " + collectionId,
                     ServiceException.INVALID_PARAMETER_VALUE,
                     "collectionId");
         }
-        return featureType.get();
+        return featureType;
     }
 
     @GetMapping(path = "conformance", name = "getConformanceDeclaration")
     @ResponseBody
     public ConformanceDocument conformance() {
-        List<String> classes = Arrays.asList(CORE, OAS30, GEOJSON, GMLSF0);
+        List<String> classes = Arrays.asList(CORE, OAS30, HTML, GEOJSON, GMLSF0, CQL_TEXT);
         return new ConformanceDocument(classes);
     }
 
@@ -167,10 +236,12 @@ public class FeatureService {
                     BigInteger startIndex,
             @RequestParam(name = "limit", required = false) BigInteger limit,
             @RequestParam(name = "bbox", required = false) String bbox,
+            @RequestParam(name = "bbox-crs", required = false) String bboxCRS,
             @RequestParam(name = "time", required = false) String time,
-            @PathVariable(name = "itemId") String itemId)
+            @PathVariable(name = "itemId") String itemId,
+            @RequestParam(name = "crs", required = false) String crs)
             throws Exception {
-        return items(collectionId, startIndex, limit, bbox, time, itemId);
+        return items(collectionId, startIndex, limit, bbox, bboxCRS, crs, time, null, null, itemId);
     }
 
     @GetMapping(path = "collections/{collectionId}/items", name = "getFeatures")
@@ -182,7 +253,11 @@ public class FeatureService {
                     BigInteger startIndex,
             @RequestParam(name = "limit", required = false) BigInteger limit,
             @RequestParam(name = "bbox", required = false) String bbox,
-            @RequestParam(name = "time", required = false) String time,
+            @RequestParam(name = "bbox-crs", required = false) String bboxCRS,
+            @RequestParam(name = "datetime", required = false) String datetime,
+            @RequestParam(name = "filter", required = false) String filter,
+            @RequestParam(name = "filter-lang", required = false) String filterLanguage,
+            @RequestParam(name = "crs", required = false) String crs,
             String itemId)
             throws Exception {
         // build the request in a way core WFS machinery can understand it
@@ -193,15 +268,28 @@ public class FeatureService {
         query.setTypeNames(Arrays.asList(new QName(ft.getNamespace().getURI(), ft.getName())));
         List<Filter> filters = new ArrayList<>();
         if (bbox != null) {
-            filters.add(buildBBOXFilter(bbox));
+            CoordinateReferenceSystem queryCRS = DefaultGeographicCRS.WGS84;
+            if (bboxCRS != null) {
+                queryCRS = CRS.decode(bboxCRS);
+            }
+            filters.add(APIBBoxParser.toFilter(bbox, queryCRS));
         }
-        if (time != null) {
-            filters.add(buildTimeFilter(ft, time));
+        if (datetime != null) {
+            filters.add(buildTimeFilter(ft, datetime));
         }
         if (itemId != null) {
             filters.add(FF.id(FF.featureId(itemId)));
         }
+        if (filter != null) {
+            Filter parsedFilter = filterParser.parse(filter, filterLanguage);
+            filters.add(parsedFilter);
+        }
         query.setFilter(mergeFiltersAnd(filters));
+        if (crs != null) {
+            query.setSrsName(new URI(crs));
+        } else {
+            query.setSrsName(new URI("EPSG:4326"));
+        }
         request.setStartIndex(startIndex);
         request.setMaxFeatures(limit);
         request.setBaseUrl(APIRequestInfo.get().getBaseURL());
@@ -282,22 +370,6 @@ public class FeatureService {
             return filters.get(0);
         } else {
             return FF.or(filters);
-        }
-    }
-
-    public Filter buildBBOXFilter(@RequestParam(name = "bbox", required = false) String bbox)
-            throws Exception {
-        Object parsed = bboxParser.parse(bbox);
-        if (parsed instanceof ReferencedEnvelope) {
-            return FF.bbox(FF.property(""), (ReferencedEnvelope) parsed);
-        } else if (parsed instanceof ReferencedEnvelope[]) {
-            List<Filter> filters =
-                    Stream.of((ReferencedEnvelope[]) parsed)
-                            .map(e -> FF.bbox(FF.property(""), e))
-                            .collect(Collectors.toList());
-            return FF.or(filters);
-        } else {
-            throw new IllegalArgumentException("Could not understand parsed bbox " + parsed);
         }
     }
 

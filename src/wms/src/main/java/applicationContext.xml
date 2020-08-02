@@ -108,7 +108,8 @@
 	<bean id="geoJSONFeatureInfoResponse"
 		class="org.geoserver.wms.featureinfo.GeoJSONFeatureInfoResponse">
 		<constructor-arg ref="wms" />
-		<constructor-arg value="application/json" />
+        <constructor-arg ref="resourceLoader"/>
+        <constructor-arg value="application/json" />
 	</bean>
         
 	<!-- wms service + descriptor -->
@@ -637,6 +638,7 @@
     </bean>
 
     <bean id="PDFMapProducer" class="org.geoserver.wms.map.PDFMapOutputFormat">
+      <constructor-arg index="0" ref="wms" />
     </bean>
     <bean id="PDFMapResponse" class="org.geoserver.wms.map.PDFMapResponse">
       <constructor-arg ref="wms" />
@@ -842,6 +844,6 @@
     <constructor-arg ref="wms"/>
   </bean>
   
-  <bean id="wmsNearestMatchWarningAppender" class="org.geoserver.wms.NearestMatchWarningAppender"/>
-  
+  <bean id="clipWMSGetMapCallBack" class="org.geoserver.wms.clip.ClipWMSGetMapCallBack"/>
+
 </beans>

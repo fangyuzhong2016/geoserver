@@ -207,15 +207,7 @@ public class RasterizerController extends BaseSLDServiceController {
         private static final long serialVersionUID = 5453377766415209696L;
     }
 
-    /**
-     * @param defaultStyle
-     * @param rasterSymbolizer
-     * @param layerName
-     * @param midColor
-     * @param endColor
-     * @param startColor
-     * @throws Exception
-     */
+    /** */
     private Style remapStyle(
             StyleInfo defaultStyle,
             RasterSymbolizer rasterSymbolizer,
@@ -300,7 +292,7 @@ public class RasterizerController extends BaseSLDServiceController {
         }
 
         rasterSymbolizer.setColorMap(resampledColorMap);
-        Style style = sb.createStyle(layerName, rasterSymbolizer);
+        Style style = sb.createStyle("Feature", rasterSymbolizer);
 
         return style;
     }

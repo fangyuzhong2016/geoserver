@@ -6,31 +6,34 @@
 package org.geoserver.wms.web.data;
 
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import javax.servlet.http.HttpServletRequest;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.wicket.AttributeModifier;
+import org.apache.wicket.Component;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.markup.html.form.AjaxButton;
 import org.apache.wicket.markup.html.WebMarkupContainer;
 import org.apache.wicket.markup.html.form.Form;
 import org.apache.wicket.markup.html.form.TextField;
+import org.apache.wicket.markup.html.form.upload.FileUpload;
 import org.apache.wicket.markup.html.panel.Panel;
 import org.apache.wicket.model.CompoundPropertyModel;
 import org.apache.wicket.model.IModel;
 import org.apache.wicket.model.Model;
+import org.apache.wicket.util.io.IOUtils;
+import org.apache.wicket.util.string.Strings;
 import org.apache.wicket.validation.IValidatable;
 import org.apache.wicket.validation.IValidator;
 import org.apache.wicket.validation.ValidationError;
@@ -39,16 +42,23 @@ import org.geoserver.catalog.LegendInfo;
 import org.geoserver.catalog.StyleInfo;
 import org.geoserver.catalog.WorkspaceInfo;
 import org.geoserver.config.GeoServer;
+import org.geoserver.config.GeoServerDataDirectory;
 import org.geoserver.ows.util.ResponseUtils;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.platform.GeoServerResourceLoader;
+import org.geoserver.platform.resource.Resource;
+import org.geoserver.platform.resource.Resources;
 import org.geoserver.web.GeoServerApplication;
 import org.geoserver.web.wicket.GeoServerAjaxFormLink;
+import org.geoserver.web.wicket.GeoServerDialog;
+import org.geoserver.web.wicket.ParamResourceModel;
 
 /** Allows setting the data for using an ExternalImage */
 @SuppressWarnings("serial")
 public class ExternalGraphicPanel extends Panel {
     private static final long serialVersionUID = 5098470683723890874L;
+
+    private static final String[] EXTENSIONS = new String[] {"png", "gif", "jpeg", "jpg"};
 
     private TextField<String> onlineResource;
     private TextField<String> format;
@@ -65,7 +75,10 @@ public class ExternalGraphicPanel extends Panel {
     private Model<String> showhideStyleModel = new Model<String>("");
 
     public ExternalGraphicPanel(
-            String id, final CompoundPropertyModel<StyleInfo> styleModel, final Form<?> styleForm) {
+            String id,
+            final CompoundPropertyModel<StyleInfo> styleModel,
+            final Form<?> styleForm,
+            AbstractStylePage stylePage) {
         super(id, styleModel);
 
         // container for ajax updates
@@ -80,15 +93,14 @@ public class ExternalGraphicPanel extends Panel {
         onlineResource = new TextField<String>("onlineResource", bind);
         onlineResource.add(
                 new IValidator<String>() {
-                    final List<String> EXTENSIONS =
-                            Arrays.asList(new String[] {"png", "gif", "jpeg", "jpg"});
 
                     @Override
                     public void validate(IValidatable<String> input) {
                         String value = input.getValue();
                         int last = value == null ? -1 : value.lastIndexOf('.');
                         if (last == -1
-                                || !EXTENSIONS.contains(value.substring(last + 1).toLowerCase())) {
+                                || !Arrays.asList(EXTENSIONS)
+                                        .contains(value.substring(last + 1).toLowerCase())) {
                             ValidationError error = new ValidationError();
                             error.setMessage("Not an image");
                             error.addKey("nonImage");
@@ -101,13 +113,8 @@ public class ExternalGraphicPanel extends Panel {
                         } catch (URISyntaxException e1) {
                             // Unable to check if absolute
                         }
-                        if (uri != null && uri.isAbsolute()) {
+                        if (uri != null && uri.isAbsolute() && isUrl(value)) {
                             try {
-                                String baseUrl = baseURL(onlineResource.getForm());
-                                if (!value.startsWith(baseUrl)) {
-                                    onlineResource.warn(
-                                            "Recommend use of styles directory at " + baseUrl);
-                                }
                                 URL url = uri.toURL();
                                 URLConnection conn = url.openConnection();
                                 if ("text/html".equals(conn.getContentType())) {
@@ -130,32 +137,14 @@ public class ExternalGraphicPanel extends Panel {
                             }
                             return; // no further checks possible
                         } else {
-                            GeoServerResourceLoader resources =
-                                    GeoServerApplication.get().getResourceLoader();
                             try {
-                                File styles = resources.find("styles");
-                                String[] path = value.split(Pattern.quote(File.separator));
+
                                 WorkspaceInfo wsInfo = styleModel.getObject().getWorkspace();
-                                File test = null;
-                                if (wsInfo != null) {
-                                    String wsName = wsInfo.getName();
-                                    List<String> list = new ArrayList();
-                                    list.addAll(Arrays.asList("workspaces", wsName, "styles"));
-                                    list.addAll(Arrays.asList(path));
-                                    test = resources.find(list.toArray(new String[list.size()]));
-                                }
-                                if (test == null) {
-                                    test = resources.find(styles, path);
-                                }
-                                if (test == null) {
-                                    ValidationError error = new ValidationError();
-                                    error.setMessage("File not found in styles directory");
-                                    error.addKey("imageNotFound");
-                                    input.error(error);
-                                }
-                            } catch (IOException e) {
+                                getIconFromStyleDirectory(wsInfo, value);
+                            } catch (Exception e) {
                                 ValidationError error = new ValidationError();
-                                error.setMessage("File not found in styles directory");
+                                error.setMessage(
+                                        "File not found in styles directory or given path is invalid");
                                 error.addKey("imageNotFound");
                                 input.error(error);
                             }
@@ -164,6 +153,101 @@ public class ExternalGraphicPanel extends Panel {
                 });
         onlineResource.setOutputMarkupId(true);
         table.add(onlineResource);
+
+        GeoServerAjaxFormLink chooseImage =
+                new GeoServerAjaxFormLink("chooseImage", styleForm) {
+
+                    @Override
+                    protected void onClick(AjaxRequestTarget target, Form<?> form) {
+                        stylePage
+                                .getDialog()
+                                .setTitle(new ParamResourceModel("chooseImage", stylePage));
+                        stylePage.getDialog().setInitialWidth(385);
+                        stylePage.getDialog().setInitialHeight(175);
+
+                        stylePage
+                                .getDialog()
+                                .showOkCancel(
+                                        target,
+                                        new GeoServerDialog.DialogDelegate() {
+
+                                            private ChooseImagePanel imagePanel;
+
+                                            @Override
+                                            protected Component getContents(String id) {
+                                                return imagePanel =
+                                                        new ChooseImagePanel(
+                                                                id,
+                                                                styleModel
+                                                                        .getObject()
+                                                                        .getWorkspace(),
+                                                                EXTENSIONS);
+                                            }
+
+                                            @Override
+                                            protected boolean onSubmit(
+                                                    AjaxRequestTarget target, Component contents) {
+                                                String imageFileName = imagePanel.getChoice();
+                                                if (Strings.isEmpty(imageFileName)) {
+                                                    FileUpload fu = imagePanel.getFileUpload();
+                                                    imageFileName = fu.getClientFileName();
+                                                    int teller = 0;
+                                                    GeoServerDataDirectory dd =
+                                                            GeoServerApplication.get()
+                                                                    .getBeanOfType(
+                                                                            GeoServerDataDirectory
+                                                                                    .class);
+                                                    Resource res =
+                                                            dd.getStyles(
+                                                                    styleModel
+                                                                            .getObject()
+                                                                            .getWorkspace(),
+                                                                    imageFileName);
+                                                    while (Resources.exists(res)) {
+                                                        imageFileName =
+                                                                FilenameUtils.getBaseName(
+                                                                                fu
+                                                                                        .getClientFileName())
+                                                                        + "."
+                                                                        + (++teller)
+                                                                        + "."
+                                                                        + FilenameUtils
+                                                                                .getExtension(
+                                                                                        fu
+                                                                                                .getClientFileName());
+                                                        res =
+                                                                dd.getStyles(
+                                                                        styleModel
+                                                                                .getObject()
+                                                                                .getWorkspace(),
+                                                                        imageFileName);
+                                                    }
+                                                    try (InputStream is = fu.getInputStream()) {
+                                                        try (OutputStream os = res.out()) {
+                                                            IOUtils.copy(is, os);
+                                                        }
+                                                    } catch (IOException e) {
+                                                        error(e.getMessage());
+                                                        target.add(imagePanel.getFeedback());
+                                                        return false;
+                                                    }
+                                                }
+
+                                                onlineResource.setModelObject(imageFileName);
+                                                target.add(onlineResource);
+
+                                                return true;
+                                            }
+
+                                            @Override
+                                            public void onError(
+                                                    AjaxRequestTarget target, Form<?> form) {
+                                                target.add(imagePanel.getFeedback());
+                                            }
+                                        });
+                    }
+                };
+        table.add(chooseImage);
 
         // add the autofill button
         autoFill =
@@ -273,7 +357,6 @@ public class ExternalGraphicPanel extends Panel {
     /**
      * Lookup base URL using provided form
      *
-     * @param form
      * @see ResponseUtils
      * @return baseUrl
      */
@@ -295,8 +378,6 @@ public class ExternalGraphicPanel extends Panel {
      * Validates the external graphic and returns a connection to the graphic. If validation fails,
      * error messages will be added to the passed form
      *
-     * @param target
-     * @param form
      * @return URLConnection to the External Graphic file
      */
     protected URLConnection getExternalGraphic(AjaxRequestTarget target, Form<?> form) {
@@ -304,25 +385,19 @@ public class ExternalGraphicPanel extends Panel {
         if (onlineResource.getModelObject() != null) {
             URL url = null;
             try {
-                String baseUrl = baseURL(form);
                 String external = onlineResource.getModelObject().toString();
 
                 URI uri = new URI(external);
-                if (uri.isAbsolute()) {
+                if (uri.isAbsolute() && isUrl(external)) {
                     url = uri.toURL();
-                    if (!external.startsWith(baseUrl)) {
-                        form.warn("Recommend use of styles directory at " + baseUrl);
-                    }
                 } else {
                     WorkspaceInfo wsInfo = ((StyleInfo) getDefaultModelObject()).getWorkspace();
-                    if (wsInfo != null) {
-                        url =
-                                new URL(
-                                        ResponseUtils.appendPath(
-                                                baseUrl, "styles", wsInfo.getName(), external));
-                    } else {
-                        url = new URL(ResponseUtils.appendPath(baseUrl, "styles", external));
+                    Resource icon = getIconFromStyleDirectory(wsInfo, external);
+
+                    if (icon == null) {
+                        throw new FileNotFoundException();
                     }
+                    url = icon.file().toURI().toURL();
                 }
 
                 URLConnection conn = url.openConnection();
@@ -357,5 +432,26 @@ public class ExternalGraphicPanel extends Panel {
         autoFill.setVisible(b);
         hide.setVisible(b);
         show.setVisible(!b);
+    }
+
+    private boolean isUrl(final String uri) {
+        return uri.startsWith("http");
+    }
+
+    private Resource getIconFromStyleDirectory(WorkspaceInfo wsInfo, String value)
+            throws Exception {
+        GeoServerResourceLoader resources = GeoServerApplication.get().getResourceLoader();
+        GeoServerDataDirectory gsDataDir = new GeoServerDataDirectory(resources);
+        Resource icon = null;
+        if (wsInfo != null) {
+            icon = gsDataDir.getStyles(wsInfo, value);
+        }
+        if (icon == null) {
+            icon = gsDataDir.getStyles(value);
+            if (icon == null) throw new FileNotFoundException("file not found");
+            else if (icon.getType() != Resource.Type.RESOURCE)
+                throw new Exception("given path is a directory");
+        }
+        return icon;
     }
 }

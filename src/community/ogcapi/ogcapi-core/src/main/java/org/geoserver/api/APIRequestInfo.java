@@ -5,12 +5,18 @@
 
 package org.geoserver.api;
 
+import static org.geoserver.ows.util.ResponseUtils.buildURL;
+
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.BiConsumer;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.geoserver.ows.Dispatcher;
 import org.geoserver.ows.URLMangler;
 import org.geoserver.ows.util.ResponseUtils;
 import org.springframework.http.MediaType;
@@ -41,8 +47,6 @@ public class APIRequestInfo {
 
     /**
      * Constructs a {@link APIRequestInfo} object, generating content based on the passed request.
-     *
-     * @param request
      */
     public APIRequestInfo(
             HttpServletRequest request, HttpServletResponse response, APIDispatcher dispatcher) {
@@ -51,10 +55,7 @@ public class APIRequestInfo {
         this.response = response;
 
         // http://host:port/appName
-        baseURL =
-                request.getRequestURL()
-                        .toString()
-                        .replace(request.getRequestURI(), request.getContextPath());
+        baseURL = ResponseUtils.baseURL(request);
     }
 
     /** Gets the base URL of the server, e.g. "http://localhost:8080/geoserver" */
@@ -75,11 +76,7 @@ public class APIRequestInfo {
         return ResponseUtils.buildURL(baseURL, path, null, URLMangler.URLType.SERVICE);
     }
 
-    /**
-     * Returns the APIRequestInfo from the current {@link RequestContextHolder}
-     *
-     * @return
-     */
+    /** Returns the APIRequestInfo from the current {@link RequestContextHolder} */
     public static APIRequestInfo get() {
         RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
         if (requestAttributes == null) return null;
@@ -91,11 +88,7 @@ public class APIRequestInfo {
         return queryMap;
     }
 
-    /**
-     * Sets the provided APIRequestInfo into the {@link RequestContextHolder}
-     *
-     * @param requestInfo
-     */
+    /** Sets the provided APIRequestInfo into the {@link RequestContextHolder} */
     static void set(APIRequestInfo requestInfo) {
         RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
         if (requestAttributes == null) {
@@ -108,8 +101,6 @@ public class APIRequestInfo {
     /**
      * Returns the requested media types (the resolver will fill in defaults in case none was
      * provided in the "f" parameter or in the Accept header
-     *
-     * @return
      */
     public List<MediaType> getRequestedMediaTypes() {
         return requestedMediaTypes;
@@ -119,11 +110,7 @@ public class APIRequestInfo {
         this.requestedMediaTypes = requestedMediaTypes;
     }
 
-    /**
-     * Returns the message converters available in the dispatcher (as a read only collection)
-     *
-     * @return
-     */
+    /** Returns the message converters available in the dispatcher (as a read only collection) */
     public List<HttpMessageConverter<?>> getConverters() {
         return dispatcher.getConverters();
     }
@@ -132,22 +119,13 @@ public class APIRequestInfo {
         return dispatcher.getProducibleMediaTypes(responseType, addHTML);
     }
 
-    /**
-     * Returns true if no indication was given as to what media type is to be returned
-     *
-     * @return
-     */
+    /** Returns true if no indication was given as to what media type is to be returned */
     public boolean isAnyMediaTypeAccepted() {
         return requestedMediaTypes == null
                 || ContentNegotiationManager.MEDIA_TYPE_ALL_LIST.equals(requestedMediaTypes);
     }
 
-    /**
-     * Returns true if the given format has been requested
-     *
-     * @param mediaType
-     * @return
-     */
+    /** Returns true if the given format has been requested */
     public boolean isFormatRequested(MediaType mediaType, MediaType defaultMediaType) {
         if (requestedMediaTypes == null) {
             return false;
@@ -172,5 +150,47 @@ public class APIRequestInfo {
     /** Returns the {@link HttpServletResponse} for the current API request */
     public HttpServletResponse getResponse() {
         return response;
+    }
+
+    public List<Link> getLinksFor(
+            String path,
+            Class<?> responseType,
+            String titlePrefix,
+            String classification,
+            BiConsumer<MediaType, Link> linkUpdater,
+            String rel,
+            boolean includeHTML) {
+        List<Link> result = new ArrayList<>();
+        for (MediaType mediaType :
+                APIRequestInfo.get().getProducibleMediaTypes(responseType, includeHTML)) {
+            String format = mediaType.toString();
+            Map<String, String> params = Collections.singletonMap("f", format);
+            String url = buildURL(baseURL, path, params, URLMangler.URLType.SERVICE);
+            String linkTitle = titlePrefix + format;
+            Link link = new Link(url, rel, format, linkTitle);
+            link.setClassification(classification);
+            if (linkUpdater != null) {
+                linkUpdater.accept(mediaType, link);
+            }
+            result.add(link);
+        }
+        return result;
+    }
+
+    /**
+     * Returns the landing page for the current service. Can be called only after the service has
+     * been looked up, will otherwise throw a descriptive exception.
+     */
+    public String getServiceLandingPage() {
+        return Optional.ofNullable(Dispatcher.REQUEST.get())
+                .map(r -> r.getServiceDescriptor())
+                .map(sd -> sd.getService())
+                .map(s -> s.getClass())
+                .map(c -> APIDispatcher.getApiServiceAnnotation(c))
+                .map(a -> a.landingPage())
+                .orElseThrow(
+                        () ->
+                                new RuntimeException(
+                                        "Could not find a service base URL at this stage, maybe the service has not been dispatched yet"));
     }
 }

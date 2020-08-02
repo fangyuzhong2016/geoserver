@@ -33,11 +33,7 @@ import javax.imageio.ImageIO;
 import org.custommonkey.xmlunit.SimpleNamespaceContext;
 import org.custommonkey.xmlunit.XMLUnit;
 import org.custommonkey.xmlunit.XpathEngine;
-import org.geoserver.catalog.Catalog;
-import org.geoserver.catalog.CatalogBuilder;
-import org.geoserver.catalog.FeatureTypeInfo;
-import org.geoserver.catalog.LayerInfo;
-import org.geoserver.catalog.NamespaceInfo;
+import org.geoserver.catalog.*;
 import org.geoserver.catalog.impl.DataStoreInfoImpl;
 import org.geoserver.catalog.impl.NamespaceInfoImpl;
 import org.geoserver.catalog.impl.WorkspaceInfoImpl;
@@ -150,6 +146,16 @@ public abstract class ComplexMongoDBSupport extends GeoServerSystemTestSupport {
         catalog.add(dataStore);
         // add the stations style and set it as the default one for stations layer
         testData.addStyle("stations", "stations.sld", ComplexMongoDBSupport.class, catalog);
+        testData.addStyle(
+                "stations_with_sort_by_desc",
+                "stations_with_sort_by_desc.sld",
+                ComplexMongoDBSupport.class,
+                getCatalog());
+        testData.addStyle(
+                "stations_with_sort_by_asc",
+                "stations_with_sort_by_asc.sld",
+                ComplexMongoDBSupport.class,
+                getCatalog());
         // build the feature type for the root mapping (StationFeature)
         CatalogBuilder builder = new CatalogBuilder(catalog);
         builder.setStore(dataStore);
@@ -231,6 +237,7 @@ public abstract class ComplexMongoDBSupport extends GeoServerSystemTestSupport {
                 "c",
                 "1482146935",
                 "25.0");
+        checkMeasurementNotExists(WFS11_XPATH_ENGINE, document, "station 3", "station3@mail.com");
     }
 
     @Test
@@ -302,7 +309,7 @@ public abstract class ComplexMongoDBSupport extends GeoServerSystemTestSupport {
         // check that we got the expected image back
         BufferedImage image = ImageIO.read(new ByteArrayInputStream(getBinary(result)));
         ImageAssert.assertEquals(
-                URLs.urlToFile(getClass().getResource("/results/result1.png")), image, 10);
+                URLs.urlToFile(getClass().getResource("/results/result1.png")), image, 240);
     }
 
     @Test
@@ -421,18 +428,23 @@ public abstract class ComplexMongoDBSupport extends GeoServerSystemTestSupport {
                 mappingsContent.replaceAll("\\{collectionName\\}", STATIONS_COLLECTION_NAME);
         mappingsContent = mappingsContent.replaceAll("\\{mongoHost\\}", hostAsString);
         mappingsContent = mappingsContent.replaceAll("\\{mongoPort\\}", portAsString);
+        Path schemaPath = new File(ROOT_DIRECTORY.toFile(), "schema-store").toPath();
         mappingsContent =
-                mappingsContent.replaceAll(
-                        "\\{schemaStore\\}",
-                        new File(ROOT_DIRECTORY.toFile(), "schema-store").getAbsolutePath());
+                mappingsContent.replaceAll("\\{schemaStore\\}", schemaPath.toUri().toString());
         Files.write(APP_SCHEMA_MAPPINGS.toPath(), mappingsContent.getBytes());
         // insert stations data set in MongoDB
         File stationsFile1 = moveResourceToTempDir("/data/stations1.json", "stations1.json");
         File stationsFile2 = moveResourceToTempDir("/data/stations2.json", "stations2.json");
+        File stationsFile3 = moveResourceToTempDir("/data/stations3.json", "stations3.json");
+        File stationsFile4 = moveResourceToTempDir("/data/stations4.json", "stations4.json");
         String stationsContent1 = new String(Files.readAllBytes(stationsFile1.toPath()));
         String stationsContent2 = new String(Files.readAllBytes(stationsFile2.toPath()));
+        String stationsContent3 = new String(Files.readAllBytes(stationsFile3.toPath()));
+        String stationsContent4 = new String(Files.readAllBytes(stationsFile4.toPath()));
         insertJson(STATIONS_DATA_BASE_NAME, STATIONS_COLLECTION_NAME, stationsContent1);
         insertJson(STATIONS_DATA_BASE_NAME, STATIONS_COLLECTION_NAME, stationsContent2);
+        insertJson(STATIONS_DATA_BASE_NAME, STATIONS_COLLECTION_NAME, stationsContent3);
+        insertJson(STATIONS_DATA_BASE_NAME, STATIONS_COLLECTION_NAME, stationsContent4);
     }
 
     /** Load MongoDB connection properties. */
@@ -608,5 +620,80 @@ public abstract class ComplexMongoDBSupport extends GeoServerSystemTestSupport {
                         measurementUnit,
                         measurementTimestamp,
                         measurementValue));
+    }
+
+    private void checkMeasurementNotExists(
+            XpathEngine xpathEngine, Document document, String stationName, String stationMail) {
+        // check that the station metadata is correct
+        checkCount(
+                xpathEngine,
+                document,
+                1,
+                String.format(
+                        "/wfs:FeatureCollection/gml:featureMembers"
+                                + "/st:StationFeature[st:name='%s']/st:contact[st:mail='%s']",
+                        stationName, stationMail));
+        checkCount(
+                WFS11_XPATH_ENGINE,
+                document,
+                0,
+                String.format(
+                        "/wfs:FeatureCollection/gml:featureMembers"
+                                + "/st:StationFeature[st:name='%s']/st:measurement",
+                        stationName));
+    }
+
+    @Test
+    public void testStationsWmsGetMapWithSortByDesc() throws Exception {
+
+        LayerInfo layer = getCatalog().getLayerByName("st:StationFeature");
+        StyleInfo sort = getCatalog().getStyleByName("stations_with_sort_by_desc");
+        StyleInfo defaultStyle = getCatalog().getStyleByName("stations");
+        layer.setDefaultStyle(sort);
+        getCatalog().save(layer);
+        // execute the WMS GetMap request
+        MockHttpServletResponse result =
+                getAsServletResponse(
+                        "wms?SERVICE=WMS&VERSION=1.1.1"
+                                + "&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&STYLES&LAYERS=st:StationFeature"
+                                + "&SRS=EPSG:4326&WIDTH=349&HEIGHT=768"
+                                + "&BBOX=96.251220703125,-57.81005859375,103.919677734375,-40.93505859375");
+        assertThat(result.getStatus(), is(200));
+        assertThat(result.getContentType(), is("image/png"));
+        // check that we got the expected image back
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(getBinary(result)));
+        // use same image as test asc to check for equality since in the desc sld
+        // the two symbolizers have been shifted with respect to the asc sld
+        ImageAssert.assertEquals(
+                URLs.urlToFile(getClass().getResource("/results/sorted_result.png")), image, 240);
+        layer.setDefaultStyle(defaultStyle);
+        getCatalog().save(layer);
+    }
+
+    @Test
+    public void testStationsWmsGetMapWithSortByAsc() throws Exception {
+
+        LayerInfo layer = getCatalog().getLayerByName("st:StationFeature");
+        StyleInfo sort = getCatalog().getStyleByName("stations_with_sort_by_asc");
+        StyleInfo defaultStyle = getCatalog().getStyleByName("stations");
+        layer.setDefaultStyle(sort);
+        getCatalog().save(layer);
+        // execute the WMS GetMap request
+        MockHttpServletResponse result =
+                getAsServletResponse(
+                        "wms?SERVICE=WMS&VERSION=1.1.1"
+                                + "&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&STYLES&LAYERS=st:StationFeature"
+                                + "&SRS=EPSG:4326&WIDTH=349&HEIGHT=768"
+                                + "&BBOX=96.251220703125,-57.81005859375,103.919677734375,-40.93505859375");
+        assertThat(result.getStatus(), is(200));
+        assertThat(result.getContentType(), is("image/png"));
+        // check that we got the expected image back
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(getBinary(result)));
+        // use same image as test desc to check for equality since in the asc sld
+        // the two symbolizers have been shifted with respect to the desc sld
+        ImageAssert.assertEquals(
+                URLs.urlToFile(getClass().getResource("/results/sorted_result.png")), image, 240);
+        layer.setDefaultStyle(defaultStyle);
+        getCatalog().save(layer);
     }
 }

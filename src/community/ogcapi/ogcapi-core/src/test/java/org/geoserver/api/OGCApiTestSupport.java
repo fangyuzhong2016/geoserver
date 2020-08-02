@@ -12,30 +12,24 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.jayway.jsonpath.DocumentContext;
 import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.PathNotFoundException;
 import com.jayway.jsonpath.internal.JsonContext;
 import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
-import javax.xml.namespace.QName;
 import org.custommonkey.xmlunit.SimpleNamespaceContext;
 import org.custommonkey.xmlunit.XMLUnit;
 import org.geoserver.data.test.CiteTestData;
 import org.geoserver.data.test.SystemTestData;
 import org.geoserver.test.GeoServerSystemTestSupport;
+import org.hamcrest.Matchers;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 public class OGCApiTestSupport extends GeoServerSystemTestSupport {
-
-    protected String getEncodedName(QName qName) {
-        if (qName.getPrefix() != null) {
-            return qName.getPrefix() + "__" + qName.getLocalPart();
-        } else {
-            return qName.getLocalPart();
-        }
-    }
 
     protected DocumentContext getAsJSONPath(String path, int expectedHttpCode) throws Exception {
         MockHttpServletResponse response = getAsMockHttpServletResponse(path, expectedHttpCode);
@@ -76,8 +70,6 @@ public class OGCApiTestSupport extends GeoServerSystemTestSupport {
     /**
      * Allows subclasses to register namespaces. By default, does not add any, subclasses can
      * manipulate the namespaces map as they see fit.
-     *
-     * @param namespaces
      */
     protected void registerNamespaces(Map<String, String> namespaces) {}
 
@@ -104,5 +96,43 @@ public class OGCApiTestSupport extends GeoServerSystemTestSupport {
         ObjectMapper jsonWriter = new ObjectMapper();
         JsonContext json = (JsonContext) JsonPath.parse(jsonWriter.writeValueAsString(obj));
         return json;
+    }
+
+    /** Retuns a single element out of an array, checking that there is just one */
+    protected <T> T readSingle(DocumentContext json, String path) {
+        List items = json.read(path);
+        assertEquals(
+                "Found "
+                        + items.size()
+                        + " items for this path, but was expecting one: "
+                        + path
+                        + "\n"
+                        + items,
+                1,
+                items.size());
+        return (T) items.get(0);
+    }
+
+    /** Checks the specified jsonpath exists in the document */
+    protected boolean exists(DocumentContext json, String path) {
+        try {
+            List items = json.read(path);
+            return items.size() > 0;
+        } catch (PathNotFoundException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Verifies the given JSONPath evaluates to the expected list
+     *
+     * @param json The document
+     * @param path The path
+     * @param expected The expected list
+     * @param <T>
+     */
+    protected <T> void assertJSONList(DocumentContext json, String path, T... expected) {
+        List<T> selfRels = json.read(path);
+        assertThat(selfRels, Matchers.containsInAnyOrder(expected));
     }
 }

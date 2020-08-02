@@ -72,7 +72,6 @@ public class InternalCatalogStore extends AbstractCatalogStore implements Applic
     /**
      * Get Mapping
      *
-     * @param typeName
      * @return the mapping
      */
     public CatalogStoreMapping getMapping(String typeName) {
@@ -146,8 +145,8 @@ public class InternalCatalogStore extends AbstractCatalogStore implements Applic
             }
         }
 
-        if (q.getProperties() != null && q.getProperties().size() > 0) {
-            outputMapping = outputMapping.subMapping(q.getProperties(), rd);
+        if (q.getProperties() != null) {
+            outputMapping = outputMapping.subMapping(q.getProperties(), rdOutput);
         }
 
         return new CatalogStoreFeatureCollection(

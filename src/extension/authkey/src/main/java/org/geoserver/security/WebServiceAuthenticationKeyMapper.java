@@ -212,8 +212,6 @@ public class WebServiceAuthenticationKeyMapper extends AbstractAuthenticationKey
     /**
      * Calls the external web service with the given key and parses the result to extract the
      * userName.
-     *
-     * @param key
      */
     private String callWebService(String key) {
         String url = webServiceUrl.replace("{key}", key);
@@ -224,11 +222,11 @@ public class WebServiceAuthenticationKeyMapper extends AbstractAuthenticationKey
         try {
             LOGGER.log(Level.FINE, "Issuing request to authkey webservice: " + url);
             HTTPResponse response = client.get(new URL(url));
-            BufferedReader reader = null;
-            InputStream responseStream = response.getResponseStream();
-            StringBuilder result = new StringBuilder();
-            try {
-                reader = new BufferedReader(new InputStreamReader(responseStream));
+            try (InputStream responseStream = response.getResponseStream();
+                    BufferedReader reader =
+                            new BufferedReader(new InputStreamReader(responseStream))) {
+                StringBuilder result = new StringBuilder();
+
                 String line = null;
                 while ((line = reader.readLine()) != null) {
                     result.append(line);
@@ -237,8 +235,6 @@ public class WebServiceAuthenticationKeyMapper extends AbstractAuthenticationKey
                         Level.FINE,
                         "Response received from authkey webservice: " + result.toString());
                 return result.toString();
-            } finally {
-                reader.close();
             }
         } catch (MalformedURLException e) {
             LOGGER.log(

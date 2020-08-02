@@ -571,9 +571,10 @@ public class ReaderUtils {
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             tx.transform(new DOMSource(xml), new StreamResult(output));
 
-            InputStreamReader reader =
-                    new InputStreamReader(new ByteArrayInputStream(output.toByteArray()));
-            validate(reader, errorHandler, targetNamespace, schemaLocation);
+            try (InputStreamReader reader =
+                    new InputStreamReader(new ByteArrayInputStream(output.toByteArray()))) {
+                validate(reader, errorHandler, targetNamespace, schemaLocation);
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -639,8 +640,6 @@ public class ReaderUtils {
     /**
      * Unescapes the provided text with XML entities, see
      * (http://en.wikipedia.org/wiki/List_of_XML_and_HTML_character_entity_references#Character_entities_in_XML)
-     *
-     * @param text
      */
     private static String unescape(String text) {
         String s = text;

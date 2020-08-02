@@ -44,6 +44,7 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.util.ImageUtilities;
 import org.geotools.ows.wms.CRSEnvelope;
 import org.geotools.ows.wms.Layer;
+import org.geotools.ows.wmts.model.WMTSLayer;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.util.GeoToolsUnitFormat;
@@ -382,6 +383,25 @@ public class CatalogBuilder {
             LOGGER.log(Level.WARNING, "Metadata lookup failed", e);
         }
 
+        // check other supported SRS in source also
+        try {
+            if (featureSource.getInfo() instanceof org.geotools.data.wfs.internal.FeatureTypeInfo) {
+                org.geotools.data.wfs.internal.FeatureTypeInfo info =
+                        (org.geotools.data.wfs.internal.FeatureTypeInfo) featureSource.getInfo();
+                // read all identifiers of this CRS into a an comma seperated string
+                if (info.getOtherSRS() != null) {
+                    if (!info.getOtherSRS().isEmpty())
+                        ftinfo.getMetadata()
+                                .put(
+                                        FeatureTypeInfo.OTHER_SRS,
+                                        String.join(",", info.getOtherSRS()));
+                }
+            }
+
+        } catch (UnsupportedOperationException ue) {
+            LOGGER.warning("Other SRS not read from Feature Source");
+        }
+
         return ftinfo;
     }
 
@@ -437,7 +457,6 @@ public class CatalogBuilder {
      *   <li>updates, if possible, the geographic bounds accordingly by re-projecting the native
      *       bounds into WGS84
      *
-     * @param ftinfo
      * @throws IOException if computing the native bounds fails or if a transformation error occurs
      *     during the geographic bounds computation
      */
@@ -500,9 +519,7 @@ public class CatalogBuilder {
      * Computes the geographic bounds of a {@link ResourceInfo} by reprojecting the available native
      * bounds
      *
-     * @param rinfo
      * @return the geographic bounds, or null if the native bounds are not available
-     * @throws IOException
      */
     public ReferencedEnvelope getLatLonBounds(
             ReferencedEnvelope nativeBounds, CoordinateReferenceSystem declaredCRS)
@@ -529,9 +546,7 @@ public class CatalogBuilder {
      * Computes the native bounds of a {@link ResourceInfo} taking into account the nature of the
      * data and the reprojection policy in act
      *
-     * @param rinfo
      * @return the native bounds, or null if the could not be computed
-     * @throws IOException
      */
     public ReferencedEnvelope getNativeBounds(ResourceInfo rinfo) throws IOException {
         return getNativeBounds(rinfo, null);
@@ -614,14 +629,42 @@ public class CatalogBuilder {
         return bounds;
     }
 
+    /*
+     * Helper method used to get NativeCRS of resource bypassing the Catalog
+     */
+    public CoordinateReferenceSystem getNativeCRS(ResourceInfo rinfo) throws Exception {
+        CoordinateReferenceSystem nativeCRS = null;
+        if (rinfo instanceof FeatureTypeInfo) {
+            FeatureTypeInfo ftinfo = (FeatureTypeInfo) rinfo;
+            nativeCRS =
+                    ftinfo.getStore()
+                            .getDataStore(null)
+                            .getFeatureSource(rinfo.getQualifiedNativeName())
+                            .getSchema()
+                            .getCoordinateReferenceSystem();
+
+        } else if (rinfo instanceof CoverageInfo) {
+
+            CoverageInfo cinfo = buildCoverage(rinfo.getNativeName());
+            return cinfo.getNativeCRS();
+
+        } else if (rinfo instanceof WMSLayerInfo) {
+            WMSLayerInfo rebuilt = buildWMSLayer(rinfo.getStore(), rinfo.getNativeName());
+            nativeCRS = rebuilt.getNativeCRS();
+
+        } else if (rinfo instanceof WMTSLayerInfo) {
+            WMTSLayerInfo rebuilt = buildWMTSLayer(rinfo.getStore(), rinfo.getNativeName());
+            return rebuilt.getNativeCRS();
+        }
+        return nativeCRS;
+    }
+
     /**
      * Looks up and sets the SRS based on the feature type info native {@link
      * CoordinateReferenceSystem}
      *
-     * @param ftinfo
      * @param extensive if true an extenstive lookup will be performed (more accurate, but might
      *     take various seconds)
-     * @throws IOException
      */
     public void lookupSRS(FeatureTypeInfo ftinfo, boolean extensive) throws IOException {
         lookupSRS(ftinfo, null, extensive);
@@ -631,11 +674,9 @@ public class CatalogBuilder {
      * Looks up and sets the SRS based on the feature type info native {@link
      * CoordinateReferenceSystem}, obtained from an optional feature source.
      *
-     * @param ftinfo
      * @param data A feature source (possibily null)
      * @param extensive if true an extenstive lookup will be performed (more accurate, but might
      *     take various seconds)
-     * @throws IOException
      */
     public void lookupSRS(FeatureTypeInfo ftinfo, FeatureSource data, boolean extensive)
             throws IOException {
@@ -930,21 +971,13 @@ public class CatalogBuilder {
         return buildCoverageInternal(reader, nativeCoverageName, null, specifiedName);
     }
 
-    /**
-     * Builds a coverage from a geotools grid coverage reader.
-     *
-     * @param customParameters
-     */
+    /** Builds a coverage from a geotools grid coverage reader. */
     public CoverageInfo buildCoverage(GridCoverage2DReader reader, Map customParameters)
             throws Exception {
         return buildCoverage(reader, null, customParameters);
     }
 
-    /**
-     * Builds a coverage from a geotools grid coverage reader.
-     *
-     * @param customParameters
-     */
+    /** Builds a coverage from a geotools grid coverage reader. */
     public CoverageInfo buildCoverage(
             GridCoverage2DReader reader, String coverageName, Map customParameters)
             throws Exception {
@@ -1406,21 +1439,29 @@ public class CatalogBuilder {
         }
         wli.setNamespace(namespace);
 
-        Layer layer = wli.getWMTSLayer(null);
+        WMTSLayer layer = wli.getWMTSLayer(null);
         // TODO: handle axis order here ?
         // try to get the native SRS -> we use the bounding boxes, GeoServer will publish all of the
         // supported SRS in the root, if we use getSRS() we'll get them all
-        for (String srs : layer.getBoundingBoxes().keySet()) {
-            try {
-                CoordinateReferenceSystem crs = CRS.decode(srs);
-                wli.setSRS(srs);
-                wli.setNativeCRS(crs);
-            } catch (Exception e) {
-                LOGGER.log(
-                        Level.INFO,
-                        "Skipping "
-                                + srs
-                                + " definition, it was not recognized by the referencing subsystem");
+        CoordinateReferenceSystem preferred = layer.getPreferredCRS();
+        if (preferred != null) {
+            wli.setSRS(CRS.toSRS(preferred));
+            wli.setNativeCRS(preferred);
+        } else {
+
+            for (String srs : layer.getSrs()) {
+                try {
+                    CoordinateReferenceSystem crs = CRS.decode(srs);
+                    wli.setSRS(srs);
+                    wli.setNativeCRS(crs);
+                    break;
+                } catch (Exception e) {
+                    LOGGER.log(
+                            Level.INFO,
+                            "Skipping "
+                                    + srs
+                                    + " definition, it was not recognized by the referencing subsystem");
+                }
             }
         }
 
@@ -1550,9 +1591,6 @@ public class CatalogBuilder {
     /**
      * Returns the default style for the specified resource, or null if the layer is vector and
      * geometryless
-     *
-     * @param resource
-     * @throws IOException
      */
     public StyleInfo getDefaultStyle(ResourceInfo resource) throws IOException {
         // raster wise, only one style
@@ -1623,7 +1661,6 @@ public class CatalogBuilder {
      * Calculate the bounds of a layer group from the CRS defined bounds. Relies on the {@link
      * LayerGroupHelper}
      *
-     * @param layerGroup
      * @param crs the CRS who's bounds should be used
      * @see LayerGroupHelper#calculateBoundsFromCRS(CoordinateReferenceSystem)
      */
@@ -1784,7 +1821,6 @@ public class CatalogBuilder {
      *   <li>keep native: use the native SRS bounding box
      *       <ul>
      *
-     * @param resource
      * @return the new referenced envelope or null if there is no bounding box associated with the
      *     CRS
      */

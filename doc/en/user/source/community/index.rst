@@ -15,11 +15,11 @@ officially part of the GeoServer releases. They are however built along with the
 .. toctree::
    :maxdepth: 1
 
+   arcsde/index
    oauth2/index
    keycloak/index
    dds/index
    scripting/index
-   spatialite/index
    colormap/index
    jdbcconfig/index
    mbtiles/index
@@ -28,8 +28,10 @@ officially part of the GeoServer releases. They are however built along with the
    wps-download/index
    jms-cluster/index
    solr/index
+   elasticsearch/index
    geomesa/index
    gwc-distributed/index
+   flatgeobuf/index
    gdal/index
    gwc-s3/index
    gwc-azure-blob/index
@@ -48,8 +50,14 @@ officially part of the GeoServer releases. They are however built along with the
    netcdf-ghrsst/index
    monitor-hibernate/index
    taskmanager/index
+   metadata/index
    qose-module/index
    ogr-store/index
    mapml/index
    geostyler/index
    csw-iso/index
+   importer-jdbc/index
+   hana/index
+   wfs-templating/index
+   ogc-api/index
+   gsr/index

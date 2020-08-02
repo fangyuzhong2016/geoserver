@@ -22,7 +22,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import org.apache.commons.collections.map.CaseInsensitiveMap;
+import org.apache.commons.collections4.map.CaseInsensitiveMap;
 import org.geoserver.wms.legendgraphic.Cell.ClassesEntryLegendBuilder;
 import org.geoserver.wms.legendgraphic.Cell.ColorMapEntryLegendBuilder;
 import org.geoserver.wms.legendgraphic.Cell.RampColorMapEntryLegendBuilder;
@@ -253,18 +253,12 @@ public class ColorMapLegendCreator {
             return element;
         }
 
-        /**
-         * @param legendOptions
-         * @uml.property name="additionalOptions"
-         */
+        /** @uml.property name="additionalOptions" */
         public void setAdditionalOptions(final Map<String, Object> legendOptions) {
             this.additionalOptions.putAll(legendOptions);
         }
 
-        /**
-         * @param backGroundColor
-         * @uml.property name="backgroundColor"
-         */
+        /** @uml.property name="backgroundColor" */
         public void setBackgroundColor(final Color backGroundColor) {
             PackagedUtils.ensureNotNull(backGroundColor, "backGroundColor");
             this.backgroundColor = backGroundColor;
@@ -299,44 +293,29 @@ public class ColorMapLegendCreator {
             this.colorMapType = ColorMapType.create(type);
         }
 
-        /**
-         * @param extended
-         * @uml.property name="extended"
-         */
+        /** @uml.property name="extended" */
         public void setExtended(final boolean extended) {
             this.extended = extended;
         }
 
-        /**
-         * @param labelFont
-         * @uml.property name="labelFont"
-         */
+        /** @uml.property name="labelFont" */
         public void setLabelFont(final Font labelFont) {
             PackagedUtils.ensureNotNull(labelFont, "labelFont");
             this.labelFont = labelFont;
         }
 
-        /**
-         * @param labelFontColor
-         * @uml.property name="labelFontColor"
-         */
+        /** @uml.property name="labelFontColor" */
         public void setLabelFontColor(final Color labelFontColor) {
             PackagedUtils.ensureNotNull(labelFontColor, "labelFontColor");
             this.labelFontColor = labelFontColor;
         }
 
-        /**
-         * @param dimension
-         * @uml.property name="requestedDimension"
-         */
+        /** @uml.property name="requestedDimension" */
         public void setRequestedDimension(final Dimension dimension) {
             this.requestedDimension = (Dimension) dimension.clone();
         }
 
-        /**
-         * @param transparent
-         * @uml.property name="transparent"
-         */
+        /** @uml.property name="transparent" */
         public void setTransparent(final boolean transparent) {
             this.transparent = transparent;
         }

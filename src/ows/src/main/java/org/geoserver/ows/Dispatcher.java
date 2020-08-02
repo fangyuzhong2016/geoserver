@@ -588,7 +588,6 @@ public class Dispatcher extends AbstractController {
     /**
      * Normalize a parameter, trimming whitespace
      *
-     * @param value
      * @return The value with whitespace trimmed, or null if this would result in an empty string.
      */
     public static String normalize(String value) {
@@ -606,7 +605,6 @@ public class Dispatcher extends AbstractController {
     /**
      * Normalize the version, handling cases like forcing "x.y" to "x.y.z".
      *
-     * @param version
      * @return normalized version
      */
     public static String normalizeVersion(String version) {
@@ -1014,6 +1012,7 @@ public class Dispatcher extends AbstractController {
 
             setHeaders(req, opDescriptor, result, response);
 
+            @SuppressWarnings("PMD.CloseResource") // managed by the output strategy
             OutputStream output = outputStrategy.getDestination(req.getHttpResponse());
             boolean abortResponse = true;
             try {
@@ -1805,7 +1804,7 @@ public class Dispatcher extends AbstractController {
      * @param t Throwable
      * @return true if t is a security exception
      */
-    protected static boolean isSecurityException(Throwable t) {
+    public static boolean isSecurityException(Throwable t) {
         return t != null
                 && t.getClass().getPackage().getName().startsWith("org.springframework.security");
     }

@@ -19,6 +19,10 @@
         <input id="globalServices" type="checkbox" wicket:id="globalServices" />
         <label for="globalServices"><wicket:message key="globalServices">Enable Global Services</wicket:message></label>
       </li>
+      <li class="choiceItem">
+      	<input type="checkbox" id="allowStoredQueriesPerWorkspace" wicket:id="allowStoredQueriesPerWorkspace"></input>
+        <label><wicket:message key="allowStoredQueriesPerWorkspace">Allow Per-Workspace Stored Queries</wicket:message></label>
+      </li>
     </ul>
   </fieldset>
   <fieldset>
@@ -111,11 +115,20 @@
     </li>
   </ul>
   <ul>
-    <li class="button-group selfclear">
-      <button type="submit" wicket:id="submit"><wicket:message key="submit">submit</wicket:message></button>
-      <button type="submit" wicket:id="cancel"><wicket:message key="cancel">cancel</wicket:message></button>
-    </li>
+      <li class="choiceItem">
+        <input id="showCreatedTimeCols" type="checkbox" wicket:id="showCreatedTimeCols" />
+        <label><wicket:message key="timeCreatedColChkBox">Display creation timestamps on administration lists</wicket:message></label>
+      </li>
+      <li class="choiceItem">
+        <input id="showModifiedTimeCols" type="checkbox" wicket:id="showModifiedTimeCols" />
+        <label><wicket:message key="timeModifiedColChkBox">Display modification timestamps on administration lists</wicket:message></label>
+      </li>
   </ul>
+  <div class="button-group toolbar-sticky selfclear">
+    <button type="submit" class="form-button-save" wicket:id="submit"><wicket:message key="save">save</wicket:message></button>
+    <a href="#a" class="form-button-apply" wicket:id="apply"><wicket:message key="apply">Apply</wicket:message></a>
+    <button type="submit" class="form-button-cancel" wicket:id="cancel"><wicket:message key="cancel">cancel</wicket:message></button>
+  </div>
 </form>
 </wicket:extend>
 </body>

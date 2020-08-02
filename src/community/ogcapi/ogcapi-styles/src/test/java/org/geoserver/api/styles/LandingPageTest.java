@@ -9,11 +9,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
 import com.jayway.jsonpath.DocumentContext;
-import java.util.List;
+import org.geoserver.api.Link;
 import org.geoserver.platform.Service;
 import org.geotools.util.Version;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.w3c.dom.Document;
 
@@ -39,7 +40,8 @@ public class LandingPageTest extends StylesTestSupport {
                         "patchStyleMetadata",
                         "addStyle",
                         "updateStyle",
-                        "deleteStyle"));
+                        "deleteStyle",
+                        "getStyleThumbnail"));
     }
 
     @Test
@@ -62,11 +64,12 @@ public class LandingPageTest extends StylesTestSupport {
 
     @Test
     public void testLandingPageWorkspaceSpecific() throws Exception {
-        DocumentContext json = getAsJSONPath("ogc/styles", 200);
+        DocumentContext json = getAsJSONPath("ws/ogc/styles", 200);
         checkJSONLandingPage(json);
     }
 
     @Test
+    @Ignore
     public void testLandingPageXML() throws Exception {
         Document dom = getAsDOM("ogc/styles?f=application/xml");
         print(dom);
@@ -86,8 +89,6 @@ public class LandingPageTest extends StylesTestSupport {
                 json,
                 "links[?(@.type != 'application/x-yaml' && @.href =~ /.*ogc\\/styles\\/\\?.*/)].rel",
                 "alternate",
-                "alternate",
-                "alternate",
                 "alternate");
         checkJSONLandingPageShared(json);
     }
@@ -104,8 +105,8 @@ public class LandingPageTest extends StylesTestSupport {
                 document.select("#htmlApiLink").attr("href"));
     }
 
-    static void checkJSONLandingPage(DocumentContext json) {
-        assertEquals(20, (int) json.read("links.length()", Integer.class));
+    void checkJSONLandingPage(DocumentContext json) {
+        assertEquals(12, (int) json.read("links.length()", Integer.class));
         // check landing page links
         assertJSONList(
                 json,
@@ -115,48 +116,35 @@ public class LandingPageTest extends StylesTestSupport {
                 json,
                 "links[?(@.type != 'application/json' && @.href =~ /.*ogc\\/styles\\/\\?.*/)].rel",
                 "alternate",
-                "alternate",
-                "alternate",
                 "alternate");
         checkJSONLandingPageShared(json);
     }
 
-    static void checkJSONLandingPageShared(DocumentContext json) {
+    void checkJSONLandingPageShared(DocumentContext json) {
         // check API links
         assertJSONList(
                 json,
                 "links[?(@.href =~ /.*ogc\\/styles\\/api.*/)].rel",
-                "service",
-                "service",
-                "service",
-                "service",
-                "service");
+                Link.REL_SERVICE_DESC,
+                Link.REL_SERVICE_DESC,
+                Link.REL_SERVICE_DOC);
         // check conformance links
         assertJSONList(
                 json,
                 "links[?(@.href =~ /.*ogc\\/styles\\/conformance.*/)].rel",
-                "conformance",
-                "conformance",
-                "conformance",
-                "conformance",
-                "conformance");
+                Link.REL_CONFORMANCE,
+                Link.REL_CONFORMANCE,
+                Link.REL_CONFORMANCE);
         // check collection links
         assertJSONList(
                 json,
                 "links[?(@.href =~ /.*ogc\\/styles\\/styles.*/)].rel",
-                "data",
-                "data",
-                "data",
-                "data",
-                "data");
+                "styles",
+                "styles",
+                "styles");
         // check title
         assertEquals("Styles server", json.read("title"));
         // check description
         assertEquals("", json.read("description"));
-    }
-
-    static <T> void assertJSONList(DocumentContext json, String path, T... expected) {
-        List<T> selfRels = json.read(path);
-        assertThat(selfRels, Matchers.containsInAnyOrder(expected));
     }
 }

@@ -133,6 +133,11 @@ public class WCSNetCDFMosaicTest extends WCSNetCDFBaseTest {
         testData.setUpDefaultRasterLayers();
     }
 
+    //    @Override
+    //    protected String getLogConfiguration() {
+    //        return "/GEOTOOLS_DEVELOPER_LOGGING.properties";
+    //    }
+
     @Override
     protected void onSetUp(SystemTestData testData) throws Exception {
         // workaround to add our custom multi dimensional format
@@ -289,7 +294,7 @@ public class WCSNetCDFMosaicTest extends WCSNetCDFBaseTest {
 
             // we expect a single granule which covers the entire mosaic
             for (GridCoverage2D c : stack.getGranules()) {
-                System.out.println(c.getEnvelope());
+                // System.out.println(c.getEnvelope());
                 assertEquals(45., c.getEnvelope2D().getHeight(), 0.001);
                 assertEquals(30., c.getEnvelope2D().getWidth(), 0.001);
             }

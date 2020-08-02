@@ -4,15 +4,21 @@
  */
 package org.geoserver.importer.rest;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.geoserver.importer.ImportContext;
 import org.geoserver.importer.ImportTask;
 import org.geoserver.importer.Importer;
 import org.geoserver.importer.transform.ImportTransform;
 import org.geoserver.rest.RestBaseController;
 import org.geoserver.rest.RestException;
+import org.geotools.util.logging.Logging;
 import org.springframework.http.HttpStatus;
 
 public class ImportBaseController extends RestBaseController {
+
+    private static final Logger LOGGER = Logging.getLogger(ImportBaseController.class);
+
     protected Importer importer;
 
     protected ImportBaseController(Importer importer) {
@@ -89,12 +95,22 @@ public class ImportBaseController extends RestBaseController {
             Long importId, Integer taskId, Integer transformId, boolean optional) {
         ImportTask task = task(importId, taskId);
 
+        return transform(task, transformId, optional);
+    }
+
+    ImportTransform transform(ImportTask task, Integer transformId, boolean optional) {
         ImportTransform tx = null;
         if (transformId != null) {
             try {
                 tx = (ImportTransform) task.getTransform().getTransforms().get(transformId);
-            } catch (NumberFormatException e) {
-            } catch (IndexOutOfBoundsException e) {
+            } catch (NumberFormatException | IndexOutOfBoundsException e) {
+                LOGGER.log(
+                        Level.FINER,
+                        "No transform with  id "
+                                + transformId
+                                + ". Exception message is "
+                                + e.getMessage(),
+                        e);
             }
         }
 

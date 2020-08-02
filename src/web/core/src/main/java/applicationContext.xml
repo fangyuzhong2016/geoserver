@@ -417,14 +417,7 @@
     <property name="id" value="oracle"/> <property name="factoryClass" value="org.geotools.data.oracle.OracleNGDataStoreFactory"/> 
     <property name="iconBase" value="org.geoserver.web.GeoServerApplication"/> 
     <property name="icon" value="img/icons/geosilk/database_oracle.png"/> </bean> 
-    <bean id="arcsdeDataStorePanel" class="org.geoserver.web.data.resource.DataStorePanelInfo"> 
-    <property name="id" value="arcsde"/> <property name="factoryClass" value="org.geotools.arcsde.ArcSDEDataStoreFactory"/> 
-    <property name="iconBase" value="org.geoserver.web.GeoServerApplication"/> 
-    <property name="icon" value="img/icons/geosilk/database_vector.png"/> </bean> 
-    <bean id="arcsdeCoverageStorePanel" class="org.geoserver.web.data.resource.DataStorePanelInfo"> 
-    <property name="id" value="arcsde_gce"/> <property name="factoryClass" value="org.geotools.arcsde.gce.ArcSDERasterFormat"/> 
-    <property name="iconBase" value="org.geoserver.web.GeoServerApplication"/> 
-    <property name="icon" value="img/icons/geosilk/database_raster.png"/> </bean> -->
+   -->
 
   <bean id="ndLayerEditTabPanelInfo" class="org.geoserver.web.publish.LayerEditTabPanelInfo">
     <property name="id" value="ndLayerEditTabPanelInfo" />
@@ -433,6 +426,14 @@
     <property name="componentClass"
       value="org.geoserver.web.data.resource.ResourceDimensionsTabPanelInfo" />
     <property name="order" value="100" />
+  </bean>
+
+  <bean id="layerAccessDataRulePanelInfo" class="org.geoserver.web.security.LayerAccessDataRulePanelInfo">
+    <property name="id" value="layerAccessDataRulePanelInfo"/>
+    <property name="titleKey" value="LayerAccessDataRulePanel.title"/>
+    <property name="descriptionKey" value="LayerAccessDataRulePanel.shortDescription"/>
+    <property name="componentClass" value="org.geoserver.web.security.LayerAccessDataRulePanel"/>
+    <property name="order" value="300"/>
   </bean>
 
   <bean id="wicketConfigurationLocker" class="org.geoserver.web.WicketConfigurationLockCallback">
@@ -472,7 +473,5 @@
 		<property name="titleKey" value="publish.layer.config"/>
 		<property name="componentClass" value="org.geoserver.web.publish.ServiceLayerConfigurationPanel"/>
 	</bean>
-	
-	<bean id="systemStatusMonitorTab" class="org.geoserver.web.system.status.SystemStatusTab"/>
  
 </beans>

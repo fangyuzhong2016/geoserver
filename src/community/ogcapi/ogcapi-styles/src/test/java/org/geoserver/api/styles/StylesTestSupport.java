@@ -4,13 +4,15 @@
  */
 package org.geoserver.api.styles;
 
-import static org.junit.Assert.assertEquals;
-
-import com.jayway.jsonpath.DocumentContext;
 import java.util.Collections;
-import java.util.List;
 import org.geoserver.api.OGCApiTestSupport;
+import org.geoserver.catalog.Catalog;
+import org.geoserver.catalog.CatalogBuilder;
+import org.geoserver.catalog.FeatureTypeInfo;
+import org.geoserver.catalog.LayerGroupInfo;
+import org.geoserver.catalog.StyleInfo;
 import org.geoserver.catalog.WorkspaceInfo;
+import org.geoserver.data.test.CiteTestData;
 import org.geoserver.data.test.SystemTestData;
 import org.geoserver.data.test.SystemTestData.StyleProperty;
 
@@ -19,39 +21,47 @@ public class StylesTestSupport extends OGCApiTestSupport {
     protected static final String POLYGON_COMMENT = "PolygonComment";
 
     @Override
-    protected void setUpTestData(SystemTestData testData) throws Exception {
-        // no actual need for data
-    }
-
-    @Override
     protected void onSetUp(SystemTestData testData) throws Exception {
+        super.onSetUp(testData);
+
+        Catalog catalog = getCatalog();
+
+        // fix the bbox of the layers to get a good thumbnail
+        CatalogBuilder cb = new CatalogBuilder(catalog);
+        for (FeatureTypeInfo ft :
+                catalog.getResourcesByNamespace(CiteTestData.CITE_URI, FeatureTypeInfo.class)) {
+            cb.setupBounds(ft);
+            catalog.save(ft);
+        }
+
         // add a work-spaced style
-        testData.addWorkspace("ws", "http://www.geoserver.org/ws", getCatalog());
-        WorkspaceInfo ws = getCatalog().getWorkspaceByName("ws");
-        testData.addStyle(ws, "NamedPlaces", "NamedPlaces.sld", SystemTestData.class, getCatalog());
+        testData.addWorkspace("ws", "http://www.geoserver.org/ws", catalog);
+        WorkspaceInfo ws = catalog.getWorkspaceByName("ws");
+        testData.addStyle(ws, "NamedPlacesWS", "NamedPlaces.sld", SystemTestData.class, catalog);
         // add a style with a comment that can be used for raw style return
-        testData.addStyle(
-                POLYGON_COMMENT, "polygonComment.sld", StylesTestSupport.class, getCatalog());
+        testData.addStyle(POLYGON_COMMENT, "polygonComment.sld", StylesTestSupport.class, catalog);
 
         testData.addStyle(
                 null,
                 "cssSample",
                 "cssSample.css",
                 StylesTestSupport.class,
-                getCatalog(),
+                catalog,
                 Collections.singletonMap(StyleProperty.FORMAT, "css"));
-    }
 
-    /** Retuns a single element out of an array, checking that there is just one */
-    protected Object getSingle(DocumentContext json, String path) {
-        List items = json.read(path);
-        assertEquals(1, items.size());
-        return items.get(0);
-    }
+        // add a style groupd
+        testData.addStyle(
+                "BasicStyleGroupStyle",
+                "BasicStyleGroup.sld",
+                CollectionCallbackIntegrationTest.class,
+                getCatalog());
+        LayerGroupInfo lg = catalog.getFactory().createLayerGroup();
+        StyleInfo s = catalog.getStyleByName("BasicStyleGroupStyle");
 
-    /** Checks the specified jsonpath exists in the document */
-    protected boolean exists(DocumentContext json, String path) {
-        List items = json.read(path);
-        return items.size() > 0;
+        lg.setName("BasicStyleGroup");
+        lg.getLayers().add(null);
+        lg.getStyles().add(s);
+        new CatalogBuilder(catalog).calculateLayerGroupBounds(lg);
+        catalog.add(lg);
     }
 }

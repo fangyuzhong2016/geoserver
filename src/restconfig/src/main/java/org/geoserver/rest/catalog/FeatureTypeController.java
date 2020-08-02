@@ -37,7 +37,6 @@ import org.geoserver.rest.wrapper.RestWrapper;
 import org.geotools.data.DataAccess;
 import org.geotools.data.DataStore;
 import org.geotools.data.FeatureSource;
-import org.geotools.feature.NameImpl;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.util.logging.Logging;
 import org.opengis.feature.simple.SimpleFeatureType;
@@ -171,7 +170,7 @@ public class FeatureTypeController extends AbstractCatalogController {
             UriComponentsBuilder builder)
             throws Exception {
 
-        DataStoreInfo dsInfo = getExistingDataStore(workspaceName, storeName);
+        final DataStoreInfo dsInfo = getExistingDataStore(workspaceName, storeName);
         // ensure the store matches up
         if (ftInfo.getStore() != null && storeName != null) {
             if (!storeName.equals(ftInfo.getStore().getName())) {
@@ -182,7 +181,10 @@ public class FeatureTypeController extends AbstractCatalogController {
                                 + ftInfo.getStore().getName(),
                         HttpStatus.FORBIDDEN);
             }
-            dsInfo = ftInfo.getStore();
+            // HACK: override the StoreInfo in case there's a store named the same on a
+            // different workspace. The FeatureTypeInfo deserialization doesn't know how to
+            // disambiguate to ftInfo may come in with the wrong Store
+            ftInfo.setStore(dsInfo);
         } else {
             ftInfo.setStore(dsInfo);
         }
@@ -243,7 +245,7 @@ public class FeatureTypeController extends AbstractCatalogController {
         // attempt to fill in metadata from underlying feature source
         try {
             FeatureSource featureSource =
-                    dataAccess.getFeatureSource(new NameImpl(ftInfo.getNativeName()));
+                    dataAccess.getFeatureSource(ftInfo.getQualifiedNativeName());
             if (featureSource != null) {
                 cb.setupMetadata(ftInfo, featureSource);
             }

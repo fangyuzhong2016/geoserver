@@ -10,12 +10,14 @@ import java.util.HashSet;
 import java.util.Set;
 import org.geoserver.catalog.LayerGroupInfo;
 import org.geoserver.catalog.LayerInfo;
+import org.geoserver.catalog.LegendInfo;
 import org.geoserver.catalog.PublishedInfo;
 import org.geoserver.catalog.StyleInfo;
 import org.geotools.styling.FeatureTypeStyle;
 import org.geotools.styling.Rule;
 import org.geotools.styling.Style;
 import org.geotools.util.NumberRange;
+import org.xml.sax.helpers.AttributesImpl;
 
 /**
  * Provides utility methods required to build the capabilities document.
@@ -23,6 +25,12 @@ import org.geotools.util.NumberRange;
  * @author Mauricio Pazos
  */
 public final class CapabilityUtil {
+
+    protected static final String LAYER_GROUP_STYLE_NAME = "";
+    protected static final String LAYER_GROUP_STYLE_TITLE_PREFIX = "";
+    protected static final String LAYER_GROUP_STYLE_TITLE_SUFFIX = " style";
+    protected static final String LAYER_GROUP_STYLE_ABSTRACT_PREFIX = "Default style for ";
+    protected static final String LAYER_GROUP_STYLE_ABSTRACT_SUFFIX = " layer";
 
     private CapabilityUtil() {
         // utility class
@@ -76,7 +84,6 @@ public final class CapabilityUtil {
      * </pre>
      *
      * @return Max and Min denominator
-     * @throws IOException
      */
     public static NumberRange<Double> searchMinMaxScaleDenominator(final LayerInfo layer)
             throws IOException {
@@ -125,7 +132,6 @@ public final class CapabilityUtil {
      * </pre>
      *
      * @return Max and Min denominator
-     * @throws IOException
      */
     public static NumberRange<Double> searchMinMaxScaleDenominator(final LayerGroupInfo layerGroup)
             throws IOException {
@@ -148,7 +154,6 @@ public final class CapabilityUtil {
      * </pre>
      *
      * @return Max and Min denominator
-     * @throws IOException
      */
     public static NumberRange<Double> searchMinMaxScaleDenominator(
             final PublishedInfo publishedInfo) throws IOException {
@@ -164,7 +169,6 @@ public final class CapabilityUtil {
      * Computes the rendering scale taking into account the standard pixel size and the real world
      * scale denominator.
      *
-     * @param scaleDenominator
      * @return the rendering scale.
      */
     public static Double computeScaleHint(final Double scaleDenominator) {
@@ -176,5 +180,31 @@ public final class CapabilityUtil {
         Double scaleHint = Math.sqrt(Math.pow((scaleDenominator * sizeStandardRenderPixel), 2) * 2);
 
         return scaleHint;
+    }
+
+    /** Returns true if legend accomplish some rules to be a valid one. */
+    public static boolean validateLegendInfo(LegendInfo legend) {
+        return legend != null
+                && legend.getOnlineResource() != null
+                && legend.getHeight() > 0
+                && legend.getWidth() > 0;
+    }
+
+    /**
+     * A Utility method to populate legend url href attribute
+     *
+     * @param attrs AttributesImpl to be populated with Legend URL href
+     * @param legendURL URL String
+     * @param XLINK_NS Namsepace like (e.g http://www.w3.org/1999/xlink)
+     * @return attrs with Legend URL attributes
+     */
+    public static AttributesImpl addGetLegendAttributes(
+            AttributesImpl attrs, String legendURL, String XLINK_NS) {
+
+        attrs.addAttribute("", "xmlns:xlink", "xmlns:xlink", "", XLINK_NS);
+        attrs.addAttribute(XLINK_NS, "type", "xlink:type", "", "simple");
+        attrs.addAttribute(XLINK_NS, "href", "xlink:href", "", legendURL);
+
+        return attrs;
     }
 }

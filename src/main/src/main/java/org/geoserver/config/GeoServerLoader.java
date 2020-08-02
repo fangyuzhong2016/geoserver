@@ -775,8 +775,6 @@ public abstract class GeoServerLoader {
     /**
      * Some config directories in GeoServer are used to store workspace specific configurations,
      * identify them so that we don't log complaints about their existence
-     *
-     * @param f
      */
     private boolean isConfigDirectory(Resource dir) {
         String name = dir.name();
@@ -1026,10 +1024,10 @@ public abstract class GeoServerLoader {
 
     /** Helper method which uses xstream to persist an object as xml on disk. */
     void persist(XStreamPersister xp, Object obj, Resource f) throws Exception {
-        BufferedOutputStream out = new BufferedOutputStream(f.out());
-        xp.save(obj, out);
-        out.flush();
-        out.close();
+        try (BufferedOutputStream out = new BufferedOutputStream(f.out())) {
+            xp.save(obj, out);
+            out.flush();
+        }
     }
 
     /** Helper method which uses xstream to depersist an object as xml from disk. */

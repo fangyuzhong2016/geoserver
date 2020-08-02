@@ -14,7 +14,11 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface HTMLResponseBody {
+
     String templateName();
 
     String fileName();
+
+    /** Optional, used for lookups when the base class is not the service itself */
+    Class baseClass() default Object.class;
 }

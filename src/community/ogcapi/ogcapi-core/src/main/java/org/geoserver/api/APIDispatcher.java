@@ -7,6 +7,7 @@ package org.geoserver.api;
 
 import static org.springframework.core.annotation.AnnotatedElementUtils.hasAnnotation;
 
+import io.swagger.v3.oas.models.OpenAPI;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -29,22 +30,21 @@ import org.geoserver.ows.ClientStreamAbortedException;
 import org.geoserver.ows.Dispatcher;
 import org.geoserver.ows.DispatcherCallback;
 import org.geoserver.ows.HttpErrorCodeException;
+import org.geoserver.ows.LocalWorkspace;
 import org.geoserver.ows.Request;
 import org.geoserver.ows.util.KvpMap;
 import org.geoserver.ows.util.KvpUtils;
 import org.geoserver.platform.GeoServerExtensions;
-import org.geoserver.platform.GeoServerResourceLoader;
 import org.geoserver.platform.Operation;
 import org.geoserver.platform.Service;
 import org.geoserver.platform.ServiceException;
 import org.geotools.util.Version;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.MethodParameter;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.GenericHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageConverter;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.http.converter.xml.MappingJackson2XmlHttpMessageConverter;
 import org.springframework.web.accept.ContentNegotiationManager;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.context.request.NativeWebRequest;
@@ -62,6 +62,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import org.springframework.web.servlet.mvc.method.annotation.RequestResponseBodyMethodProcessor;
 import org.springframework.web.servlet.support.RequestContextUtils;
+import org.springframework.web.util.UrlPathHelper;
 import org.springframework.web.util.WebUtils;
 import org.xml.sax.SAXException;
 
@@ -84,6 +85,8 @@ public class APIDispatcher extends AbstractController {
     /** list of callbacks */
     protected List<DispatcherCallback> callbacks = Collections.EMPTY_LIST;
 
+    private List<DocumentCallback> documentCallbacks;
+    private List<OpenAPICallback> apiCallbacks;
     protected RequestMappingHandlerMapping mappingHandler;
 
     protected RequestMappingHandlerAdapter handlerAdapter;
@@ -101,20 +104,26 @@ public class APIDispatcher extends AbstractController {
     @Override
     protected void initApplicationContext(ApplicationContext context) {
         // load life cycle callbacks
-        callbacks = GeoServerExtensions.extensions(DispatcherCallback.class, context);
-        exceptionHandlers = GeoServerExtensions.extensions(APIExceptionHandler.class, context);
+        this.callbacks = GeoServerExtensions.extensions(DispatcherCallback.class, context);
+        this.exceptionHandlers = GeoServerExtensions.extensions(APIExceptionHandler.class, context);
+        this.documentCallbacks = GeoServerExtensions.extensions(DocumentCallback.class, context);
+        this.apiCallbacks = GeoServerExtensions.extensions(OpenAPICallback.class, context);
 
+        LocalWorkspaceURLPathHelper pathHelper = new LocalWorkspaceURLPathHelper();
         this.mappingHandler =
                 new RequestMappingHandlerMapping() {
                     @Override
                     protected boolean isHandler(Class<?> beanType) {
                         return hasAnnotation(beanType, APIService.class);
                     }
+
+                    @Override
+                    public UrlPathHelper getUrlPathHelper() {
+                        return pathHelper;
+                    }
                 };
         this.mappingHandler.setApplicationContext(context);
         this.mappingHandler.afterPropertiesSet();
-        // do we really want this? The REST API uses it though
-        this.mappingHandler.getUrlPathHelper().setAlwaysUseFullPath(true);
 
         // create the one handler adapter we need similar to how DispatcherServlet does it
         // but with a special implementation that supports callbacks for the operation
@@ -124,7 +133,16 @@ public class APIDispatcher extends AbstractController {
         handlerAdapter = configurationSupport.requestMappingHandlerAdapter();
         handlerAdapter.setApplicationContext(context);
         handlerAdapter.afterPropertiesSet();
-        // force json as the first choice
+        // force GeoServer version of jackson as the first choice
+        handlerAdapter
+                .getMessageConverters()
+                .removeIf(
+                        c ->
+                                c
+                                                instanceof
+                                                org.springframework.http.converter.json
+                                                        .MappingJackson2HttpMessageConverter
+                                        || c instanceof MappingJackson2XmlHttpMessageConverter);
         handlerAdapter.getMessageConverters().add(0, new MappingJackson2HttpMessageConverter());
         handlerAdapter.getMessageConverters().add(0, new MappingJackson2YAMLMessageConverter());
         // add all registered converters before the Spring ones too
@@ -161,7 +179,7 @@ public class APIDispatcher extends AbstractController {
                                                 handlerAdapter.getMessageConverters(),
                                                 contentNegotiationManager,
                                                 GeoServerExtensions.bean(
-                                                        GeoServerResourceLoader.class),
+                                                        FreemarkerTemplateSupport.class),
                                                 GeoServerExtensions.bean(GeoServer.class),
                                                 callbacks);
                                     } else {
@@ -261,6 +279,15 @@ public class APIDispatcher extends AbstractController {
 
             // and this is response handling
             Object returnValue = mav != null ? mav.getModel().get(RESPONSE_OBJECT) : null;
+
+            // if it's an AbstractDocument call the DocumentCallback implementations
+            if (returnValue instanceof AbstractDocument) {
+                applyDocumentCallbacks(dr, (AbstractDocument) returnValue);
+            } else if (returnValue instanceof OpenAPI) {
+                applyOpenAPICallbacks(dr, (OpenAPI) returnValue);
+            }
+
+            // and then the dispatcher callbacks
             returnValue = fireOperationExecutedCallback(dr, dr.getOperation(), returnValue);
 
             returnValueHandlers.handleReturnValue(
@@ -323,6 +350,7 @@ public class APIDispatcher extends AbstractController {
 
     private HandlerMethod getHandlerMethod(HttpServletRequest httpRequest, Request dr)
             throws Exception {
+        LocalWorkspace.get();
         HandlerExecutionChain chain = mappingHandler.getHandler(dr.getHttpRequest());
         if (chain == null) {
             String msg =
@@ -330,7 +358,7 @@ public class APIDispatcher extends AbstractController {
             if (LOGGER.isLoggable(Level.WARNING)) {
                 LOGGER.warning(msg);
             }
-            throw new APIException(null, msg, HttpStatus.NOT_FOUND);
+            throw new ResourceNotFoundException(msg);
         }
         Object handler = chain.getHandler();
         if (!handlerAdapter.supports(handler)) {
@@ -343,7 +371,7 @@ public class APIDispatcher extends AbstractController {
             if (LOGGER.isLoggable(Level.WARNING)) {
                 LOGGER.warning(msg);
             }
-            throw new APIException(null, msg, HttpStatus.NOT_FOUND);
+            throw new ResourceNotFoundException(msg);
         }
         return (HandlerMethod) handler;
     }
@@ -514,22 +542,12 @@ public class APIDispatcher extends AbstractController {
         return uri;
     }
 
-    /**
-     * Returns a read only list of available {@link HttpMessageConverter}
-     *
-     * @return
-     */
+    /** Returns a read only list of available {@link HttpMessageConverter} */
     public List<HttpMessageConverter<?>> getConverters() {
         return Collections.unmodifiableList(messageConverters);
     }
 
-    /**
-     * Returns a {@link List} of media types that can be produced for a given response object
-     *
-     * @param responseType
-     * @param addHTML
-     * @return
-     */
+    /** Returns a {@link List} of media types that can be produced for a given response object */
     public List<MediaType> getProducibleMediaTypes(Class<?> responseType, boolean addHTML) {
         List<MediaType> result = new ArrayList<>();
         for (HttpMessageConverter<?> converter : this.messageConverters) {
@@ -587,5 +605,27 @@ public class APIDispatcher extends AbstractController {
     private static boolean isRequestMapping(Annotation a) {
         return a instanceof RequestMapping
                 || a.annotationType().getAnnotation(RequestMapping.class) != null;
+    }
+
+    /**
+     * Applies all available callbacks to the document
+     *
+     * @param document The document the {@link DocumentCallback} will operate on
+     */
+    private void applyDocumentCallbacks(Request dr, AbstractDocument document) {
+        for (DocumentCallback callback : documentCallbacks) {
+            callback.apply(dr, document);
+        }
+    }
+
+    /**
+     * Applies all available callbacks to the API description
+     *
+     * @param api The document the {@link OpenAPICallback} will operate on
+     */
+    private void applyOpenAPICallbacks(Request dr, OpenAPI api) {
+        for (OpenAPICallback callback : apiCallbacks) {
+            callback.apply(dr, api);
+        }
     }
 }

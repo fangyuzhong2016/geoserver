@@ -5,9 +5,6 @@
  */
 package org.geoserver.wms;
 
-import static org.geoserver.wms.NearestMatchWarningAppender.WarningType.Nearest;
-import static org.geoserver.wms.NearestMatchWarningAppender.WarningType.NotFound;
-
 import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Point2D;
@@ -16,9 +13,11 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
@@ -47,14 +46,15 @@ import org.geoserver.catalog.util.ReaderDimensionsAccessor;
 import org.geoserver.config.GeoServer;
 import org.geoserver.config.GeoServerInfo;
 import org.geoserver.config.JAIInfo;
+import org.geoserver.data.DimensionFilterBuilder;
 import org.geoserver.data.util.CoverageUtils;
 import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.platform.ServiceException;
+import org.geoserver.util.NearestMatchFinder;
 import org.geoserver.wms.WMSInfo.WMSInterpolation;
 import org.geoserver.wms.WatermarkInfo.Position;
 import org.geoserver.wms.dimension.DimensionDefaultValueSelectionStrategy;
 import org.geoserver.wms.dimension.DimensionDefaultValueSelectionStrategyFactory;
-import org.geoserver.wms.dimension.DimensionFilterBuilder;
 import org.geoserver.wms.featureinfo.GetFeatureInfoOutputFormat;
 import org.geoserver.wms.map.RenderedImageMapOutputFormat;
 import org.geoserver.wms.map.RenderedImageMapResponse;
@@ -677,8 +677,6 @@ public class WMS implements ApplicationContextAware {
     /**
      * Returns the maximum number of requested dimension values, picking from the appropriate
      * service configuration
-     *
-     * @return
      */
     public int getMaxRequestedDimensionValues() {
         return getServiceInfo().getMaxRequestedDimensionValues();
@@ -763,11 +761,7 @@ public class WMS implements ApplicationContextAware {
         return formats;
     }
 
-    /**
-     * Checks is a getMap mime type is allowed
-     *
-     * @param format
-     */
+    /** Checks is a getMap mime type is allowed */
     public boolean isAllowedGetMapFormat(GetMapOutputFormat format) {
 
         if (getServiceInfo().isGetMapMimeTypeCheckingEnabled() == false) return true;
@@ -775,22 +769,14 @@ public class WMS implements ApplicationContextAware {
         return mimeTypes.contains(format.getMimeType());
     }
 
-    /**
-     * Checks is a getFeatureInfo mime type is allowed
-     *
-     * @param format
-     */
+    /** Checks is a getFeatureInfo mime type is allowed */
     public boolean isAllowedGetFeatureInfoFormat(GetFeatureInfoOutputFormat format) {
         if (getServiceInfo().isGetFeatureInfoMimeTypeCheckingEnabled() == false) return true;
         Set<String> mimeTypes = getServiceInfo().getGetFeatureInfoMimeTypes();
         return mimeTypes.contains(format.getContentType());
     }
 
-    /**
-     * create a {@link ServiceException} for an unallowed GetFeatureInfo format
-     *
-     * @param requestFormat
-     */
+    /** create a {@link ServiceException} for an unallowed GetFeatureInfo format */
     public ServiceException unallowedGetFeatureInfoFormatException(String requestFormat) {
         ServiceException e =
                 new ServiceException(
@@ -800,11 +786,7 @@ public class WMS implements ApplicationContextAware {
         return e;
     }
 
-    /**
-     * create a {@link ServiceException} for an unallowed GetMap format
-     *
-     * @param requestFormat
-     */
+    /** create a {@link ServiceException} for an unallowed GetMap format */
     public ServiceException unallowedGetMapFormatException(String requestFormat) {
         ServiceException e =
                 new ServiceException(
@@ -863,7 +845,6 @@ public class WMS implements ApplicationContextAware {
     }
 
     /**
-     * @param requestFormat
      * @return a {@link GetFeatureInfoOutputFormat} that can handle the requested mime type or
      *     {@code null} if none if found
      */
@@ -1113,7 +1094,8 @@ public class WMS implements ApplicationContextAware {
                 // nearest time support
                 if (timeInfo.isNearestMatchEnabled()) {
                     fixedTimes =
-                            getNearestMatches(coverage, timeInfo, fixedTimes, ResourceInfo.TIME);
+                            getNearestTimeMatch(
+                                    coverage, timeInfo, fixedTimes, getMaxRenderingTime());
                 }
             }
             // pass down the parameters
@@ -1245,11 +1227,7 @@ public class WMS implements ApplicationContextAware {
         return WMSExtensions.findMapResponses(applicationContext);
     }
 
-    /**
-     * Query and returns the times for the given layer, in the given time range
-     *
-     * @throws IOException
-     */
+    /** Query and returns the times for the given layer, in the given time range */
     public TreeSet<Object> queryCoverageTimes(
             CoverageInfo coverage, DateRange queryRange, int maxAnimationSteps) throws IOException {
         // grab the time metadata
@@ -1274,6 +1252,47 @@ public class WMS implements ApplicationContextAware {
         return dimensions.getTimeDomain(queryRange, maxAnimationSteps);
     }
 
+    /** Query and returns the requested times for the given layer */
+    public TreeSet<Date> queryCoverageNearestMatchTimes(
+            CoverageInfo coverage, List<Object> queryRanges) throws IOException {
+        DimensionInfo time = coverage.getMetadata().get(ResourceInfo.TIME, DimensionInfo.class);
+        final TreeSet<Date> foundDates = new TreeSet<Date>();
+        if (time == null || !time.isEnabled()) {
+            throw new ServiceException(
+                    "Coverage " + coverage.prefixedName() + " does not have time support enabled");
+        }
+
+        List<Object> dates =
+                getNearestTimeMatch(coverage, time, queryRanges, getMaxRenderingTime());
+        dates.stream()
+                .filter(d -> d instanceof Date)
+                .forEach(
+                        d -> {
+                            Date date = (Date) d;
+                            foundDates.add(date);
+                        });
+        return foundDates;
+    }
+
+    private static List<Object> getNearestTimeMatch(
+            ResourceInfo coverage,
+            DimensionInfo dimension,
+            List<Object> queryRanges,
+            int maxRenderingTime)
+            throws IOException {
+        NearestMatchFinder finder = NearestMatchFinder.get(coverage, dimension, ResourceInfo.TIME);
+        if (finder != null) {
+            return finder.getMatches(
+                    coverage.prefixedName(),
+                    dimension,
+                    queryRanges,
+                    ResourceInfo.TIME,
+                    maxRenderingTime);
+        } else {
+            return Collections.emptyList();
+        }
+    }
+
     /** Query and returns the times for the given layer, in the given time range */
     public TreeSet<Object> queryFeatureTypeTimes(
             FeatureTypeInfo typeInfo, DateRange range, int maxItems) throws IOException {
@@ -1283,9 +1302,6 @@ public class WMS implements ApplicationContextAware {
     /**
      * Returns the list of time values for the specified typeInfo based on the dimension
      * representation: all values for {@link DimensionPresentation#LIST}, otherwise min and max
-     *
-     * @param typeInfo
-     * @throws IOException
      */
     public TreeSet<Date> getFeatureTypeTimes(FeatureTypeInfo typeInfo) throws IOException {
         // grab the time metadata
@@ -1328,11 +1344,7 @@ public class WMS implements ApplicationContextAware {
         return result;
     }
 
-    /**
-     * Query and returns the elevations for the given layer, in the given time range
-     *
-     * @throws IOException
-     */
+    /** Query and returns the elevations for the given layer, in the given time range */
     public TreeSet<Object> queryCoverageElevations(
             CoverageInfo coverage, NumberRange queryRange, int maxAnimationSteps)
             throws IOException {
@@ -1364,9 +1376,6 @@ public class WMS implements ApplicationContextAware {
     /**
      * Returns the list of elevation values for the specified typeInfo based on the dimension
      * representation: all values for {@link DimensionPresentation#LIST}, otherwise min and max
-     *
-     * @param typeInfo
-     * @throws IOException
      */
     public TreeSet<Double> getFeatureTypeElevations(FeatureTypeInfo typeInfo) throws IOException {
         // grab the time metadata
@@ -1458,11 +1467,7 @@ public class WMS implements ApplicationContextAware {
         return result;
     }
 
-    /**
-     * Returns the default value for time dimension.
-     *
-     * @param resourceInfo
-     */
+    /** Returns the default value for time dimension. */
     public Object getDefaultTime(ResourceInfo resourceInfo) {
         // check the time metadata
         DimensionInfo time = resourceInfo.getMetadata().get(ResourceInfo.TIME, DimensionInfo.class);
@@ -1475,11 +1480,7 @@ public class WMS implements ApplicationContextAware {
         return strategy.getDefaultValue(resourceInfo, ResourceInfo.TIME, time, Date.class);
     }
 
-    /**
-     * Returns the default value for elevation dimension.
-     *
-     * @param resourceInfo
-     */
+    /** Returns the default value for elevation dimension. */
     public Object getDefaultElevation(ResourceInfo resourceInfo) {
         DimensionInfo elevation = getDimensionInfo(resourceInfo, ResourceInfo.ELEVATION);
         DimensionDefaultValueSelectionStrategy strategy =
@@ -1488,12 +1489,7 @@ public class WMS implements ApplicationContextAware {
                 resourceInfo, ResourceInfo.ELEVATION, elevation, Double.class);
     }
 
-    /**
-     * Looks up the elevation configuration, throws an exception if not found
-     *
-     * @param resourceInfo
-     * @param dimensionName
-     */
+    /** Looks up the elevation configuration, throws an exception if not found */
     public DimensionInfo getDimensionInfo(ResourceInfo resourceInfo, String dimensionName) {
         DimensionInfo info = resourceInfo.getMetadata().get(dimensionName, DimensionInfo.class);
         if (info == null || !info.isEnabled()) {
@@ -1511,9 +1507,6 @@ public class WMS implements ApplicationContextAware {
      * Returns the default value for the given custom dimension.
      *
      * @param <T>
-     * @param dimensionName
-     * @param resourceInfo
-     * @param clz
      */
     public <T> T getDefaultCustomDimensionValue(
             String dimensionName, ResourceInfo resourceInfo, Class<T> clz) {
@@ -1556,10 +1549,6 @@ public class WMS implements ApplicationContextAware {
     /**
      * Returns the collection of all values of the dimension attribute, eventually sorted if the
      * native capabilities allow for it
-     *
-     * @param typeInfo
-     * @param dimension
-     * @throws IOException
      */
     FeatureCollection getDimensionCollection(FeatureTypeInfo typeInfo, DimensionInfo dimension)
             throws IOException {
@@ -1589,11 +1578,6 @@ public class WMS implements ApplicationContextAware {
     /**
      * Builds a filter for the current time and elevation, should the layer support them. Only one
      * among time and elevation can be multi-valued
-     *
-     * @param layerFilter
-     * @param currentTime
-     * @param currentElevation
-     * @param mapLayerInfo
      */
     public Filter getTimeElevationToFilter(
             List<Object> times, List<Object> elevations, FeatureTypeInfo typeInfo)
@@ -1617,7 +1601,8 @@ public class WMS implements ApplicationContextAware {
 
             if (timeInfo.isNearestMatchEnabled()) {
                 List<Object> nearestMatchedTimes =
-                        getNearestMatches(typeInfo, timeInfo, defaultedTimes, ResourceInfo.TIME);
+                        getNearestTimeMatch(
+                                typeInfo, timeInfo, defaultedTimes, getMaxRenderingTime());
                 builder.appendFilters(
                         timeInfo.getAttribute(), timeInfo.getEndAttribute(), nearestMatchedTimes);
             } else {
@@ -1646,62 +1631,33 @@ public class WMS implements ApplicationContextAware {
         return result;
     }
 
-    private List<Object> getNearestMatches(
-            ResourceInfo resourceInfo,
-            DimensionInfo dimension,
-            List<Object> values,
-            String dimensionName)
-            throws IOException {
-        // if there is a max rendering time set, use it on this match, as the input request might
-        // make the
-        // code go through a lot of nearest match queries
-        int maxRenderingTime = getMaxRenderingTime();
-        long maxTime =
-                maxRenderingTime > 0 ? System.currentTimeMillis() + maxRenderingTime * 1000 : -1;
-        NearestMatchFinder finder = NearestMatchFinder.get(resourceInfo, dimension, dimensionName);
-        List<Object> result = new ArrayList<>();
-        for (Object value : values) {
-            Object nearest = finder.getNearest(value);
-            if (nearest == null) {
-                // no way to specify there is no match yet, so we'll use the original value, which
-                // will not match
-                NearestMatchWarningAppender.addWarning(
-                        resourceInfo.prefixedName(),
-                        dimensionName,
-                        null,
-                        dimension.getUnits(),
-                        NotFound);
-                result.add(value);
-            } else if (value.equals(nearest)) {
-                result.add(value);
-            } else {
-                NearestMatchWarningAppender.addWarning(
-                        resourceInfo.prefixedName(),
-                        dimensionName,
-                        nearest,
-                        dimension.getUnits(),
-                        Nearest);
-                result.add(nearest);
-            }
-
-            // check timeout
-            if (maxTime > 0 && System.currentTimeMillis() > maxTime) {
-                throw new ServiceException(
-                        "Nearest matching dimension values required more time than allowed and has been forcefully stopped. "
-                                + "The max rendering time is "
-                                + (maxRenderingTime)
-                                + "s");
-            }
-        }
-
-        return result;
+    /**
+     * Builds the custom dimensions filter in base to type info and KVP.
+     *
+     * @param rawKVP Request KVP map
+     * @param typeInfo Feature type info instance
+     * @return builded filter
+     */
+    public Filter getDimensionsToFilter(
+            final Map<String, String> rawKVP, final FeatureTypeInfo typeInfo) {
+        CustomDimensionFilterConverter.DefaultValueStrategyFactory defaultValueStrategyFactory =
+                new CustomDimensionFilterConverter.DefaultValueStrategyFactory() {
+                    @Override
+                    public DimensionDefaultValueSelectionStrategy getDefaultValueStrategy(
+                            ResourceInfo resource,
+                            String dimensionName,
+                            DimensionInfo dimensionInfo) {
+                        return WMS.this.getDefaultValueStrategy(
+                                resource, dimensionName, dimensionInfo);
+                    }
+                };
+        final CustomDimensionFilterConverter converter =
+                new CustomDimensionFilterConverter(defaultValueStrategyFactory, ff);
+        return converter.getDimensionsToFilter(rawKVP, typeInfo);
     }
 
     /**
      * Returns the max rendering time taking into account the server limits and the request options
-     *
-     * @param request
-     * @return
      */
     public int getMaxRenderingTime(GetMapRequest request) {
         int localMaxRenderingTime = 0;
@@ -1723,9 +1679,6 @@ public class WMS implements ApplicationContextAware {
     /**
      * Returns the max rendering time for animations taking into account the server limits and the
      * request options
-     *
-     * @param request
-     * @return
      */
     public int getMaxAnimationRenderingTime(GetMapRequest request) {
         int localMaxRenderingTime = 0;
@@ -1753,8 +1706,6 @@ public class WMS implements ApplicationContextAware {
     /**
      * Timeout on the smallest nonzero value of the WMS timeout and the timeout format option If
      * both are zero then there is no timeout
-     *
-     * @param localMaxRenderingTime
      */
     private int getMaxRenderingTime(int localMaxRenderingTime) {
         int maxRenderingTime = getMaxRenderingTime() * 1000;
@@ -1778,7 +1729,6 @@ public class WMS implements ApplicationContextAware {
      * @param width image width
      * @param height image height
      * @return The correspondent real world coordinate
-     * @throws RuntimeException
      */
     public static Coordinate pixelToWorld(
             double x, double y, ReferencedEnvelope map, double width, double height) {
@@ -1806,7 +1756,6 @@ public class WMS implements ApplicationContextAware {
      *
      * @param mapExtent the map extent
      * @param width the screen size
-     * @param height
      * @return a transform that maps from real world coordinates to the screen
      */
     public static AffineTransform worldToScreenTransform(
@@ -1848,9 +1797,6 @@ public class WMS implements ApplicationContextAware {
     /**
      * Checks if the layer can be drawn, that is, if it's raster, or vector with a geometry
      * attribute
-     *
-     * @param lyr
-     * @return
      */
     public static boolean isWmsExposable(LayerInfo lyr) {
         if (lyr.getType() == PublishedType.RASTER
@@ -1877,5 +1823,41 @@ public class WMS implements ApplicationContextAware {
         }
 
         return false;
+    }
+
+    /**
+     * Returns available values for a custom dimension.
+     *
+     * @param typeInfo feature type info that holds the custom dimension.
+     * @param dimensionInfo Custom dimension name.
+     * @return values list.
+     */
+    public TreeSet<Object> getDimensionValues(FeatureTypeInfo typeInfo, DimensionInfo dimensionInfo)
+            throws IOException {
+        final FeatureCollection fcollection = getDimensionCollection(typeInfo, dimensionInfo);
+
+        final TreeSet<Object> result = new TreeSet<>();
+        if (dimensionInfo.getPresentation() == DimensionPresentation.LIST
+                || (dimensionInfo.getPresentation() == DimensionPresentation.DISCRETE_INTERVAL
+                        && dimensionInfo.getResolution() == null)) {
+            final UniqueVisitor uniqueVisitor = new UniqueVisitor(dimensionInfo.getAttribute());
+            fcollection.accepts(uniqueVisitor, null);
+            Set<Object> uniqueValues = uniqueVisitor.getUnique();
+            for (Object obj : uniqueValues) {
+                result.add(obj);
+            }
+        } else {
+            final MinVisitor minVisitor = new MinVisitor(dimensionInfo.getAttribute());
+            fcollection.accepts(minVisitor, null);
+            final CalcResult minResult = minVisitor.getResult();
+            if (minResult != CalcResult.NULL_RESULT) {
+                result.add(minResult.getValue());
+                final MaxVisitor maxVisitor = new MaxVisitor(dimensionInfo.getAttribute());
+                fcollection.accepts(maxVisitor, null);
+                result.add(maxVisitor.getMax());
+            }
+        }
+
+        return result;
     }
 }

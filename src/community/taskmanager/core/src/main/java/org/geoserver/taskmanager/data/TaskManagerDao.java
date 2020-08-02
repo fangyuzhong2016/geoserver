@@ -214,7 +214,6 @@ public interface TaskManagerDao {
      * unique, the most recent batch run is returned.
      *
      * @param schedulerReference scheduler reference
-     * @return
      */
     BatchRun getBatchRunBySchedulerReference(String schedulerReference);
 
@@ -227,4 +226,10 @@ public interface TaskManagerDao {
     Configuration init(Configuration c);
 
     Batch initHistory(Batch b);
+
+    List<BatchRun> getCurrentBatchRuns();
+
+    List<Batch> findBatches(String workspacePattern, String configNamePattern, String namePattern);
+
+    List<Batch> findInitBatches(String workspacePattern, String configNamePattern);
 }

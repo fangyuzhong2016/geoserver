@@ -51,6 +51,7 @@ import org.geotools.data.DataUtilities;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.hamcrest.Matchers;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -104,12 +105,14 @@ public class HTMLFeatureInfoOutputFormatTest extends WMSTestSupport {
                         }
                     }
                 };
-        outputFormat.templateLoader = templateLoader;
+        outputFormat.getTemplateManager().setTemplateLoader(templateLoader);
 
         // test request with some parameters to use in templates
         Request request = new Request();
         parameters = new HashMap<String, Object>();
         parameters.put("LAYER", "testLayer");
+        parameters.put("NUMBER1", 10);
+        parameters.put("NUMBER2", 100);
         Map<String, String> env = new HashMap<String, String>();
         env.put("TEST1", "VALUE1");
         env.put("TEST2", "VALUE2");
@@ -139,12 +142,7 @@ public class HTMLFeatureInfoOutputFormatTest extends WMSTestSupport {
         getFeatureInfoRequest.setQueryLayers(queryLayers);
     }
 
-    /**
-     * Test request values are inserted in processed template
-     *
-     * @throws IOException
-     * @throws URISyntaxException
-     */
+    /** Test request values are inserted in processed template */
     @Test
     public void testRequestParametersAreEvaluatedInTemplate() throws IOException {
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
@@ -290,28 +288,29 @@ public class HTMLFeatureInfoOutputFormatTest extends WMSTestSupport {
         final HTMLFeatureInfoOutputFormat format =
                 new HTMLFeatureInfoOutputFormat(
                         getWMS(), GeoServerExtensions.bean(GeoServerResourceLoader.class));
-        format.templateLoader =
-                new GeoServerTemplateLoader(getClass(), getDataDirectory()) {
-                    @Override
-                    public Object findTemplateSource(String path) throws IOException {
-                        String templatePath = "empty.ftl";
-                        if (path.toLowerCase().contains("content")
-                                && (this.resource != null)
-                                && this.resource
-                                        .prefixedName()
-                                        .equals(featureType2.prefixedName())) {
-                            templatePath = "test_content.ftl";
-                        }
-                        try {
-                            return new File(
-                                    this.getClass()
-                                            .getResource(templateFolder + templatePath)
-                                            .toURI());
-                        } catch (URISyntaxException e) {
-                            return null;
-                        }
-                    }
-                };
+        format.getTemplateManager()
+                .setTemplateLoader(
+                        new GeoServerTemplateLoader(getClass(), getDataDirectory()) {
+                            @Override
+                            public Object findTemplateSource(String path) throws IOException {
+                                String templatePath = "empty.ftl";
+                                if (path.toLowerCase().contains("content")
+                                        && (this.resource != null)
+                                        && this.resource
+                                                .prefixedName()
+                                                .equals(featureType2.prefixedName())) {
+                                    templatePath = "test_content.ftl";
+                                }
+                                try {
+                                    return new File(
+                                            this.getClass()
+                                                    .getResource(templateFolder + templatePath)
+                                                    .toURI());
+                                } catch (URISyntaxException e) {
+                                    return null;
+                                }
+                            }
+                        });
         int numRequests = 50;
         List<Callable<String>> tasks = new ArrayList<>(numRequests);
         for (int i = 0; i < numRequests; i++) {
@@ -342,5 +341,74 @@ public class HTMLFeatureInfoOutputFormatTest extends WMSTestSupport {
         } finally {
             executor.shutdown();
         }
+    }
+
+    @Test
+    public void testStaticMathMethodsAreEvaluatedInTemplate() throws IOException {
+        currentTemplate = "test_static_content.ftl";
+        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+        outputFormat.write(fcType, getFeatureInfoRequest, outStream);
+        String result = new String(outStream.toByteArray());
+        assertEquals(String.valueOf(Math.max(10, 100)), result);
+    }
+
+    /** Verifies calls to static methods are possible in unrestricted case. */
+    @Test
+    public void testStaticMethodsUnrestrictedInTemplate() throws IOException {
+        activateStaticsAccessRules("*");
+        currentTemplate = "test_custom_static_content.ftl";
+        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+        outputFormat.write(fcType, getFeatureInfoRequest, outStream);
+        String result = new String(outStream.toByteArray());
+        assertEquals(String.format("Amount: %.2f €", 47.11), result);
+    }
+
+    /** Verifies calls to static methods are disabled by default. */
+    @Test(expected = IOException.class)
+    public void testStaticMethodsDisabledInTemplate() throws IOException {
+        activateStaticsAccessRules(null);
+        currentTemplate = "test_custom_static_content.ftl";
+        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+        outputFormat.write(fcType, getFeatureInfoRequest, outStream);
+    }
+
+    // for test below: Name has to be duplicate of existing class
+    public static final class Locale {
+        public static String m() {
+            return "Hello world";
+        }
+    }
+
+    /** Verifies calls to static methods for are enabled for specified classes. */
+    @Test(expected = IOException.class)
+    public void testSpecifiedStaticMethodsInTemplateAvailable() throws IOException {
+        activateStaticsAccessRules(java.util.Locale.class.getName() + "," + Locale.class.getName());
+        currentTemplate = "test_custom_static_content_specified.ftl";
+        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+        outputFormat.write(fcType, getFeatureInfoRequest, outStream);
+        String result = new String(outStream.toByteArray());
+        assertEquals("Hello world from de", result);
+    }
+
+    /** Restore FreeMarkerTemplateManager default state */
+    @After
+    @Before
+    public void tearDownStaticAccessKey() {
+        activateStaticsAccessRules(null);
+    }
+
+    /**
+     * Activates the rule for the given pattern by re-initializing the {@link
+     * FreeMarkerTemplateManager}.
+     *
+     * @param aPattern
+     */
+    private void activateStaticsAccessRules(String aPattern) {
+        if (aPattern == null) {
+            System.clearProperty(FreeMarkerTemplateManager.KEY_STATIC_MEMBER_ACCESS);
+        } else {
+            System.setProperty(FreeMarkerTemplateManager.KEY_STATIC_MEMBER_ACCESS, aPattern);
+        }
+        FreeMarkerTemplateManager.initStaticsAccessRule();
     }
 }

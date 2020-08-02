@@ -8,7 +8,6 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.util.Collection;
 import java.util.Collections;
@@ -17,7 +16,6 @@ import java.util.Optional;
 import javax.xml.namespace.QName;
 import org.geoserver.api.APIRequestInfo;
 import org.geoserver.api.Link;
-import org.geoserver.api.NCNameResourceCodec;
 import org.geoserver.catalog.FeatureTypeInfo;
 import org.geoserver.config.GeoServer;
 import org.geoserver.ows.URLMangler;
@@ -65,11 +63,7 @@ public class RFCGeoJSONFeaturesResponse extends GeoJSONGetFeatureResponse {
         }
     }
 
-    /**
-     * Returns the WFS3 featureId, or null if it's missing or the request is not a WFS3 one
-     *
-     * @return
-     */
+    /** Returns the WFS3 featureId, or null if it's missing or the request is not a WFS3 one */
     private String getItemId() {
         return Optional.ofNullable(RequestContextHolder.getRequestAttributes())
                 .map(
@@ -81,14 +75,7 @@ public class RFCGeoJSONFeaturesResponse extends GeoJSONGetFeatureResponse {
                 .orElse(null);
     }
 
-    /**
-     * Writes a single feature using the facilities provided by the base class
-     *
-     * @param value
-     * @param output
-     * @param operation
-     * @throws UnsupportedEncodingException
-     */
+    /** Writes a single feature using the facilities provided by the base class */
     private void writeSingleFeature(
             FeatureCollectionResponse value, OutputStream output, Operation operation)
             throws IOException {
@@ -140,8 +127,7 @@ public class RFCGeoJSONFeaturesResponse extends GeoJSONGetFeatureResponse {
         }
         // alternate/self links
         String basePath =
-                "ogc/features/collections/"
-                        + ResponseUtils.urlEncode(NCNameResourceCodec.encode(featureType));
+                "ogc/features/collections/" + ResponseUtils.urlEncode(featureType.prefixedName());
         Collection<MediaType> formats =
                 requestInfo.getProducibleMediaTypes(FeaturesResponse.class, true);
         for (MediaType format : formats) {
@@ -170,7 +156,7 @@ public class RFCGeoJSONFeaturesResponse extends GeoJSONGetFeatureResponse {
                     ResponseUtils.buildURL(
                             baseUrl,
                             basePath,
-                            Collections.singletonMap("f", formats.toString()),
+                            Collections.singletonMap("f", format.toString()),
                             URLMangler.URLType.SERVICE);
             String linkType = Link.REL_COLLECTION;
             String linkTitle = "The collection description as " + format;

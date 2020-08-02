@@ -9,7 +9,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
 import com.jayway.jsonpath.DocumentContext;
-import java.util.List;
+import org.geoserver.api.Link;
+import org.geoserver.api.OpenAPIMessageConverter;
 import org.geoserver.platform.Service;
 import org.geotools.util.Version;
 import org.hamcrest.CoreMatchers;
@@ -36,7 +37,9 @@ public class LandingPageTest extends FeaturesTestSupport {
                         "getConformanceDeclaration",
                         "getFeature",
                         "getFeatures",
-                        "getLandingPage"));
+                        "getLandingPage",
+                        "getQueryables",
+                        "getFilterCapabilities"));
     }
 
     @Test
@@ -64,6 +67,7 @@ public class LandingPageTest extends FeaturesTestSupport {
     }
 
     @Test
+    @Ignore
     public void testLandingPageXML() throws Exception {
         Document dom = getAsDOM("ogc/features?f=application/xml");
         print(dom);
@@ -83,8 +87,6 @@ public class LandingPageTest extends FeaturesTestSupport {
                 json,
                 "links[?(@.type != 'application/x-yaml' && @.href =~ /.*ogc\\/features\\/\\?.*/)].rel",
                 "alternate",
-                "alternate",
-                "alternate",
                 "alternate");
         checkJSONLandingPageShared(json);
     }
@@ -102,7 +104,6 @@ public class LandingPageTest extends FeaturesTestSupport {
     }
 
     @Test
-    @Ignore // workspace specific services not working yet
     public void testLandingPageHTMLInWorkspace() throws Exception {
         org.jsoup.nodes.Document document = getAsJSoup("sf/ogc/features?f=html");
         // check a couple of links
@@ -114,8 +115,8 @@ public class LandingPageTest extends FeaturesTestSupport {
                 document.select("#htmlApiLink").attr("href"));
     }
 
-    static void checkJSONLandingPage(DocumentContext json) {
-        assertEquals(20, (int) json.read("links.length()", Integer.class));
+    void checkJSONLandingPage(DocumentContext json) {
+        assertEquals(15, (int) json.read("links.length()", Integer.class));
         // check landing page links
         assertJSONList(
                 json,
@@ -125,48 +126,43 @@ public class LandingPageTest extends FeaturesTestSupport {
                 json,
                 "links[?(@.type != 'application/json' && @.href =~ /.*ogc\\/features\\/\\?.*/)].rel",
                 "alternate",
-                "alternate",
-                "alternate",
                 "alternate");
         checkJSONLandingPageShared(json);
     }
 
-    static void checkJSONLandingPageShared(DocumentContext json) {
+    void checkJSONLandingPageShared(DocumentContext json) {
         // check API links
         assertJSONList(
                 json,
                 "links[?(@.href =~ /.*ogc\\/features\\/api.*/)].rel",
-                "service",
-                "service",
-                "service",
-                "service",
-                "service");
+                Link.REL_SERVICE_DESC,
+                Link.REL_SERVICE_DESC,
+                Link.REL_SERVICE_DOC);
+        // check API with right API mime type
+        assertEquals(
+                "http://localhost:8080/geoserver/ogc/features/api?f=application%2Fvnd.oai.openapi%2Bjson%3Bversion%3D3.0",
+                readSingle(
+                        json,
+                        "links[?(@.type=='"
+                                + OpenAPIMessageConverter.OPEN_API_MEDIA_TYPE_VALUE
+                                + "')].href"));
         // check conformance links
         assertJSONList(
                 json,
                 "links[?(@.href =~ /.*ogc\\/features\\/conformance.*/)].rel",
-                "conformance",
-                "conformance",
-                "conformance",
-                "conformance",
-                "conformance");
+                Link.REL_CONFORMANCE,
+                Link.REL_CONFORMANCE,
+                Link.REL_CONFORMANCE);
         // check collection links
         assertJSONList(
                 json,
                 "links[?(@.href =~ /.*ogc\\/features\\/collections.*/)].rel",
-                "data",
-                "data",
-                "data",
-                "data",
-                "data");
+                Link.REL_DATA,
+                Link.REL_DATA,
+                Link.REL_DATA);
         // check title
         assertEquals("Features 1.0 server", json.read("title"));
         // check description
         assertEquals("", json.read("description"));
-    }
-
-    static <T> void assertJSONList(DocumentContext json, String path, T... expected) {
-        List<T> selfRels = json.read(path);
-        assertThat(selfRels, Matchers.containsInAnyOrder(expected));
     }
 }
