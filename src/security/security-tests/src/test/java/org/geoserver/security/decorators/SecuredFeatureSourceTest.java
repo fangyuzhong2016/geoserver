@@ -5,22 +5,40 @@
  */
 package org.geoserver.security.decorators;
 
-import static org.easymock.EasyMock.*;
-import static org.junit.Assert.*;
+import static org.easymock.EasyMock.anyObject;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.*;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import org.geoserver.security.WrapperPolicy;
 import org.geoserver.security.impl.SecureObjectsTest;
-import org.geotools.data.*;
+import org.geotools.data.DataAccess;
+import org.geotools.data.DataStore;
+import org.geotools.data.FeatureSource;
+import org.geotools.data.FeatureStore;
+import org.geotools.data.Query;
 import org.geotools.data.complex.feature.type.ComplexFeatureTypeImpl;
+import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureSource;
+import org.geotools.data.simple.SimpleFeatureStore;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.NameImpl;
 import org.geotools.util.logging.Logging;
 import org.junit.Test;
+import org.opengis.feature.Feature;
+import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
+import org.opengis.feature.type.FeatureType;
 import org.opengis.feature.type.PropertyDescriptor;
 import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory2;
@@ -33,17 +51,22 @@ public class SecuredFeatureSourceTest extends SecureObjectsTest {
         // build up the mock
         DataStore ds = createNiceMock(DataStore.class);
         replay(ds);
-        FeatureSource fs = createNiceMock(FeatureSource.class);
-        FeatureCollection fc = createNiceMock(FeatureCollection.class);
+        SimpleFeatureSource fs = createNiceMock(SimpleFeatureSource.class);
+        SimpleFeatureCollection fc = createNiceMock(SimpleFeatureCollection.class);
+        expect(fc.getSchema()).andReturn(createNiceMock(SimpleFeatureType.class));
+        replay(fc);
         expect(fs.getDataStore()).andReturn(ds);
         expect(fs.getFeatures()).andReturn(fc).anyTimes();
         expect(fs.getFeatures((Filter) anyObject())).andReturn(fc).anyTimes();
         expect(fs.getFeatures((Query) anyObject())).andReturn(fc).anyTimes();
         replay(fs);
 
-        SecuredFeatureSource ro = new SecuredFeatureSource(fs, WrapperPolicy.hide(null));
+        SecuredFeatureSource<SimpleFeatureType, SimpleFeature> ro =
+                new SecuredFeatureSource<>(fs, WrapperPolicy.hide(null));
         assertTrue(ro.getDataStore() instanceof ReadOnlyDataStore);
-        SecuredFeatureCollection collection = (SecuredFeatureCollection) ro.getFeatures();
+        @SuppressWarnings("unchecked")
+        SecuredFeatureCollection<SimpleFeatureType, SimpleFeature> collection =
+                (SecuredFeatureCollection) ro.getFeatures();
         assertTrue(ro.policy.isHide());
         assertTrue(ro.getFeatures(Filter.INCLUDE) instanceof SecuredFeatureCollection);
         assertTrue(ro.getFeatures(new Query()) instanceof SecuredFeatureCollection);
@@ -55,13 +78,14 @@ public class SecuredFeatureSourceTest extends SecureObjectsTest {
         SimpleFeatureType schema = createNiceMock(SimpleFeatureType.class);
         expect(schema.getName()).andReturn(new NameImpl("testFT"));
         replay(schema);
-        FeatureStore fs = createNiceMock(FeatureStore.class);
+        SimpleFeatureStore fs = createNiceMock(SimpleFeatureStore.class);
         expect(fs.getSchema()).andReturn(schema);
         replay(fs);
 
-        SecuredFeatureStore ro = new SecuredFeatureStore(fs, WrapperPolicy.readOnlyChallenge(null));
+        SecuredFeatureStore<SimpleFeatureType, SimpleFeature> ro =
+                new SecuredFeatureStore<>(fs, WrapperPolicy.readOnlyChallenge(null));
         try {
-            ro.addFeatures(createNiceMock(FeatureCollection.class));
+            ro.addFeatures(createNiceMock(SimpleFeatureCollection.class));
             fail("This should have thrown a security exception");
         } catch (Exception e) {
             if (ReadOnlyDataStoreTest.isSpringSecurityException(e) == false)
@@ -70,34 +94,43 @@ public class SecuredFeatureSourceTest extends SecureObjectsTest {
     }
 
     @Test
-    public void testReadOnlyFeatureSourceDataAccess() throws Exception {
+    public <T extends FeatureType, F extends Feature> void testReadOnlyFeatureSourceDataAccess()
+            throws Exception {
         // build the mock up
-        DataAccess da = createNiceMock(DataAccess.class);
+        @SuppressWarnings("unchecked")
+        DataAccess<T, F> da = createNiceMock(DataAccess.class);
         replay(da);
-        FeatureSource fs = createNiceMock(FeatureSource.class);
+        @SuppressWarnings("unchecked")
+        FeatureSource<T, F> fs = createNiceMock(FeatureSource.class);
         expect(fs.getDataStore()).andReturn(da);
         replay(fs);
 
-        SecuredFeatureSource ro =
-                new SecuredFeatureSource(fs, WrapperPolicy.readOnlyChallenge(null));
+        SecuredFeatureSource<T, F> ro =
+                new SecuredFeatureSource<>(fs, WrapperPolicy.readOnlyChallenge(null));
         assertTrue(ro.getDataStore() instanceof ReadOnlyDataAccess);
     }
 
     @Test
-    public void testSecuredFeatureSourceLoggingWithComplex() throws Exception {
+    public <T extends FeatureType, F extends Feature>
+            void testSecuredFeatureSourceLoggingWithComplex() throws Exception {
         // build up the mock
-        ComplexFeatureTypeImpl schema = createNiceMock(ComplexFeatureTypeImpl.class);
+        @SuppressWarnings("unchecked")
+        T schema = (T) createNiceMock(ComplexFeatureTypeImpl.class);
         expect(schema.getName()).andReturn(new NameImpl("testComplexFt"));
+        @SuppressWarnings("unchecked")
         List<PropertyDescriptor> descriptors = createNiceMock(List.class);
         expect(descriptors.size()).andReturn(3).anyTimes();
         replay(descriptors);
         expect(schema.getDescriptors()).andReturn(descriptors).anyTimes();
         replay(schema);
-        DataStore store = createNiceMock(DataStore.class);
+        @SuppressWarnings("unchecked")
+        DataAccess<T, F> store = createNiceMock(DataAccess.class);
         replay(store);
-        FeatureStore fStore = createNiceMock(FeatureStore.class);
+        @SuppressWarnings("unchecked")
+        FeatureStore<T, F> fStore = createNiceMock(FeatureStore.class);
         expect(fStore.getSchema()).andReturn(schema).anyTimes();
-        FeatureCollection fc = createNiceMock(FeatureCollection.class);
+        @SuppressWarnings("unchecked")
+        FeatureCollection<T, F> fc = createNiceMock(FeatureCollection.class);
         expect(fStore.getDataStore()).andReturn(store);
         expect(fStore.getFeatures()).andReturn(fc).anyTimes();
         expect(fStore.getFeatures((Filter) anyObject())).andReturn(fc).anyTimes();
@@ -127,9 +160,9 @@ public class SecuredFeatureSourceTest extends SecureObjectsTest {
         logger.addHandler(customLogHandler);
         try {
             SecuredFeatureStore ro =
-                    new SecuredFeatureStore(fStore, WrapperPolicy.readOnlyHide(null));
+                    new SecuredFeatureStore<>(fStore, WrapperPolicy.readOnlyHide(null));
             Query q = new Query("testComplextFt");
-            List<PropertyName> pnames = new ArrayList<PropertyName>(1);
+            List<PropertyName> pnames = new ArrayList<>(1);
             FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
             pnames.add(ff.property("someProperty"));
             q.setProperties(pnames);

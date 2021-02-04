@@ -5,7 +5,8 @@
  */
 package org.geoserver.gwc.web.layer;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -57,7 +58,7 @@ public class LayerEditCacheOptionsTabPanelInfoTest {
         MetadataMap mdm = new MetadataMap();
         when(layer.getMetadata()).thenReturn(mdm);
         resourceModel = new Model<ResourceInfo>(resource);
-        layerModel = new Model<LayerInfo>(layer);
+        layerModel = new Model<>(layer);
     }
 
     @After

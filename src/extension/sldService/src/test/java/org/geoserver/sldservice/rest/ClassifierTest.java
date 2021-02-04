@@ -9,6 +9,7 @@ package org.geoserver.sldservice.rest;
 import static org.geoserver.sldservice.utils.classifier.RasterSymbolizerBuilder.DEFAULT_MAX_PIXELS;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertArrayEquals;
@@ -16,14 +17,21 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.awt.image.RenderedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -57,13 +65,31 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.util.ImageUtilities;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
-import org.geotools.styling.*;
+import org.geotools.styling.ChannelSelection;
+import org.geotools.styling.ColorMap;
+import org.geotools.styling.ColorMapEntry;
+import org.geotools.styling.FeatureTypeStyle;
+import org.geotools.styling.LineSymbolizer;
+import org.geotools.styling.Mark;
+import org.geotools.styling.NamedLayer;
+import org.geotools.styling.PointSymbolizer;
+import org.geotools.styling.RasterSymbolizer;
+import org.geotools.styling.Rule;
+import org.geotools.styling.SelectedChannelType;
+import org.geotools.styling.Style;
+import org.geotools.styling.StyledLayerDescriptor;
+import org.geotools.styling.Symbolizer;
 import org.geotools.xml.styling.SLDParser;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
-import org.opengis.filter.*;
+import org.opengis.filter.And;
+import org.opengis.filter.Filter;
+import org.opengis.filter.PropertyIsEqualTo;
+import org.opengis.filter.PropertyIsGreaterThan;
+import org.opengis.filter.PropertyIsGreaterThanOrEqualTo;
+import org.opengis.filter.PropertyIsLessThan;
 import org.opengis.geometry.Envelope;
 import org.opengis.parameter.GeneralParameterDescriptor;
 import org.opengis.parameter.GeneralParameterValue;
@@ -256,7 +282,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -297,7 +323,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&strokeColor=0xFF0000&strokeWeight=5";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -321,7 +347,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&customClasses=1,10,#FF0000;10,20,#00FF00;20,30,#0000FF";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -343,7 +369,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=3&ramp=custom&colors=#FF0000,#00FF00,#0000FF";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -365,7 +391,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=2&ramp=custom&colors=#FF0000,#00FF00,#0000FF";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -386,7 +412,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=15&ramp=custom&colors=#FF0000,#00FF00,#0000FF";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -421,7 +447,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&fullSLD=true";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -438,7 +464,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=id&intervals=3&open=true";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -460,7 +486,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=3&open=false&stddevs=-1&fullSLD=true";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 400);
+        assertEquals(400, response.getStatus());
         assertThat(
                 response.getContentAsString(),
                 containsString("stddevs must be a positive floating point number"));
@@ -475,7 +501,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=3&open=false&stddevs=1&fullSLD=true";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
 
         // stddev filter cuts 4 and 90 away leaving 8 and 61 as the extremes
         // System.out.println(response.getContentAsString());
@@ -498,7 +524,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=3&open=false&stddevs=1&fullSLD=true&bbox=6,5,50,45";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
 
         // bbox leaves 8,12,20,29,43, stddev filter leaves 12,20,29
         // System.out.println(response.getContentAsString());
@@ -522,7 +548,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=3&open=false&stddevs=3&fullSLD=true";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
 
         // stddev filter cuts 4 and 90 away leaving 8 and 61 as the extremes
         // System.out.println(response.getContentAsString());
@@ -550,7 +576,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=3&open=true&method=quantile";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -573,7 +599,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=3&open=false&stddevs=1&fullSLD=true&method=quantile";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
 
         // stddev filter cuts 4 and 90 away
         // System.out.println(response.getContentAsString());
@@ -596,7 +622,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=5&open=true&method=equalArea";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -644,7 +670,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=5&open=true&method=equalArea&bbox=20,20,150,150";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -668,7 +694,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=3&open=true&method=jenks";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -692,7 +718,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=3&open=true&method=equalInterval";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -716,7 +742,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=name&intervals=3&method=uniqueInterval";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -727,7 +753,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
         checkRule(rules[0], "#690000", PropertyIsEqualTo.class);
         checkRule(rules[1], "#B40000", PropertyIsEqualTo.class);
         checkRule(rules[2], "#FF0000", PropertyIsEqualTo.class);
-        TreeSet<String> orderedRules = new TreeSet<String>();
+        TreeSet<String> orderedRules = new TreeSet<>();
         orderedRules.add(rules[0].getDescription().getTitle().toString());
         orderedRules.add(rules[1].getDescription().getTitle().toString());
         orderedRules.add(rules[2].getDescription().getTitle().toString());
@@ -809,7 +835,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=name&intervals=3&method=uniqueInterval&ramp=blue";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -832,7 +858,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=name&intervals=3&method=uniqueInterval&ramp=blue&reverse=true";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -855,7 +881,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=id&intervals=3&open=true&normalize=true";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -878,7 +904,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=name&intervals=3&method=uniqueInterval&ramp=custom&startColor=0xFF0000&endColor=0x0000FF";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -901,7 +927,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=1&method=jenks&ramp=custom&open=false&startColor=0x00ff00&midColor=0xffff00&endColor=0xff0000";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -923,7 +949,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=2&method=jenks&ramp=custom&open=true&startColor=0x00ff00&midColor=0xffff00&endColor=0xff0000";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -946,7 +972,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + ".xml?"
                         + "attribute=foo&intervals=3&method=jenks&ramp=custom&open=true&startColor=0x00ff00&midColor=0xffff00&endColor=0xff0000";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
@@ -1741,12 +1767,12 @@ public class ClassifierTest extends SLDServiceBaseTest {
         delta[2] = env1.getMinimum(1) - env2.getMinimum(1);
         delta[3] = env1.getMaximum(1) - env2.getMaximum(1);
 
-        for (int i = 0; i < delta.length; i++) {
+        for (double v : delta) {
             /*
              * As per Envelope2D#boundsEquals we use ! here to
              * catch any NaN values
              */
-            if (!(Math.abs(delta[i]) <= eps)) {
+            if (!(Math.abs(v) <= eps)) {
                 fail("Envelopes have not same 2D bounds: " + env1 + ", " + env2);
             }
         }
@@ -1909,7 +1935,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
         String resultXml = baos.toString().replace("\r", "").replace("\n", "");
         Rule[] rules =
                 checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
-        assertTrue(rules.length == 4);
+        assertEquals(4, rules.length);
         checkRuleLineSymbolizer(rules[0], "#FF071C");
         checkRuleLineSymbolizer(rules[1], "#CC0616");
         checkRuleLineSymbolizer(rules[2], "#82040E");
@@ -1929,7 +1955,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
         String resultJenks = baosJenks.toString().replace("\r", "").replace("\n", "");
         Rule[] rulesJenks =
                 checkSLD(resultJenks.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
-        assertTrue(rulesJenks.length == 3);
+        assertEquals(3, rulesJenks.length);
         checkRuleLineSymbolizer(rulesJenks[0], "#FF071C");
         checkRuleLineSymbolizer(rulesJenks[1], "#CC0616");
         checkRuleLineSymbolizer(rulesJenks[2], "#82040E");
@@ -1951,7 +1977,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
         String resultXml = baos.toString().replace("\r", "").replace("\n", "");
         Rule[] rules =
                 checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
-        assertTrue(rules.length == 5);
+        assertEquals(5, rules.length);
         checkRuleLineSymbolizer(rules[0], "#FF071C");
         checkRuleLineSymbolizer(rules[1], "#CC0616");
         checkRuleLineSymbolizer(rules[2], "#82040E");
@@ -1971,7 +1997,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
         String resultJenks = baosJenks.toString().replace("\r", "").replace("\n", "");
         Rule[] rulesJenks =
                 checkSLD(resultJenks.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
-        assertTrue(rulesJenks.length == 3);
+        assertEquals(3, rulesJenks.length);
         checkRuleLineSymbolizer(rulesJenks[0], "#FF071C");
         checkRuleLineSymbolizer(rulesJenks[1], "#CC0616");
         checkRuleLineSymbolizer(rulesJenks[2], "#82040E");
@@ -1993,7 +2019,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
         String resultXml = baos.toString().replace("\r", "").replace("\n", "");
         Rule[] rules =
                 checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
-        assertTrue(rules.length == 4);
+        assertEquals(4, rules.length);
         checkRuleLineSymbolizer(rules[0], "#FF071C");
         checkRuleLineSymbolizer(rules[1], "#CC0616");
         checkRuleLineSymbolizer(rules[2], "#82040E");
@@ -2024,7 +2050,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
         String resultXml = baos.toString().replace("\r", "").replace("\n", "");
         Rule[] rules =
                 checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
-        assertTrue(rules.length == 2);
+        assertEquals(2, rules.length);
         assertTrue(rules[0].getFilter() instanceof PropertyIsEqualTo);
         assertTrue(rules[1].getFilter() instanceof PropertyIsGreaterThan);
         checkNotOverlappingRules(rules[0], rules[1]);
@@ -2044,7 +2070,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         resultXmlJenks
                                 .replace("<Rules>", sldPrefix)
                                 .replace("</Rules>", sldPostfix));
-        assertTrue(rulesJenks.length == 2);
+        assertEquals(2, rulesJenks.length);
         assertTrue(rulesJenks[0].getFilter() instanceof PropertyIsEqualTo);
         assertTrue(rulesJenks[1].getFilter() instanceof PropertyIsGreaterThan);
         checkNotOverlappingRules(rulesJenks[0], rulesJenks[1]);
@@ -2065,7 +2091,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
         String resultXml = baos.toString().replace("\r", "").replace("\n", "");
         Rule[] rules =
                 checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
-        assertTrue(rules.length == 2);
+        assertEquals(2, rules.length);
         Rule first = rules[0];
         Rule second = rules[1];
         checkNotOverlappingRules(first, second);
@@ -2085,7 +2111,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         resultXmlJenks
                                 .replace("<Rules>", sldPrefix)
                                 .replace("</Rules>", sldPostfix));
-        assertTrue(rulesJenks.length == 2);
+        assertEquals(2, rulesJenks.length);
         Rule firstJenks = rulesJenks[0];
         Rule secondJenks = rulesJenks[1];
         checkNotOverlappingRules(firstJenks, secondJenks);
@@ -2106,7 +2132,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
         String resultXml = baos.toString().replace("\r", "").replace("\n", "");
         Rule[] rules =
                 checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
-        assertTrue(rules.length == 3);
+        assertEquals(3, rules.length);
         Rule first = rules[0];
         Rule second = rules[1];
         checkNotOverlappingRules(first, second);
@@ -2126,7 +2152,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         resultXmlJenks
                                 .replace("<Rules>", sldPrefix)
                                 .replace("</Rules>", sldPostfix));
-        assertTrue(rulesJenks.length == 2);
+        assertEquals(2, rulesJenks.length);
         Rule firstJenks = rulesJenks[0];
         Rule secondJenks = rulesJenks[1];
         checkNotOverlappingRules(firstJenks, secondJenks);
@@ -2159,7 +2185,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
         String resultXml = baosQuantile.toString().replace("\r", "").replace("\n", "");
         Rule[] rulesQuantile =
                 checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
-        assertTrue(rulesQuantile.length == 3);
+        assertEquals(3, rulesQuantile.length);
         for (Rule r : rulesQuantile) {
             Matcher rgxMatcher = rgx.matcher(r.getDescription().getTitle());
             assertTrue(rgxMatcher.find());
@@ -2259,7 +2285,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         resultXmlJenks
                                 .replace("<Rules>", sldPrefix)
                                 .replace("</Rules>", sldPostfix));
-        assertTrue(rulesJenks.length == 3);
+        assertEquals(3, rulesJenks.length);
         for (Rule r : rulesJenks) {
             Matcher rgxMatcher = rgx.matcher(r.getDescription().getTitle());
             assertTrue(rgxMatcher.find());
@@ -2287,7 +2313,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         resultXmlUnique
                                 .replace("<Rules>", sldPrefix)
                                 .replace("</Rules>", sldPostfix));
-        assertTrue(rulesUnique.length == 8);
+        assertEquals(8, rulesUnique.length);
         for (Rule r : rulesUnique) {
             Matcher rgxMatcher = rgx.matcher(r.getDescription().getTitle());
             assertTrue(rgxMatcher.find());
@@ -2306,14 +2332,14 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + "attribute=foo&customClasses=1,30,#FF0000;30,50,#00FF00;50,90,#0000FF"
                         + "&percentages=true";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
         String resultXml = baos.toString().replace("\r", "").replace("\n", "");
         Rule[] rules =
                 checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
-        assertTrue(rules.length == 3);
+        assertEquals(3, rules.length);
         for (Rule r : rules) {
             Matcher rgxMatcher = rgx.matcher(r.getDescription().getTitle());
             assertTrue(rgxMatcher.find());
@@ -2336,12 +2362,18 @@ public class ClassifierTest extends SLDServiceBaseTest {
         ColorMap cmQuantile = rsQuantile.getColorMap();
         ColorMapEntry[] entriesQuantile = cmQuantile.getColorMapEntries();
         assertEquals(entriesQuantile.length, 6);
+        double percentagesSum = 0.0;
         for (ColorMapEntry e : entriesQuantile) {
             if (e.getLabel() != null) {
+                String label = e.getLabel();
+                int i = label.lastIndexOf("(");
+                int i2 = label.indexOf("%)");
+                percentagesSum += Double.valueOf(label.substring(i + 1, i2));
                 Matcher matcher = rgx.matcher(e.getLabel());
-                matcher.find();
+                assertTrue(matcher.find());
             }
         }
+        assertEquals(100.0, percentagesSum, 0.0);
     }
 
     @Test
@@ -2370,10 +2402,10 @@ public class ClassifierTest extends SLDServiceBaseTest {
                 int i2 = label.indexOf("%)");
                 percentagesSum += Double.valueOf(label.substring(i + 1, i2));
                 Matcher matcher = rgx.matcher(e.getLabel());
-                matcher.find();
+                assertTrue(matcher.find());
             }
         }
-        assertTrue(100.0 == percentagesSum);
+        assertEquals(100.0, percentagesSum, 0.0);
     }
 
     @Test
@@ -2392,12 +2424,18 @@ public class ClassifierTest extends SLDServiceBaseTest {
         ColorMap cmJenks = rsJenks.getColorMap();
         ColorMapEntry[] entriesJenks = cmJenks.getColorMapEntries();
         assertEquals(entriesJenks.length, 6);
+        double percentagesSum = 0.0;
         for (ColorMapEntry e : entriesJenks) {
             if (e.getLabel() != null) {
+                String label = e.getLabel();
+                int i = label.lastIndexOf("(");
+                int i2 = label.indexOf("%)");
+                percentagesSum += Double.valueOf(label.substring(i + 1, i2));
                 Matcher matcher = rgx.matcher(e.getLabel());
-                matcher.find();
+                assertTrue(matcher.find());
             }
         }
+        assertEquals(100.0, percentagesSum, 0.0);
     }
 
     @Test
@@ -2416,12 +2454,18 @@ public class ClassifierTest extends SLDServiceBaseTest {
         ColorMap cmUnique = rsUnique.getColorMap();
         ColorMapEntry[] entriesUnique = cmUnique.getColorMapEntries();
         assertEquals(entriesUnique.length, 167);
+        double percentagesSum = 0.0;
         for (ColorMapEntry e : entriesUnique) {
             if (e.getLabel() != null) {
+                String label = e.getLabel();
+                int i = label.lastIndexOf("(");
+                int i2 = label.indexOf("%)");
+                percentagesSum += Double.valueOf(label.substring(i + 1, i2));
                 Matcher matcher = rgx.matcher(e.getLabel());
-                matcher.find();
+                assertTrue(matcher.find());
             }
         }
+        assertEquals(100.0, percentagesSum, 0.6d);
     }
 
     @Test
@@ -2448,10 +2492,10 @@ public class ClassifierTest extends SLDServiceBaseTest {
                 int i2 = label.indexOf("%)");
                 percentagesSum += Double.valueOf(label.substring(i + 1, i2));
                 Matcher matcher = rgx.matcher(e.getLabel());
-                matcher.find();
+                assertTrue(matcher.find());
             }
         }
-        assertTrue(100.0 == percentagesSum);
+        assertEquals(100.0, percentagesSum, 0.0);
     }
 
     @Test
@@ -2471,12 +2515,18 @@ public class ClassifierTest extends SLDServiceBaseTest {
         ColorMap cmQuantile = rsQuantile.getColorMap();
         ColorMapEntry[] entriesQuantile = cmQuantile.getColorMapEntries();
         assertEquals(entriesQuantile.length, 6);
+        double percentagesSum = 0.0;
         for (ColorMapEntry e : entriesQuantile) {
             if (e.getLabel() != null) {
+                String label = e.getLabel();
+                int i = label.lastIndexOf("(");
+                int i2 = label.indexOf("%)");
+                percentagesSum += Double.valueOf(label.substring(i + 1, i2));
                 Matcher matcher = rgx.matcher(e.getLabel());
-                matcher.find();
+                assertTrue(matcher.find());
             }
         }
+        assertEquals(100.0, percentagesSum, 0.0);
     }
 
     @Test
@@ -2497,7 +2547,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
         String resultXml = baos.toString().replace("\r", "").replace("\n", "");
         Rule[] rules =
                 checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
-        assertTrue(rules.length == 3);
+        assertEquals(3, rules.length);
         double percentagesSum = 0.0;
         for (Rule r : rules) {
             String title = r.getDescription().getTitle().toString();
@@ -2507,7 +2557,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
             Matcher rgxMatcher = rgx.matcher(title);
             assertTrue(rgxMatcher.find());
         }
-        assertTrue(percentagesSum == 100.0);
+        assertEquals(100.0, percentagesSum, 0.0);
         final String restPathJenks =
                 RestBaseController.ROOT_PATH
                         + "/sldservice/cite:ClassificationPoints2/"
@@ -2525,7 +2575,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         resultXmlJenks
                                 .replace("<Rules>", sldPrefix)
                                 .replace("</Rules>", sldPostfix));
-        assertTrue(rulesJenks.length == 2);
+        assertEquals(2, rulesJenks.length);
         percentagesSum = 0.0;
         for (Rule r : rulesJenks) {
             String title = r.getDescription().getTitle().toString();
@@ -2535,7 +2585,7 @@ public class ClassifierTest extends SLDServiceBaseTest {
             Matcher rgxMatcher = rgx.matcher(title);
             assertTrue(rgxMatcher.find());
         }
-        assertTrue(percentagesSum == 100.0);
+        assertEquals(100.0, percentagesSum, 0.0);
     }
 
     @Test
@@ -2576,16 +2626,108 @@ public class ClassifierTest extends SLDServiceBaseTest {
                         + "attribute=foo&customClasses=10000,30000,#FF0000;30000,50000,#00FF00"
                         + "&percentages=true";
         MockHttpServletResponse response = getAsServletResponse(restPath);
-        assertTrue(response.getStatus() == 200);
+        assertEquals(200, response.getStatus());
         Document dom = getAsDOM(restPath, 200);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         print(dom, baos);
         String resultXml = baos.toString().replace("\r", "").replace("\n", "");
         Rule[] rules =
                 checkSLD(resultXml.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
-        assertTrue(rules.length == 2);
+        assertEquals(2, rules.length);
         for (Rule r : rules) {
             r.getDescription().getTitle().toString().contains("(0.0%)");
         }
+    }
+
+    @Test
+    public void testStandardDeviationClassificationVectors() throws Exception {
+
+        final String restPathArea =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPolygons/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=foo&ramp=red&method=standardDeviation"
+                        + "&intervals=5";
+        Document domArea = getAsDOM(restPathArea, 200);
+        print(domArea);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        print(domArea, baos);
+        String result = baos.toString().replace("\r", "").replace("\n", "");
+        Rule[] rules =
+                checkSLD(result.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+
+        assertEquals(" < -8.463556903291966", rules[0].getDescription().getTitle().toString());
+        assertEquals(
+                " >= -8.463556903291966 AND <19.428814365569345",
+                rules[1].getDescription().getTitle().toString());
+        assertEquals(
+                " >= 19.428814365569345 AND <47.321185634430655",
+                rules[2].getDescription().getTitle().toString());
+        assertEquals(
+                " >= 47.321185634430655 AND <75.21355690329196",
+                rules[3].getDescription().getTitle().toString());
+        assertEquals(" >= 75.21355690329196", rules[4].getDescription().getTitle().toString());
+    }
+
+    @Test
+    public void testPercentagesInRulesLabelsVectorsStandardDeviation() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPathArea =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:ClassificationPoints/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "attribute=bar&ramp=red&method=standardDeviation"
+                        + "&intervals=4&open=true&percentages=true";
+        Document domArea = getAsDOM(restPathArea, 200);
+        print(domArea);
+        ByteArrayOutputStream baosArea = new ByteArrayOutputStream();
+        print(domArea, baosArea);
+        String resultArea = baosArea.toString().replace("\r", "").replace("\n", "");
+        Rule[] rulesArea =
+                checkSLD(resultArea.replace("<Rules>", sldPrefix).replace("</Rules>", sldPostfix));
+        double percentagesSum = 0d;
+        for (Rule r : rulesArea) {
+            Matcher rgxMatcher = rgx.matcher(r.getDescription().getTitle());
+            assertTrue(rgxMatcher.find());
+            String label = r.getDescription().getTitle().toString();
+            int i = label.lastIndexOf("(");
+            int i2 = label.indexOf("%)");
+            percentagesSum += Double.valueOf(label.substring(i + 1, i2));
+        }
+        assertEquals(100d, percentagesSum, 0d);
+    }
+
+    @Test
+    public void testPercentagesWithContinuousNotThrowsException() throws Exception {
+        String regex = "\\d+(\\.\\d)%";
+        Pattern rgx = Pattern.compile(regex);
+        final String restPathJenks =
+                RestBaseController.ROOT_PATH
+                        + "/sldservice/cite:dem/"
+                        + getServiceUrl()
+                        + ".xml?"
+                        + "method=jenks&intervals=6"
+                        + "&ramp=red&fullSLD=true&percentages=true&continuous=true";
+        Document domjenks = getAsDOM(restPathJenks, 200);
+        RasterSymbolizer rsJenks = getRasterSymbolizer(domjenks);
+        ColorMap cmJenks = rsJenks.getColorMap();
+        ColorMapEntry[] entriesJenks = cmJenks.getColorMapEntries();
+        assertEquals(entriesJenks.length, 6);
+        double percentagesSum = 0.0;
+        for (int i = 0; i < entriesJenks.length; i++) {
+            ColorMapEntry e = entriesJenks[i];
+            if (e.getLabel() != null && i > 0) {
+                String label = e.getLabel();
+                int i2 = label.lastIndexOf("(");
+                int i3 = label.indexOf("%)");
+                percentagesSum += Double.valueOf(label.substring(i2 + 1, i3));
+                Matcher matcher = rgx.matcher(e.getLabel());
+                assertTrue(matcher.find());
+            }
+        }
+        assertEquals(100.0, percentagesSum, 0.0);
     }
 }

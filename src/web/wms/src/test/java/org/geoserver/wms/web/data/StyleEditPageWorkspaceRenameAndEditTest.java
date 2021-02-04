@@ -6,9 +6,9 @@ package org.geoserver.wms.web.data;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 
 import java.io.File;
 import java.io.FileReader;
@@ -139,6 +139,7 @@ public class StyleEditPageWorkspaceRenameAndEditTest extends GeoServerWicketTest
         FormTester form = tester.newFormTester("styleForm", false);
 
         // Update the workspace (select "sf" from the dropdown)
+        @SuppressWarnings("unchecked")
         DropDownChoice<WorkspaceInfo> typeDropDown =
                 (DropDownChoice<WorkspaceInfo>)
                         tester.getComponentFromLastRenderedPage(

@@ -14,15 +14,17 @@ import org.geoserver.config.impl.ServiceInfoImpl;
 
 public class WFSInfoImpl extends ServiceInfoImpl implements WFSInfo {
 
-    protected Map<Version, GMLInfo> gml = new HashMap<Version, GMLInfo>();
+    protected Map<Version, GMLInfo> gml = new HashMap<>();
     protected ServiceLevel serviceLevel = ServiceLevel.COMPLETE;
     protected int maxFeatures = Integer.MAX_VALUE;
     protected boolean featureBounding = true;
     protected boolean canonicalSchemaLocation = false;
     protected boolean encodeFeatureMember = false;
     protected boolean hitsIgnoreMaxFeatures = false;
-    protected List<String> srs = new ArrayList<String>();
+    protected boolean includeWFSRequestDumpFile = true;
+    protected List<String> srs = new ArrayList<>();
     protected Boolean allowGlobalQueries = true;
+    protected Boolean simpleConversionEnabled = false;
 
     public WFSInfoImpl() {}
 
@@ -68,6 +70,13 @@ public class WFSInfoImpl extends ServiceInfoImpl implements WFSInfo {
         this.canonicalSchemaLocation = canonicalSchemaLocation;
     }
 
+    public void setIncludeWFSRequestDumpFile(boolean includeWFSRequestDumpFile) {
+        this.includeWFSRequestDumpFile = includeWFSRequestDumpFile;
+    }
+
+    public boolean getIncludeWFSRequestDumpFile() {
+        return includeWFSRequestDumpFile;
+    }
     /*
      * @see org.geoserver.wfs.WFSInfo#isEncodingFeatureMember()
      */
@@ -122,6 +131,16 @@ public class WFSInfoImpl extends ServiceInfoImpl implements WFSInfo {
     }
 
     @Override
+    public boolean isSimpleConversionEnabled() {
+        return simpleConversionEnabled == null ? false : simpleConversionEnabled;
+    }
+
+    @Override
+    public void setSimpleConversionEnabled(boolean simpleConversionEnabled) {
+        this.simpleConversionEnabled = simpleConversionEnabled;
+    }
+
+    @Override
     public int hashCode() {
         final int prime = 31;
         int result = super.hashCode();
@@ -131,9 +150,15 @@ public class WFSInfoImpl extends ServiceInfoImpl implements WFSInfo {
         result = prime * result + ((gml == null) ? 0 : gml.hashCode());
         result = prime * result + (hitsIgnoreMaxFeatures ? 1231 : 1237);
         result = prime * result + maxFeatures;
+        result = prime * result + (includeWFSRequestDumpFile ? 1231 : 1237);
         result = prime * result + ((serviceLevel == null) ? 0 : serviceLevel.hashCode());
         result = prime * result + ((srs == null) ? 0 : srs.hashCode());
         result = prime * result + (allowGlobalQueries == null ? 0 : allowGlobalQueries.hashCode());
+        result =
+                prime * result
+                        + (simpleConversionEnabled == null
+                                ? 0
+                                : simpleConversionEnabled.hashCode());
         return result;
     }
 
@@ -154,6 +179,7 @@ public class WFSInfoImpl extends ServiceInfoImpl implements WFSInfo {
         } else if (!serviceLevel.equals(other.getServiceLevel())) return false;
         if (encodeFeatureMember != other.isEncodeFeatureMember()) return false;
         if (hitsIgnoreMaxFeatures != other.isHitsIgnoreMaxFeatures()) return false;
+        if (includeWFSRequestDumpFile != other.getIncludeWFSRequestDumpFile()) return false;
         if (srs == null) {
             if (other.getSRS() != null) return false;
         } else if (!srs.equals(other.getSRS())) return false;

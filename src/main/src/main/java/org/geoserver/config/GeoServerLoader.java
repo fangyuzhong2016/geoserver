@@ -6,7 +6,11 @@
 package org.geoserver.config;
 
 import com.google.common.base.Stopwatch;
-import java.io.*;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -207,6 +211,15 @@ public abstract class GeoServerLoader {
                 catalog.add(l);
 
                 LOGGER.info("Loaded layer '" + l.getName() + "'");
+
+                for (StyleInfo style : l.getStyles()) {
+                    if (null == style) {
+                        LOGGER.log(
+                                Level.SEVERE,
+                                "Layer '" + l.getName() + "' references a missing style");
+                    }
+                }
+
             } catch (Exception e) {
                 LOGGER.log(Level.WARNING, "Failed to load layer " + lc.resource.name(), e);
             }
@@ -385,7 +398,7 @@ public abstract class GeoServerLoader {
         catalog.removeListeners(ResourcePool.CacheClearingListener.class);
         catalog.removeListeners(GeoServerConfigPersister.class);
         catalog.removeListeners(GeoServerResourcePersister.class);
-        List<CatalogListener> listeners = new ArrayList<CatalogListener>(catalog.getListeners());
+        List<CatalogListener> listeners = new ArrayList<>(catalog.getListeners());
 
         // look for catalog.xml, if it exists assume we are dealing with
         // an old data directory
@@ -915,8 +928,9 @@ public abstract class GeoServerLoader {
             }
 
             // load services
-            final List<XStreamServiceLoader> loaders =
-                    GeoServerExtensions.extensions(XStreamServiceLoader.class);
+            @SuppressWarnings("unchecked")
+            final List<XStreamServiceLoader<ServiceInfo>> loaders =
+                    (List) GeoServerExtensions.extensions(XStreamServiceLoader.class);
             loadServices(resourceLoader.get(""), true, loaders, geoServer);
 
             // load services specific to workspace
@@ -988,7 +1002,7 @@ public abstract class GeoServerLoader {
     void loadServices(
             Resource directory,
             boolean global,
-            List<XStreamServiceLoader> loaders,
+            List<XStreamServiceLoader<ServiceInfo>> loaders,
             GeoServer geoServer) {
         for (XStreamServiceLoader<ServiceInfo> l : loaders) {
             try {

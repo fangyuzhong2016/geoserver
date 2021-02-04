@@ -5,12 +5,12 @@
  */
 package org.geoserver.security;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
-import java.util.Vector;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.security.access.ConfigAttribute;
@@ -29,7 +29,7 @@ public class RESTfulPathBasedFilterInvocationDefinitionMap
     // ~ Instance fields
     // ================================================================================================
 
-    private Collection<EntryHolder> requestMap = new Vector<EntryHolder>();
+    private Collection<EntryHolder> requestMap = new ArrayList<>();
     private PathMatcher pathMatcher = new AntPathMatcher();
     private boolean convertUrlToLowercaseBeforeComparison = false;
 
@@ -60,7 +60,7 @@ public class RESTfulPathBasedFilterInvocationDefinitionMap
     }
 
     public Collection<ConfigAttribute> getAllConfigAttributes() {
-        Set<ConfigAttribute> set = new HashSet<ConfigAttribute>();
+        Set<ConfigAttribute> set = new HashSet<>();
 
         for (EntryHolder h : requestMap) {
             set.addAll(h.getConfigAttributes());
@@ -140,8 +140,8 @@ public class RESTfulPathBasedFilterInvocationDefinitionMap
             boolean matchedMethods = true;
             if (methodList != null) {
                 matchedMethods = false;
-                for (int ii = 0; ii < methodList.length; ii++) {
-                    if (methodList[ii].equals(httpMethod)) {
+                for (String s : methodList) {
+                    if (s.equals(httpMethod)) {
                         matchedMethods = true;
                         break;
                     }

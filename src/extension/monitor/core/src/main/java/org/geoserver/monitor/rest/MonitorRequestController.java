@@ -25,7 +25,13 @@ import org.geotools.util.Converters;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping(
@@ -221,7 +227,7 @@ public class MonitorRequestController extends RestBaseController {
             String left = split[0];
             Object right = split[2];
             if (right.toString().contains(",")) {
-                List list = new ArrayList();
+                List<Object> list = new ArrayList<>();
                 for (String t : right.toString().split(",")) {
                     list.add(parseProperty(left, t));
                 }

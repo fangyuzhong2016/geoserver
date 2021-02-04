@@ -265,4 +265,26 @@ public interface WFSInfo extends ServiceInfo {
     Boolean getAllowGlobalQueries();
 
     void setAllowGlobalQueries(Boolean allowGlobalQueries);
+
+    /**
+     * Flag that determines if complex features will be converted to simple feature for compatible
+     * output formats.
+     */
+    boolean isSimpleConversionEnabled();
+
+    /**
+     * Sets the flag that determines if complex features will be converted to simple feature for
+     * compatible output formats.
+     */
+    void setSimpleConversionEnabled(boolean simpleConversionEnabled);
+    /**
+     * Flag that determines if the wfsRequest.txt dump file should be included in shapefile/zip
+     * output.
+     */
+    boolean getIncludeWFSRequestDumpFile();
+    /**
+     * Sets the flag that determines if the wfsRequest.txt dump file should be included in
+     * shapefile/zip output
+     */
+    void setIncludeWFSRequestDumpFile(boolean includeWFSRequestDumpFile);
 }

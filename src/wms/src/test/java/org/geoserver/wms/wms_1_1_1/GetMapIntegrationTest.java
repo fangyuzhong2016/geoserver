@@ -6,13 +6,15 @@
 package org.geoserver.wms.wms_1_1_1;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Transparency;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.ComponentColorModel;
@@ -24,7 +26,6 @@ import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -206,7 +207,7 @@ public class GetMapIntegrationTest extends WMSTestSupport {
                 "jiffleBandSelect", "jiffleBandSelect.sld", GetMapIntegrationTest.class, catalog);
         testData.addVectorLayer(
                 new QName(MockData.SF_URI, "states", MockData.SF_PREFIX),
-                Collections.EMPTY_MAP,
+                Collections.emptyMap(),
                 "states.properties",
                 getClass(),
                 catalog);
@@ -229,7 +230,7 @@ public class GetMapIntegrationTest extends WMSTestSupport {
         testData.addStyle(
                 "transparencyFillWidth", "transparencyFillStyleWidth.sld", getClass(), catalog);
 
-        Map properties = new HashMap();
+        Map<LayerProperty, Object> properties = new HashMap<>();
         properties.put(LayerProperty.STYLE, "raster");
         testData.addRasterLayer(
                 MOSAIC_HOLES,
@@ -250,14 +251,14 @@ public class GetMapIntegrationTest extends WMSTestSupport {
 
         testData.addVectorLayer(
                 GIANT_POLYGON,
-                Collections.EMPTY_MAP,
+                Collections.emptyMap(),
                 "giantPolygon.properties",
                 SystemTestData.class,
                 getCatalog());
 
         testData.addVectorLayer(
                 LARGE_POLYGON,
-                Collections.EMPTY_MAP,
+                Collections.emptyMap(),
                 "slightlyLessGiantPolygon.properties",
                 GetMapTest.class,
                 getCatalog());
@@ -299,7 +300,7 @@ public class GetMapIntegrationTest extends WMSTestSupport {
                 new CoverageBand(
                         Collections.singletonList(ib2), "mosaic@0", 2, CompositionType.BAND_SELECT);
 
-        final List<CoverageBand> coverageBands = new ArrayList<CoverageBand>(3);
+        final List<CoverageBand> coverageBands = new ArrayList<>(3);
         coverageBands.add(b0);
         coverageBands.add(b1);
         coverageBands.add(b2);
@@ -489,10 +490,10 @@ public class GetMapIntegrationTest extends WMSTestSupport {
 
         // check the pixels that should be in the scale bar
         assertPixel(image, 56, 211, Color.WHITE);
-        // see GEOS-6482
+        // see GEOS-6482 and GEOS-9870
         assertTrue(
-                getPixelColor(image, 52, 221).equals(Color.BLACK)
-                        || getPixelColor(image, 52, 222).equals(Color.BLACK));
+                getPixelColor(image, 47, 221).equals(Color.BLACK)
+                        || getPixelColor(image, 47, 222).equals(Color.BLACK));
     }
 
     @Test
@@ -853,6 +854,12 @@ public class GetMapIntegrationTest extends WMSTestSupport {
     }
 
     @Test
+    public void testXmlPostWithWorkSpaceQualifier() throws Exception {
+        MockHttpServletResponse response = postAsServletResponse("sf/wms?", STATES_GETMAP);
+        checkImage(response);
+    }
+
+    @Test
     public void testRemoteOWSGet() throws Exception {
         if (!RemoteOWSTestSupport.isRemoteWFSStatesAvailable(LOGGER)) return;
 
@@ -1007,7 +1014,7 @@ public class GetMapIntegrationTest extends WMSTestSupport {
         BufferedImage bi = getAsImage(url, "image/png");
         int[] pixel = new int[4];
         bi.getRaster().getPixel(0, 250, pixel);
-        assertTrue(Arrays.equals(new int[] {0, 0, 0, 255}, pixel));
+        assertArrayEquals(new int[] {0, 0, 0, 255}, pixel);
 
         // now reconfigure the mosaic for transparency
         CoverageInfo ci = getCatalog().getCoverageByName("sf:mosaic_holes");
@@ -1019,7 +1026,7 @@ public class GetMapIntegrationTest extends WMSTestSupport {
         // this time that pixel should be transparent
         bi = getAsImage(url, "image/png");
         bi.getRaster().getPixel(0, 250, pixel);
-        assertTrue(Arrays.equals(new int[] {255, 255, 255, 0}, pixel));
+        assertArrayEquals(new int[] {255, 255, 255, 0}, pixel);
     }
 
     @Test
@@ -1182,7 +1189,7 @@ public class GetMapIntegrationTest extends WMSTestSupport {
                                 + "&srs=EPSG:4326&format_options=layout:test-layout-sldtitle;dpi:"
                                 + dpi,
                         "image/png");
-        // RenderedImageBrowser.showChain(image);
+        // RenderedImageBrowser.showChain(image, false, false, "Foobar", true);
         // check the pixels that should be in the legend
         assertPixel(image, 15, 67, Color.RED);
         assertPixel(image, 15, 107, Color.GREEN);
@@ -1790,9 +1797,21 @@ public class GetMapIntegrationTest extends WMSTestSupport {
                         getClass().getResource("/geoserver/wfs-ng/wfs_response_4326.xml"),
                         "text/xml"));
 
+        URL remoteRequestURL3857 =
+                new URL(
+                        baseURL
+                                + "/wfs?PROPERTYNAME=the_geom&FILTER=%3Cogc%3AFilter+xmlns%3Axs%3D%22http%3A%2F%2Fwww.w3.org%2F2001%2FXMLSchema%22+xmlns%3Agml%3D%22http%3A%2F%2Fwww.opengis.net%2Fgml%22+xmlns%3Aogc%3D%22http%3A%2F%2Fwww.opengis.net%2Fogc%22%3E%3Cogc%3ABBOX%3E%3Cogc%3APropertyName%3Ethe_geom%3C%2Fogc%3APropertyName%3E%3Cgml%3AEnvelope+srsDimension%3D%222%22+srsName%3D%22http%3A%2F%2Fwww.opengis.net%2Fgml%2Fsrs%2Fepsg.xml%233857%22%3E%3Cgml%3AlowerCorner%3E-1.1546746187616E7+5534640.824992%3C%2Fgml%3AlowerCorner%3E%3Cgml%3AupperCorner%3E-1.1542775460466E7+5538611.552142%3C%2Fgml%3AupperCorner%3E%3C%2Fgml%3AEnvelope%3E%3C%2Fogc%3ABBOX%3E%3C%2Fogc%3AFilter%3E&TYPENAME=topp%3Aroads22&REQUEST=GetFeature&RESULTTYPE=RESULTS&OUTPUTFORMAT=text%2Fxml%3B+subtype%3Dgml%2F3.1.1&SRSNAME=EPSG%3A3857&VERSION=1.1.0&SERVICE=WFS");
+
+        client.expectGet(
+                remoteRequestURL3857,
+                new MockHttpResponse(
+                        getClass().getResource("/geoserver/wfs-ng/wfs_response_3857.xml"),
+                        "text/xml"));
+
         TestHttpClientProvider.bind(client, descURL);
         TestHttpClientProvider.bind(client, descFeatureURL);
         TestHttpClientProvider.bind(client, remoteRequestURL);
+        TestHttpClientProvider.bind(client, remoteRequestURL3857);
 
         // MOCKING Catalog
         URL url = getClass().getResource("/geoserver/wfs-ng/wfs_cap_110.xml");
@@ -1800,17 +1819,11 @@ public class GetMapIntegrationTest extends WMSTestSupport {
         CatalogBuilder cb = new CatalogBuilder(getCatalog());
         DataStoreInfo storeInfo = cb.buildDataStore("MockWFSDataStore");
         ((DataStoreInfoImpl) storeInfo).setId("1");
-        ((DataStoreInfoImpl) storeInfo).setType("Web Feature Server (NG)");
-        ((DataStoreInfoImpl) storeInfo)
-                .getConnectionParameters()
-                .put(WFSDataStoreFactory.URL.key, url);
-        ((DataStoreInfoImpl) storeInfo)
-                .getConnectionParameters()
-                .put("usedefaultsrs", Boolean.FALSE);
-        ((DataStoreInfoImpl) storeInfo)
-                .getConnectionParameters()
-                .put(WFSDataStoreFactory.PROTOCOL.key, Boolean.FALSE);
-        ((DataStoreInfoImpl) storeInfo).getConnectionParameters().put("TESTING", Boolean.TRUE);
+        storeInfo.setType("Web Feature Server (NG)");
+        storeInfo.getConnectionParameters().put(WFSDataStoreFactory.URL.key, url);
+        storeInfo.getConnectionParameters().put("usedefaultsrs", Boolean.FALSE);
+        storeInfo.getConnectionParameters().put(WFSDataStoreFactory.PROTOCOL.key, Boolean.FALSE);
+        storeInfo.getConnectionParameters().put("TESTING", Boolean.TRUE);
         getCatalog().add(storeInfo);
 
         // MOCKING Feature Type with native CRS EPSG:26713
@@ -1819,10 +1832,10 @@ public class GetMapIntegrationTest extends WMSTestSupport {
                 xp.load(
                         getClass().getResourceAsStream("/geoserver/wfs-ng/featuretype.xml"),
                         FeatureTypeInfoImpl.class);
-        ((FeatureTypeInfoImpl) ftInfo).setStore(storeInfo);
+        ftInfo.setStore(storeInfo);
         ((FeatureTypeInfoImpl) ftInfo).setMetadata(new MetadataMap());
         ftInfo.setSRS("EPSG:26713");
-        ftInfo.getMetadata().put(FeatureTypeInfo.OTHER_SRS, "EPSG:4326,EPSG:3857");
+        ftInfo.getMetadata().put(FeatureTypeInfo.OTHER_SRS, "EPSG:4326,urn:ogc:def:crs:EPSG::3857");
         getCatalog().add(ftInfo);
 
         // setting mock feature type as resource of Layer from Test Data
@@ -1849,10 +1862,26 @@ public class GetMapIntegrationTest extends WMSTestSupport {
                         + "&WIDTH=100&HEIGHT=100";
 
         BufferedImage wfsNGImage = getAsImage(wmsUrl, "image/png");
-        // ImageIO.write(wfsNGImage, "png", new File("D://cascaded_wfs_layer_response.png"));
         ImageAssert.assertEquals(
                 new File("./src/test/resources/geoserver/wfs-ng/cascaded_wfs_layer_response.png"),
                 wfsNGImage,
+                300);
+
+        // make a request in EPSG:3857, which should match the other SRS urn:ogc:def:crs:EPSG::3857
+        // assert that that remote request was made in urn:ogc:def:crs:EPSG::3857 format
+        // assert response
+        String wmsUrlURNSrs =
+                "wms?LAYERS=topp_roads22&styles=line"
+                        + "&FORMAT=image%2Fpng&SERVICE=WMS&VERSION=1.1.1"
+                        + "&REQUEST=GetMap&SRS=EPSG%3A3857"
+                        + "&BBOX=-11546669.827478563,5534717.185129326,-11542851.820603596,5538535.192004295"
+                        + "&WIDTH=100&HEIGHT=100";
+
+        BufferedImage wfsNGImageURNSrs = getAsImage(wmsUrlURNSrs, "image/png");
+        ImageAssert.assertEquals(
+                new File(
+                        "./src/test/resources/geoserver/wfs-ng/cascaded_wfs_layer_response_3857.png"),
+                wfsNGImageURNSrs,
                 300);
     }
 

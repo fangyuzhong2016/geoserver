@@ -5,19 +5,31 @@
  */
 package org.geoserver.wms.featureinfo;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TimeZone;
 import javax.xml.namespace.QName;
 import net.opengis.wfs.FeatureCollectionType;
 import net.opengis.wfs.WfsFactory;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
-import org.geoserver.catalog.*;
+import org.eclipse.emf.common.util.EList;
+import org.geoserver.catalog.FeatureTypeInfo;
+import org.geoserver.catalog.LayerGroupInfo;
+import org.geoserver.catalog.LayerInfo;
+import org.geoserver.catalog.PublishedInfo;
 import org.geoserver.data.test.CiteTestData;
 import org.geoserver.data.test.MockData;
 import org.geoserver.data.test.SystemTestData;
@@ -46,7 +58,7 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
         super.onSetUp(testData);
         testData.addVectorLayer(
                 TEMPORAL_DATA,
-                Collections.EMPTY_MAP,
+                Collections.emptyMap(),
                 "TemporalData.properties",
                 SystemTestData.class,
                 getCatalog());
@@ -75,7 +87,7 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
         assertEquals(JSONType.jsonp, response.getContentType());
 
         // Check if the character encoding is the one expected
-        assertTrue("UTF-8".equals(response.getCharacterEncoding()));
+        assertEquals("UTF-8", response.getCharacterEncoding());
 
         // Content
         String result = response.getContentAsString();
@@ -121,7 +133,7 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
         assertEquals(JSONType.jsonp, response.getContentType());
 
         // Check if the character encoding is the one expected
-        assertTrue("UTF-8".equals(response.getCharacterEncoding()));
+        assertEquals("UTF-8", response.getCharacterEncoding());
 
         // Content
         String result = response.getContentAsString();
@@ -163,7 +175,7 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
         assertEquals(JSONType.json, response.getContentType());
 
         // Check if the character encoding is the one expected
-        assertTrue("UTF-8".equals(response.getCharacterEncoding()));
+        assertEquals("UTF-8", response.getCharacterEncoding());
 
         // Content
         String result = response.getContentAsString();
@@ -198,7 +210,7 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
         assertEquals(JSONType.json, response.getContentType());
 
         // Check if the character encoding is the one expected
-        assertTrue("UTF-8".equals(response.getCharacterEncoding()));
+        assertEquals("UTF-8", response.getCharacterEncoding());
 
         // Content
         String result = response.getContentAsString();
@@ -238,10 +250,10 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
         JSONArray coords =
                 geom.getJSONArray("coordinates").getJSONArray(0).getJSONArray(0).getJSONArray(0);
         assertTrue(
-                new NumberRange<Double>(Double.class, 500525d, 500575d)
+                new NumberRange<>(Double.class, 500525d, 500575d)
                         .contains((Number) coords.getDouble(0)));
         assertTrue(
-                new NumberRange<Double>(Double.class, 500025d, 500050d)
+                new NumberRange<>(Double.class, 500025d, 500050d)
                         .contains((Number) coords.getDouble(1)));
     }
 
@@ -305,7 +317,7 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
             assertEquals(JSONType.json, response.getContentType());
 
             // Check if the character encoding is the one expected
-            assertTrue("UTF-8".equals(response.getCharacterEncoding()));
+            assertEquals("UTF-8", response.getCharacterEncoding());
 
             // Content
             String result = response.getContentAsString();
@@ -351,7 +363,7 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
             assertEquals(JSONType.json, response.getContentType());
 
             // Check if the character encoding is the one expected
-            assertTrue("UTF-8".equals(response.getCharacterEncoding()));
+            assertEquals("UTF-8", response.getCharacterEncoding());
 
             // Content
             String result = response.getContentAsString();
@@ -408,15 +420,14 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
         queryLayers.add(mapLayerInfo);
         GetFeatureInfoRequest getFeatureInfoRequest = new GetFeatureInfoRequest();
         getFeatureInfoRequest.setQueryLayers(queryLayers);
-        Map<String, Object> parameters = new HashMap<String, Object>();
+        Map<String, Object> parameters = new HashMap<>();
         parameters.put("LAYER", mapLayerInfo.getName());
         Request request = new Request();
         request.setKvp(parameters);
         Dispatcher.REQUEST.set(request);
         FeatureCollection fc = ft.getFeatureSource(null, null).getFeatures();
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-        FeatureCollectionType fct = WfsFactory.eINSTANCE.createFeatureCollectionType();
-        fct.getFeature().add(fc);
+        FeatureCollectionType fct = getFeatureCollectionType(fc);
         geoJsonResp.write(fct, getFeatureInfoRequest, outStream);
         String result = new String(outStream.toByteArray());
         JSONObject response = JSONObject.fromObject(result);
@@ -439,6 +450,13 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
         fileHeader.delete();
         fileContent.delete();
         fileFooter.delete();
+    }
+
+    @SuppressWarnings("unchecked")
+    private FeatureCollectionType getFeatureCollectionType(FeatureCollection fc) {
+        FeatureCollectionType fct = WfsFactory.eINSTANCE.createFeatureCollectionType();
+        fct.getFeature().add(fc);
+        return fct;
     }
 
     /** Test json output with two layers having both template * */
@@ -486,7 +504,7 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
         }
         GetFeatureInfoRequest getFeatureInfoRequest = new GetFeatureInfoRequest();
         getFeatureInfoRequest.setQueryLayers(queryLayers);
-        Map<String, Object> parameters = new HashMap<String, Object>();
+        Map<String, Object> parameters = new HashMap<>();
         parameters.put("LAYER", lgInfo.getName());
         Request request = new Request();
         request.setKvp(parameters);
@@ -495,7 +513,9 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
         FeatureCollectionType fct = WfsFactory.eINSTANCE.createFeatureCollectionType();
         for (LayerInfo l : layers) {
             FeatureTypeInfo fti = getCatalog().getFeatureTypeByName(l.getName());
-            fct.getFeature().add(fti.getFeatureSource(null, null).getFeatures());
+            @SuppressWarnings("unchecked")
+            EList<FeatureCollection> feature = fct.getFeature();
+            feature.add(fti.getFeatureSource(null, null).getFeatures());
         }
         geoJsonResp.write(fct, getFeatureInfoRequest, outStream);
         String result = new String(outStream.toByteArray());
@@ -570,7 +590,7 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
         }
         GetFeatureInfoRequest getFeatureInfoRequest = new GetFeatureInfoRequest();
         getFeatureInfoRequest.setQueryLayers(queryLayers);
-        Map<String, Object> parameters = new HashMap<String, Object>();
+        Map<String, Object> parameters = new HashMap<>();
         parameters.put("LAYER", lgInfo.getName());
         Request request = new Request();
         request.setKvp(parameters);
@@ -579,7 +599,9 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
         FeatureCollectionType fct = WfsFactory.eINSTANCE.createFeatureCollectionType();
         for (LayerInfo l : layers) {
             FeatureTypeInfo fti = getCatalog().getFeatureTypeByName(l.getName());
-            fct.getFeature().add(fti.getFeatureSource(null, null).getFeatures());
+            @SuppressWarnings("unchecked")
+            EList<FeatureCollection> feature = fct.getFeature();
+            feature.add(fti.getFeatureSource(null, null).getFeatures());
         }
         geoJsonResp.write(fct, getFeatureInfoRequest, outStream);
         String result = new String(outStream.toByteArray());
@@ -654,15 +676,14 @@ public class GetFeatureInfoJSONTest extends GetFeatureInfoTest {
         queryLayers.add(mapLayerInfo);
         GetFeatureInfoRequest getFeatureInfoRequest = new GetFeatureInfoRequest();
         getFeatureInfoRequest.setQueryLayers(queryLayers);
-        Map<String, Object> parameters = new HashMap<String, Object>();
+        Map<String, Object> parameters = new HashMap<>();
         parameters.put("LAYER", mapLayerInfo.getName());
         Request request = new Request();
         request.setKvp(parameters);
         Dispatcher.REQUEST.set(request);
         FeatureCollection fc = ft.getFeatureSource(null, null).getFeatures();
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-        FeatureCollectionType fct = WfsFactory.eINSTANCE.createFeatureCollectionType();
-        fct.getFeature().add(fc);
+        FeatureCollectionType fct = getFeatureCollectionType(fc);
         geoJsonResp.write(fct, getFeatureInfoRequest, outStream);
         String result = new String(outStream.toByteArray());
         JSONObject response = JSONObject.fromObject(result);

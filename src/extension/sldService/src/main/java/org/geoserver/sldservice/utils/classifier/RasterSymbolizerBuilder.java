@@ -13,7 +13,7 @@ import it.geosolutions.jaiext.classbreaks.Classification;
 import it.geosolutions.jaiext.classbreaks.ClassificationMethod;
 import it.geosolutions.jaiext.stats.Statistics;
 import it.geosolutions.jaiext.stats.Statistics.StatsType;
-import java.awt.*;
+import java.awt.Color;
 import java.awt.image.DataBuffer;
 import java.awt.image.RenderedImage;
 import java.awt.image.renderable.ParameterBlock;
@@ -23,7 +23,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
-import javax.media.jai.*;
+import javax.media.jai.Histogram;
+import javax.media.jai.JAI;
+import javax.media.jai.ParameterBlockJAI;
+import javax.media.jai.RenderedOp;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.filter.function.RangedClassifier;
 import org.geotools.image.ImageWorker;
@@ -272,7 +275,9 @@ public class RasterSymbolizerBuilder {
                 Number b = breaks[i];
                 ColorMapEntry entry = SF.createColorMapEntry();
                 entry.setQuantity(FF.literal(b));
-                entry.setLabel(format.format(b) + getPercentagesLabelPortion(percentages, i));
+                String label = format.format(b);
+                if (i > 0) label += getPercentagesLabelPortion(percentages, i - 1);
+                entry.setLabel(label);
                 colorMap.addColorMapEntry(entry);
             }
         } else {
@@ -436,7 +441,7 @@ public class RasterSymbolizerBuilder {
         if (standardDeviations == null) {
             double min = iw.getMinimums()[0];
             double max = iw.getMaximums()[0];
-            return new NumberRange(Double.class, min, max);
+            return new NumberRange<>(Double.class, min, max);
         } else {
             // Create the parameterBlock
             ParameterBlock pb = new ParameterBlock();
@@ -462,7 +467,7 @@ public class RasterSymbolizerBuilder {
                 double max = extrema[1];
                 // return a range centered in the mean with the desired number of standard
                 // deviations, but make sure it does not exceed the data minimim and maximums
-                return new NumberRange(
+                return new NumberRange<>(
                         Double.class,
                         Math.max(mean - stddev * standardDeviations, min),
                         Math.min(mean + stddev * standardDeviations, max));

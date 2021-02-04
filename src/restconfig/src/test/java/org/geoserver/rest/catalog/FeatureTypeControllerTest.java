@@ -5,11 +5,14 @@
  */
 package org.geoserver.rest.catalog;
 
-import static org.custommonkey.xmlunit.XMLAssert.*;
+import static org.custommonkey.xmlunit.XMLAssert.assertXpathEvaluatesTo;
+import static org.custommonkey.xmlunit.XMLAssert.assertXpathExists;
 import static org.geoserver.data.test.MockData.SF_PREFIX;
 import static org.geoserver.rest.RestBaseController.ROOT_PATH;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedWriter;
@@ -563,6 +566,7 @@ public class FeatureTypeControllerTest extends CatalogRESTTestSupport {
         }
         if (catalog.getResourcePool().getDataStoreCache().containsKey(dataStoreId)) {
             DataAccess dataStore = catalog.getResourcePool().getDataStoreCache().get(dataStoreId);
+            @SuppressWarnings("unchecked")
             List<Name> names = dataStore.getNames();
             assertTrue(names.contains(name));
         }
@@ -593,6 +597,7 @@ public class FeatureTypeControllerTest extends CatalogRESTTestSupport {
         }
         if (catalog.getResourcePool().getDataStoreCache().containsKey(dataStoreId)) {
             DataAccess dataStore = catalog.getResourcePool().getDataStoreCache().get(dataStoreId);
+            @SuppressWarnings("unchecked")
             List<Name> names = dataStore.getNames();
             assertTrue(names.contains(name));
         }

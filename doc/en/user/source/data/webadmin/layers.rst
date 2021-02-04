@@ -99,6 +99,8 @@ These sections provide "data about the data," specifically textual information t
 The metadata information will appear in the capabilities documents which refer to the layer.
 
 * **Name**—Identifier used to reference the layer in WMS requests.  (Note that for a new layer for an already-published resource, the name must be changed to avoid conflict.)
+* **Enabled**—A layer that is not enabled won't be available to any kind of request, it will just show up in the configuration (and in REST config)
+* **Advertised**—A layer is advertised by default. A non-advertised layer will be available in all data access requests (for example, WMS GetMap, WMS GetFeature) but won't appear in any capabilities document or in the layer preview.
 * **Title**—Human-readable description to briefly identify the layer to clients (required)
 * **Abstract**—Describes the layer in detail
 * **Keywords**—List of short words associated with the layer to assist catalog searching
@@ -212,9 +214,6 @@ The Publishing tab configures HTTP and WMS/WFS/WCS settings.
 
    Edit Layer: Publishing tab
 
-* **Enabled**—A layer that is not enabled won't be available to any kind of request, it will just show up in the configuration (and in REST config)
-* **Advertised**—A layer is advertised by default. A non-advertised layer will be available in all data access requests (for example, WMS GetMap, WMS GetFeature) but won't appear in any capabilities document or in the layer preview.
-
 HTTP Settings
 ^^^^^^^^^^^^^
 
@@ -297,6 +296,7 @@ Sets the WFS specific publishing parameters.
 
 * **Per-Request Feature Limit**—Sets the maximum number of features for a layer a WFS GetFeature operation should generate (regardless of the actual number of query hits)
 * **Maximum number of decimals**—Sets the maximum number of decimals in GML output.
+* **Activate complex to simple features conversion** - If the target output format does not handle complex features natively, this option enables the conversion of complex features to simple features, using only SF-0 (simple) attributes.  This means that nested features and multiple-value attributes will be omitted from the final result, instead of throwing errors while generating the output. Output formats capable of handling complex features are not affected.
 
   .. note::
 

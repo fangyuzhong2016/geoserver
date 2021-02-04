@@ -5,8 +5,13 @@
  */
 package org.geoserver.monitor;
 
-import static org.easymock.EasyMock.*;
-import static org.junit.Assert.*;
+import static org.easymock.EasyMock.createMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -27,7 +32,6 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -205,7 +209,7 @@ public class MonitorFilterTest {
         // "Referrer" was misspelled in the HTTP spec, check if it works with the "correct"
         // spelling.
         MockHttpServletRequest req = request("POST", "/bar/foo", "78.56.34.12", null, null);
-        ((MockHttpServletRequest) req).addHeader("Referrer", "http://testhost/testpath");
+        req.addHeader("Referrer", "http://testhost/testpath");
         filter.doFilter(req, response(), chain);
 
         RequestData data = dao.getLast();
@@ -237,7 +241,7 @@ public class MonitorFilterTest {
 
     @Test
     public void testUserRemoteUser() throws Exception {
-        Object principal = new User("username", "", Collections.<GrantedAuthority>emptyList());
+        Object principal = new User("username", "", Collections.emptyList());
 
         testRemoteUser(principal);
     }
@@ -274,7 +278,7 @@ public class MonitorFilterTest {
     @Test
     public void testDisableReverseDNSProcessor() throws Exception {
         // step 1 : verify DND lookup working without configuration option
-        Object principal = new User("username", "", Collections.<GrantedAuthority>emptyList());
+        Object principal = new User("username", "", Collections.emptyList());
         RequestData data = testRemoteUser(principal);
         assertNotNull(data.getRemoteHost());
         try {
@@ -292,7 +296,7 @@ public class MonitorFilterTest {
                                 }
                             });
 
-            principal = new User("username", "", Collections.<GrantedAuthority>emptyList());
+            principal = new User("username", "", Collections.emptyList());
             data = testRemoteUser(principal);
             assertNull(data.getRemoteHost());
         } finally {

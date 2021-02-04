@@ -11,10 +11,10 @@ import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.getCurrentArguments;
 import static org.easymock.EasyMock.replay;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -63,7 +63,7 @@ public class StyleGeneratorTest {
     @Test
     public void testGenericStyle() throws Exception {
         ResourcePool rp = createNiceMock(ResourcePool.class);
-        rp.writeStyle((StyleInfo) anyObject(), (InputStream) anyObject());
+        rp.writeStyle(anyObject(), (InputStream) anyObject());
         expectLastCall()
                 .andAnswer(
                         new IAnswer<Void>() {
@@ -140,7 +140,7 @@ public class StyleGeneratorTest {
     @Test
     public void testRasterStyle() throws Exception {
         ResourcePool rp = createNiceMock(ResourcePool.class);
-        rp.writeStyle((StyleInfo) anyObject(), (InputStream) anyObject());
+        rp.writeStyle(anyObject(), (InputStream) anyObject());
         expectLastCall()
                 .andAnswer(
                         new IAnswer<Void>() {

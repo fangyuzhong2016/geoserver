@@ -62,7 +62,8 @@ public class CachingExtendedCapabilitiesProvider implements ExtendedCapabilities
     }
 
     private boolean isTiled(GetCapabilitiesRequest request) {
-        return Boolean.valueOf(request.getRawKvp().get("TILED")).booleanValue();
+        return Boolean.valueOf(request.getRawKvp().get("TILED")).booleanValue()
+                || !gwc.getConfig().isRequireTiledParameter();
     }
 
     /**
@@ -72,7 +73,7 @@ public class CachingExtendedCapabilitiesProvider implements ExtendedCapabilities
     public List<String> getVendorSpecificCapabilitiesChildDecls(
             final GetCapabilitiesRequest request) {
         if (gwc.getConfig().isDirectWMSIntegrationEnabled() && isTiled(request)) {
-            List<String> wmscElements = new ArrayList<String>();
+            List<String> wmscElements = new ArrayList<>();
             wmscElements.add(
                     "<!ELEMENT TileSet (SRS, BoundingBox?, Resolutions, Width, Height, Format, Layers*, Styles*) >");
             wmscElements.add("<!ELEMENT Resolutions (#PCDATA) >");
@@ -149,8 +150,8 @@ public class CachingExtendedCapabilitiesProvider implements ExtendedCapabilities
         String srsStr = grid.getSRS().toString();
         StringBuilder resolutionsStr = new StringBuilder();
         double[] res = grid.getResolutions();
-        for (int i = 0; i < res.length; i++) {
-            resolutionsStr.append(Double.toString(res[i]) + " ");
+        for (double re : res) {
+            resolutionsStr.append(Double.toString(re) + " ");
         }
 
         String[] bs = boundsPrep(grid.getCoverageBestFitBounds());

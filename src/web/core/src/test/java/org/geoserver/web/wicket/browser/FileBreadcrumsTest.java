@@ -5,7 +5,7 @@
  */
 package org.geoserver.web.wicket.browser;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import org.apache.wicket.Component;
@@ -36,7 +36,8 @@ public class FileBreadcrumsTest {
                         new ComponentBuilder() {
 
                             public Component buildComponent(String id) {
-                                return new FileBreadcrumbs(id, new Model(root), new Model(leaf)) {
+                                return new FileBreadcrumbs(
+                                        id, new Model<>(root), new Model<>(leaf)) {
 
                                     @Override
                                     protected void pathItemClicked(

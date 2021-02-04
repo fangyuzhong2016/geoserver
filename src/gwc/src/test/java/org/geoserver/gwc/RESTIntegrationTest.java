@@ -8,11 +8,19 @@ package org.geoserver.gwc;
 import static org.custommonkey.xmlunit.XMLAssert.assertXpathEvaluatesTo;
 import static org.custommonkey.xmlunit.XMLAssert.assertXpathExists;
 import static org.custommonkey.xmlunit.XMLAssert.assertXpathNotExists;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isA;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
@@ -556,11 +564,10 @@ public class RESTIntegrationTest extends GeoServerSystemTestSupport {
                     filters,
                     contains(
                             allOf(
-                                    Matchers.<ParameterFilter>hasProperty("key", is("STYLES")),
+                                    Matchers.hasProperty("key", is("STYLES")),
                                     isA(
-                                            (Class<ParameterFilter>)
-                                                    StyleParameterFilter.class.asSubclass(
-                                                            ParameterFilter.class)))));
+                                            StyleParameterFilter.class.asSubclass(
+                                                    ParameterFilter.class)))));
         }
         {
             final String xml =
@@ -585,12 +592,10 @@ public class RESTIntegrationTest extends GeoServerSystemTestSupport {
                     not(
                             contains(
                                     allOf(
-                                            Matchers.<ParameterFilter>hasProperty(
-                                                    "key", is("STYLES")),
+                                            Matchers.hasProperty("key", is("STYLES")),
                                             isA(
-                                                    (Class<ParameterFilter>)
-                                                            StyleParameterFilter.class.asSubclass(
-                                                                    ParameterFilter.class))))));
+                                                    StyleParameterFilter.class.asSubclass(
+                                                            ParameterFilter.class))))));
         }
     }
 

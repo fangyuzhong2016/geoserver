@@ -5,7 +5,8 @@
  */
 package org.geoserver.wfs.response;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -46,6 +47,7 @@ import org.opengis.filter.Filter;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 
+@SuppressWarnings("unchecked") // WFS EMF model having no generics
 public class Ogr2OgrFormatTest {
 
     DataStore dataStore;
@@ -220,7 +222,7 @@ public class Ogr2OgrFormatTest {
         ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(bos.toByteArray()));
 
         // we should get two files at least, a .mif and a .mid
-        Set<String> fileNames = new HashSet<String>();
+        Set<String> fileNames = new HashSet<>();
         ZipEntry entry = null;
         while ((entry = zis.getNextEntry()) != null) {
             fileNames.add(entry.getName());

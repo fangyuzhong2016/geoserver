@@ -5,8 +5,8 @@
  */
 package org.geoserver.security.web.auth;
 
-import static org.geoserver.security.GeoServerSecurityFilterChain.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.List;
 import org.apache.wicket.extensions.markup.html.form.palette.component.Recorder;
@@ -35,6 +35,7 @@ public class AuthenticationPageTest extends AbstractSecurityWicketTestSupport {
         tester.startPage(page = new AuthenticationPage());
         tester.assertComponent("form:providerChain:authProviderNames:recorder", Recorder.class);
 
+        @SuppressWarnings("unchecked")
         List<String> selected =
                 (List<String>)
                         (page.get("form:providerChain:authProviderNames")).getDefaultModelObject();
@@ -50,7 +51,7 @@ public class AuthenticationPageTest extends AbstractSecurityWicketTestSupport {
         for (GeoServerAuthenticationProvider prov :
                 getSecurityManager().getAuthenticationProviders()) {
             if (UsernamePasswordAuthenticationProvider.class.isAssignableFrom(prov.getClass())) {
-                if (((UsernamePasswordAuthenticationProvider) prov).getName().equals("default2")) {
+                if (prov.getName().equals("default2")) {
                     authProvFound = true;
                     break;
                 }

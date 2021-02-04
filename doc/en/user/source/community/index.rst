@@ -19,7 +19,6 @@ officially part of the GeoServer releases. They are however built along with the
    oauth2/index
    keycloak/index
    dds/index
-   scripting/index
    colormap/index
    jdbcconfig/index
    mbtiles/index
@@ -58,6 +57,9 @@ officially part of the GeoServer releases. They are however built along with the
    csw-iso/index
    importer-jdbc/index
    hana/index
-   wfs-templating/index
+   features-templating/index
    ogc-api/index
    gsr/index
+   imagemosaic-jdbc/index
+   cog/index
+   wps-jdbc/index

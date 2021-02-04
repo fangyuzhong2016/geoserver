@@ -4,7 +4,9 @@
  */
 package org.geoserver.wms.utfgrid;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Collections;
 import java.util.Map;
@@ -45,7 +47,7 @@ public class UTFGridIntegrationTest extends WMSTestSupport {
         testData.addStyle("population", "Population.sld", GetMapIntegrationTest.class, catalog);
         testData.addVectorLayer(
                 new QName(MockData.SF_URI, "states", MockData.SF_PREFIX),
-                Collections.EMPTY_MAP,
+                Collections.emptyMap(),
                 "states.properties",
                 GetMapIntegrationTest.class,
                 catalog);

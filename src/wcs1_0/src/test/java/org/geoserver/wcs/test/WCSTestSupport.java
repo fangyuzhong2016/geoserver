@@ -6,7 +6,8 @@
 package org.geoserver.wcs.test;
 
 import static org.custommonkey.xmlunit.XMLAssert.assertXpathEvaluatesTo;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import java.io.File;
 import java.math.BigDecimal;
@@ -94,7 +95,7 @@ public abstract class WCSTestSupport extends CoverageTestSupport {
         super.onSetUp(testData);
 
         // init xmlunit
-        Map<String, String> namespaces = new HashMap<String, String>();
+        Map<String, String> namespaces = new HashMap<>();
         namespaces.put("wcs", "http://www.opengis.net/wcs");
         namespaces.put("ows", "http://www.opengis.net/ows/1.1");
         namespaces.put("gml", "http://www.opengis.net/gml");

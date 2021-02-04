@@ -7,9 +7,9 @@
 package org.geoserver.test;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -270,7 +270,7 @@ public abstract class AbstractAppSchemaTestSupport extends GeoServerSystemTestSu
     private XpathEngine getXpathEngine() {
         if (xpathEngine == null) {
             xpathEngine = XMLUnit.newXpathEngine();
-            Map<String, String> namespaces = new HashMap<String, String>();
+            Map<String, String> namespaces = new HashMap<>();
             namespaces.putAll(WFS_NAMESPACES);
             namespaces.putAll(getTestData().getNamespaces());
             xpathEngine.setNamespaceContext(new SimpleNamespaceContext(namespaces));

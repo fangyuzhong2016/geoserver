@@ -7,7 +7,10 @@
 package org.geoserver.security.impl;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -99,9 +102,9 @@ public class MemoryUserDetailsServiceTest extends AbstractUserDetailsServiceTest
 
         String plainpassword = "geoserver";
         UserDetails admin = service.loadUserByUsername(GeoServerUser.ADMIN_USERNAME);
-        assertFalse(plainpassword.equals(admin.getPassword()));
+        assertNotEquals(plainpassword, admin.getPassword());
         UserDetails admin2 = decService.loadUserByUsername(GeoServerUser.ADMIN_USERNAME);
-        assertTrue(plainpassword.equals(admin2.getPassword()));
+        assertEquals(plainpassword, admin2.getPassword());
     }
 
     @Test

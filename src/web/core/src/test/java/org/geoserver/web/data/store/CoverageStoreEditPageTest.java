@@ -5,7 +5,11 @@
  */
 package org.geoserver.web.data.store;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.List;
@@ -130,7 +134,7 @@ public class CoverageStoreEditPageTest extends GeoServerWicketTestSupport {
 
         CoverageStoreInfo store = catalog.getCoverageStore(coverageStore.getId());
         WorkspaceInfo workspace = store.getWorkspace();
-        assertFalse(MockData.WCS_PREFIX.equals(workspace.getName()));
+        assertNotEquals(MockData.WCS_PREFIX, workspace.getName());
 
         // was the namespace for the datastore resources updated?
         List<CoverageInfo> resourcesByStore;

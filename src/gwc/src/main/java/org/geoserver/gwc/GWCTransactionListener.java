@@ -15,9 +15,15 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.namespace.QName;
-import net.opengis.wfs.*;
+import net.opengis.wfs.DeleteElementType;
+import net.opengis.wfs.InsertElementType;
+import net.opengis.wfs.TransactionType;
+import net.opengis.wfs.UpdateElementType;
 import org.eclipse.emf.ecore.EObject;
-import org.geoserver.wfs.*;
+import org.geoserver.wfs.TransactionCallback;
+import org.geoserver.wfs.TransactionEvent;
+import org.geoserver.wfs.TransactionEventType;
+import org.geoserver.wfs.WFSException;
 import org.geoserver.wfs.request.TransactionRequest;
 import org.geoserver.wfs.request.TransactionResponse;
 import org.geotools.data.simple.SimpleFeatureCollection;
@@ -128,7 +134,7 @@ public class GWCTransactionListener implements TransactionCallback {
     private ReferencedEnvelope merge(
             final String tileLayerName, final List<ReferencedEnvelope> dirtyList)
             throws TransformException, FactoryException {
-        if (dirtyList.size() == 0) {
+        if (dirtyList.isEmpty()) {
             return null;
         }
 
@@ -216,7 +222,7 @@ public class GWCTransactionListener implements TransactionCallback {
                 (Map<String, List<ReferencedEnvelope>>)
                         extendedProperties.get(GWC_TRANSACTION_INFO_PLACEHOLDER);
         if (byLayerDirtyRegions == null) {
-            byLayerDirtyRegions = new HashMap<String, List<ReferencedEnvelope>>();
+            byLayerDirtyRegions = new HashMap<>();
             extendedProperties.put(GWC_TRANSACTION_INFO_PLACEHOLDER, byLayerDirtyRegions);
         }
         return byLayerDirtyRegions;
@@ -232,7 +238,7 @@ public class GWCTransactionListener implements TransactionCallback {
 
         List<ReferencedEnvelope> layerDirtyRegion = byLayerDirtyRegions.get(tileLayerName);
         if (layerDirtyRegion == null) {
-            layerDirtyRegion = new ArrayList<ReferencedEnvelope>(2);
+            layerDirtyRegion = new ArrayList<>(2);
             byLayerDirtyRegions.put(tileLayerName, layerDirtyRegion);
         }
         layerDirtyRegion.add(affectedBounds);

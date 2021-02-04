@@ -18,7 +18,11 @@ import org.geoserver.web.wicket.GeoServerDataProvider.Property;
 import org.geoserver.web.wicket.GeoServerTablePanel;
 import org.geoserver.web.wicket.ImageAjaxLink;
 import org.geoserver.web.wicket.ParamResourceModel;
-import wicketdnd.*;
+import wicketdnd.DragSource;
+import wicketdnd.DropTarget;
+import wicketdnd.Location;
+import wicketdnd.Operation;
+import wicketdnd.Transfer;
 import wicketdnd.theme.WebTheme;
 
 public class GeofenceServerAdminPage extends GeoServerSecuredPage {
@@ -72,8 +76,7 @@ public class GeofenceServerAdminPage extends GeoServerSecuredPage {
                                     IModel<ShortAdminRule> itemModel,
                                     Property<ShortAdminRule> property) {
                                 if (property == GeofenceAdminRulesModel.BUTTONS) {
-                                    return new ButtonPanel(
-                                            id, (ShortAdminRule) itemModel.getObject());
+                                    return new ButtonPanel(id, itemModel.getObject());
                                 }
                                 return null;
                             }

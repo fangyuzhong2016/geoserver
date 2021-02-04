@@ -5,12 +5,21 @@
 package org.geoserver.wms.vector;
 
 import static org.geotools.renderer.lite.VectorMapRenderUtils.getStyleQuery;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertSame;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableSet;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -18,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import org.apache.wicket.spring.test.ApplicationContextMock;
 import org.geoserver.catalog.SLDHandler;
 import org.geoserver.config.GeoServerLoader;
@@ -31,6 +41,10 @@ import org.geoserver.wms.mapbox.MapBoxTileBuilderFactory;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.Query;
 import org.geotools.data.memory.MemoryDataStore;
+import org.geotools.data.memory.MemoryFeatureSource;
+import org.geotools.data.simple.SimpleFeatureSource;
+import org.geotools.data.store.ContentEntry;
+import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.filter.text.ecql.ECQL;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -42,11 +56,12 @@ import org.geotools.referencing.CRS;
 import org.geotools.styling.NamedLayer;
 import org.geotools.styling.Style;
 import org.geotools.styling.StyledLayerDescriptor;
+import org.geotools.util.factory.Hints;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.ParseException;
 import org.mockito.Mockito;
@@ -189,7 +204,7 @@ public class VectorTileMapOutputFormatTest {
                 createMapContent(mapBounds, renderingArea, 0, scaleDependentPolygonLayer);
 
         Query q = getStyleQuery(scaleDependentPolygonLayer, mapContent);
-        assertTrue(q.getFilter() != Filter.EXCLUDE);
+        assertNotSame(q.getFilter(), Filter.EXCLUDE);
 
         // ------------------- abnormal case, there are no rules in the sld that will draw
 
@@ -200,7 +215,7 @@ public class VectorTileMapOutputFormatTest {
         mapContent = createMapContent(mapBounds, renderingArea, 0, scaleDependentPolygonLayer);
 
         q = getStyleQuery(scaleDependentPolygonLayer, mapContent);
-        assertTrue(q.getFilter() == Filter.EXCLUDE);
+        assertSame(q.getFilter(), Filter.EXCLUDE);
     }
 
     // the calculated style buffer must account for oversampling
@@ -228,7 +243,14 @@ public class VectorTileMapOutputFormatTest {
                         any(ReferencedEnvelope.class),
                         any(Rectangle.class),
                         any(CoordinateReferenceSystem.class),
+                        anyKeySet(),
+                        any(Hints.class),
                         eq(expectedBuffer));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Set<RenderingHints.Key> anyKeySet() {
+        return (Set<RenderingHints.Key>) any(Set.class);
     }
 
     @Test
@@ -250,35 +272,40 @@ public class VectorTileMapOutputFormatTest {
                         eq("point1"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, times(1))
                 .addFeature(
                         eq("points"),
                         eq("point2"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, times(1))
                 .addFeature(
                         eq("points"),
                         eq("point3"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, never())
                 .addFeature(
                         eq("points"),
                         eq("pointFar"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, times(1))
                 .addFeature(
                         eq("points"),
                         eq("pointNear"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> anyProperties() {
+        return any(Map.class);
     }
 
     @Test
@@ -304,35 +331,35 @@ public class VectorTileMapOutputFormatTest {
                         eq("point1"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, times(1))
                 .addFeature(
                         eq("points"),
                         eq("point2"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, times(1))
                 .addFeature(
                         eq("points"),
                         eq("point3"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, never())
                 .addFeature(
                         eq("points"),
                         eq("pointFar"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, times(1))
                 .addFeature(
                         eq("points"),
                         eq("pointNear"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
     }
 
     @Test
@@ -354,35 +381,35 @@ public class VectorTileMapOutputFormatTest {
                         eq("point1"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, times(1))
                 .addFeature(
                         eq("points"),
                         eq("point2"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, times(1))
                 .addFeature(
                         eq("points"),
                         eq("point3"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, never())
                 .addFeature(
                         eq("points"),
                         eq("pointFar"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, never())
                 .addFeature(
                         eq("points"),
                         eq("pointNear"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
     }
 
     @Test
@@ -405,35 +432,35 @@ public class VectorTileMapOutputFormatTest {
                         eq("point1"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, times(1))
                 .addFeature(
                         eq("points"),
                         eq("point2"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, never())
                 .addFeature(
                         eq("points"),
                         eq("point3"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, never())
                 .addFeature(
                         eq("points"),
                         eq("pointFar"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
         verify(tileBuilderMock, never())
                 .addFeature(
                         eq("points"),
                         eq("pointNear"),
                         eq("geom"),
                         any(Geometry.class),
-                        any(Map.class));
+                        anyProperties());
     }
 
     private WMSMapContent createMapContent(
@@ -480,7 +507,7 @@ public class VectorTileMapOutputFormatTest {
 
         request.setLayers(layers);
         request.setStyles(styles);
-        request.setBbox((Envelope) requestEnvelope);
+        request.setBbox(requestEnvelope);
         request.setCrs(requestEnvelope.getCoordinateReferenceSystem());
         if (requestEnvelope.getCoordinateReferenceSystem() == WGS84) {
             request.setSRS("EPSG:4326");
@@ -491,9 +518,85 @@ public class VectorTileMapOutputFormatTest {
         }
         request.setWidth(renderingArea.width);
         request.setHeight(renderingArea.height);
-        request.setRawKvp(new HashMap<String, String>());
+        request.setRawKvp(new HashMap<>());
         request.setBuffer(buffer);
         return request;
+    }
+
+    @Test
+    public void testPregeneralized() throws Exception {
+        /** Simple class to MOCK a Datastore supporting PreGeneralized features */
+        final class PregenDataStore extends MemoryDataStore {
+
+            final class _FeatureSource extends MemoryFeatureSource {
+                public _FeatureSource(ContentEntry entry, Query q) {
+                    super(entry, q);
+                }
+
+                @Override
+                protected void addHints(Set<org.geotools.util.factory.Hints.Key> hints) {
+                    hints.add(Hints.GEOMETRY_DISTANCE);
+                }
+            }
+
+            /** Creates the new feature store. */
+            public PregenDataStore() throws IOException {
+                super();
+            }
+
+            @Override
+            protected ContentFeatureSource createFeatureSource(ContentEntry entry, Query query) {
+                return new _FeatureSource(entry, query);
+            }
+        }
+
+        final String polyTypeSpec = "sp:String,ip:Integer,geom:Polygon:srid=4326";
+        final SimpleFeatureType pregenPolyType =
+                DataUtilities.createType("pregenPolygon", polyTypeSpec);
+
+        final MemoryDataStore _ds = new PregenDataStore();
+        _ds.addFeature(
+                feature(
+                        pregenPolyType,
+                        "pregenPolygon1",
+                        "StringPropX_1",
+                        1000,
+                        "POLYGON ((1 1, 2 2, 3 3, 4 4, 1 1))"));
+
+        final SimpleFeatureSource fs = _ds.getFeatureSource("pregenPolygon");
+
+        final FeatureLayer pregeneralizedLayer = new FeatureLayer(fs, defaultPolygonStyle);
+
+        final ReferencedEnvelope mapBounds = new ReferencedEnvelope(-90, 90, 0, 180, WGS84);
+        final Rectangle renderingArea = new Rectangle(256, 256);
+
+        final WMSMapContent mapContent =
+                createMapContent(mapBounds, renderingArea, 0, pregeneralizedLayer);
+
+        // ensure that the FeatureSource supports GEOMETRY_DISTANCE
+        Assert.assertTrue(
+                pregeneralizedLayer
+                        .getSimpleFeatureSource()
+                        .getSupportedHints()
+                        .contains(Hints.GEOMETRY_DISTANCE));
+
+        MapBoxTileBuilderFactory mbbf = new MapBoxTileBuilderFactory();
+        VectorTileMapOutputFormat vtof = new VectorTileMapOutputFormat(mbbf);
+        VectorTileMapOutputFormat vtof_spy = Mockito.spy(vtof);
+
+        // lets produce a map
+        vtof_spy.produceMap(mapContent);
+
+        // verify that the Pipeline recognize the Hint support adding the hint to the query
+        Mockito.verify(vtof_spy)
+                .getPipeline(
+                        any(WMSMapContent.class),
+                        any(ReferencedEnvelope.class),
+                        any(Rectangle.class),
+                        any(CoordinateReferenceSystem.class),
+                        anyKeySet(),
+                        argThat((Hints qH) -> qH.containsKey(Hints.GEOMETRY_DISTANCE)),
+                        any(Integer.class));
     }
 
     // @Test

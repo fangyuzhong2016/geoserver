@@ -45,10 +45,9 @@ public class LDAPRoleServiceTest extends LDAPBaseTest {
     }
 
     protected void configureAuthentication() {
-        ((LDAPRoleServiceConfig) config)
-                .setUser(
-                        "uid=admin,ou=People,dc=example,dc=com"); // ("uid=admin,ou=People,dc=example,dc=com");
-        ((LDAPRoleServiceConfig) config).setPassword("admin");
+        config.setUser(
+                "uid=admin,ou=People,dc=example,dc=com"); // ("uid=admin,ou=People,dc=example,dc=com");
+        config.setPassword("admin");
         config.setBindBeforeGroupSearch(true);
     }
 
@@ -274,12 +273,15 @@ public class LDAPRoleServiceTest extends LDAPBaseTest {
 
         @Test
         public void checkHierarchicalRolesUsers() throws IOException {
+            createRoleService(true);
             config.setUserNameAttribute("uid");
             config.setGroupNameAttribute("cn");
             config.setUseNestedParentGroups(true);
-            config.setNestedGroupSearchFilter("member={0}");
-            config.setGroupSearchFilter("member={1}");
+            // ,dc=example,dc=com
+            config.setNestedGroupSearchFilter("member={1}");
+            config.setGroupSearchFilter("member={1},dc=example,dc=com");
             config.setUserFilter("uid={0}");
+            config.setMaxGroupSearchLevel(5);
             service = new LDAPRoleService();
             service.initializeFromConfig(config);
             SortedSet<String> userNames =
@@ -288,6 +290,9 @@ public class LDAPRoleServiceTest extends LDAPBaseTest {
             assertEquals(2, userNames.size());
             // check parent role ROLE_EXTRA
             assertTrue(userNames.stream().anyMatch(u -> "nestedUser".equals(u)));
+            // check nested roles
+            SortedSet<GeoServerRole> roles = service.getRolesForUser("nestedUser");
+            assertEquals(6, roles.size());
         }
     }
 }

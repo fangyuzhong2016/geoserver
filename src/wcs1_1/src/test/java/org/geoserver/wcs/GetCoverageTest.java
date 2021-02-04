@@ -8,8 +8,8 @@ package org.geoserver.wcs;
 import static org.geoserver.data.test.MockData.TASMANIA_BM;
 import static org.geoserver.data.test.MockData.WORLD;
 import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.vfny.geoserver.wcs.WcsException.WcsExceptionCode.InvalidParameterValue;
@@ -158,7 +158,7 @@ public class GetCoverageTest extends AbstractGetCoverageTest {
 
     @Test
     public void testDefaultGridOrigin() throws Exception {
-        Map<String, Object> raw = new HashMap<String, Object>(baseMap());
+        Map<String, Object> raw = new HashMap<>(baseMap());
         final String getLayerId = getLayerId(TASMANIA_BM);
         raw.put("identifier", getLayerId);
         raw.put("format", "image/geotiff");
@@ -174,7 +174,7 @@ public class GetCoverageTest extends AbstractGetCoverageTest {
 
     @Test
     public void testSpatialSubsetOnePixel() throws Exception {
-        Map<String, Object> raw = new HashMap<String, Object>(baseMap());
+        Map<String, Object> raw = new HashMap<>(baseMap());
         final String getLayerId = getLayerId(RAIN);
         raw.put("identifier", getLayerId);
         raw.put("format", "image/geotiff");

@@ -4,7 +4,7 @@
  */
 package org.geoserver.wcs2_0.eo.web;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.wicket.Component;
 import org.apache.wicket.model.Model;
@@ -33,7 +33,7 @@ public class WCSEOAdminPanelTest extends GeoServerWicketTestSupport {
                         new ComponentBuilder() {
 
                             public Component buildComponent(String id) {
-                                return new WCSEOAdminPanel(id, new Model(wcs));
+                                return new WCSEOAdminPanel(id, new Model<>(wcs));
                             }
                         }));
     }
@@ -48,6 +48,6 @@ public class WCSEOAdminPanelTest extends GeoServerWicketTestSupport {
         // print(tester.getLastRenderedPage(), true, true);
 
         tester.assertModelValue("form:panel:enabled", true);
-        assertTrue((boolean) wcs.getMetadata().get(WCSEOMetadata.ENABLED.key, Boolean.class));
+        assertTrue(wcs.getMetadata().get(WCSEOMetadata.ENABLED.key, Boolean.class));
     }
 }

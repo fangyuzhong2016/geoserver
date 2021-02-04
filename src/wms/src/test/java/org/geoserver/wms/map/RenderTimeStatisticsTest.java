@@ -4,7 +4,8 @@
  */
 package org.geoserver.wms.map;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,7 +24,7 @@ public class RenderTimeStatisticsTest {
 
     @Before
     public void setUp() {
-        layers = new ArrayList<Layer>(2);
+        layers = new ArrayList<>(2);
         layers.add(
                 new Layer() {
 

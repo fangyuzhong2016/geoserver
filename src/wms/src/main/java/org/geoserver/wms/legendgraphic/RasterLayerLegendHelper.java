@@ -5,9 +5,13 @@
  */
 package org.geoserver.wms.legendgraphic;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.GradientPaint;
+import java.awt.Graphics2D;
+import java.awt.Point;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.awt.image.IndexColorModel;
 import java.util.HashMap;
 import java.util.List;
 import javax.imageio.ImageIO;
@@ -241,13 +245,10 @@ public class RasterLayerLegendHelper {
                 // creating a legend
                 image = cMapLegendCreator.getLegend();
             else {
-                image = ImageUtils.createImage(width, height, (IndexColorModel) null, transparent);
+                image = ImageUtils.createImage(width, height, null, transparent);
                 final Graphics2D graphics =
                         ImageUtils.prepareTransparency(
-                                transparent,
-                                bgColor,
-                                image,
-                                new HashMap<RenderingHints.Key, Object>());
+                                transparent, bgColor, image, new HashMap<>());
                 if (defaultLegend == null) {
                     drawRasterIcon(graphics);
                 } else {

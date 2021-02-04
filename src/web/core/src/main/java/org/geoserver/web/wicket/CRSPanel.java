@@ -8,6 +8,7 @@ package org.geoserver.web.wicket;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import org.apache.wicket.AttributeModifier;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.form.AjaxFormComponentUpdatingBehavior;
@@ -49,8 +50,7 @@ public class CRSPanel extends FormComponentPanel<CoordinateReferenceSystem> {
     private static Logger LOGGER = Logging.getLogger(CRSPanel.class);
     private static final long serialVersionUID = -6677103383336166008L;
 
-    private static Behavior READ_ONLY =
-            new AttributeModifier("readonly", new Model<String>("readonly"));
+    private static Behavior READ_ONLY = new AttributeModifier("readonly", new Model<>("readonly"));
 
     /** pop-up window for WKT and SRS list */
     protected ModalWindow popupWindow;
@@ -68,6 +68,8 @@ public class CRSPanel extends FormComponentPanel<CoordinateReferenceSystem> {
     protected GeoServerAjaxFormLink wktLink;
 
     protected SRSProvider srsProvider = new SRSProvider();
+
+    boolean useSRSFromList = false;
 
     /**
      * Constructs the CRS panel.
@@ -125,6 +127,27 @@ public class CRSPanel extends FormComponentPanel<CoordinateReferenceSystem> {
         initComponents();
     }
 
+    /**
+     * Constructs the CRS panel with an explicit model.
+     *
+     * @param id The component id.
+     * @param model The model, usually a {@link PropertyModel}.
+     * @param otherSRS list of srs to show in popup
+     * @param useSRSFromList flag to ensure the srsTextField is always populated with SRS code from
+     *     srs items from otherSRS items. This will ensure that non EPSG:XXX formats will stay
+     *     intact on GUI and Catalog
+     */
+    public CRSPanel(
+            String id,
+            IModel<CoordinateReferenceSystem> model,
+            List<String> otherSRS,
+            boolean useSRSFromList) {
+        super(id, model);
+        this.srsProvider = new SRSProvider(otherSRS);
+        this.useSRSFromList = useSRSFromList;
+        initComponents();
+    }
+
     /*
      * helper for internally creating the panel.
      */
@@ -133,7 +156,7 @@ public class CRSPanel extends FormComponentPanel<CoordinateReferenceSystem> {
         popupWindow = new ModalWindow("popup");
         add(popupWindow);
 
-        srsTextField = new TextField<String>("srs", new Model<String>());
+        srsTextField = new TextField<>("srs", new Model<>());
         add(srsTextField);
         srsTextField.setOutputMarkupId(true);
 
@@ -144,8 +167,7 @@ public class CRSPanel extends FormComponentPanel<CoordinateReferenceSystem> {
                     protected void onUpdate(AjaxRequestTarget target) {
                         convertInput();
 
-                        CoordinateReferenceSystem crs =
-                                (CoordinateReferenceSystem) getConvertedInput();
+                        CoordinateReferenceSystem crs = getConvertedInput();
                         if (crs != null) {
                             setModelObject(crs);
                             wktLabel.setDefaultModelObject(crs.getName().toString());
@@ -178,8 +200,7 @@ public class CRSPanel extends FormComponentPanel<CoordinateReferenceSystem> {
                         popupWindow.setInitialHeight(375);
                         popupWindow.setInitialWidth(525);
                         popupWindow.setContent(new WKTPanel(popupWindow.getContentId(), getCRS()));
-                        CoordinateReferenceSystem crs =
-                                (CoordinateReferenceSystem) CRSPanel.this.getModelObject();
+                        CoordinateReferenceSystem crs = CRSPanel.this.getModelObject();
                         if (crs != null) popupWindow.setTitle(crs.getName().toString());
                         popupWindow.show(target);
                     }
@@ -194,7 +215,7 @@ public class CRSPanel extends FormComponentPanel<CoordinateReferenceSystem> {
 
     @Override
     protected void onBeforeRender() {
-        CoordinateReferenceSystem crs = (CoordinateReferenceSystem) getModelObject();
+        CoordinateReferenceSystem crs = getModelObject();
         if (crs != null) {
             srsTextField.setModelObject(toSRS(crs));
             wktLabel.setDefaultModelObject(crs.getName().toString());
@@ -221,6 +242,28 @@ public class CRSPanel extends FormComponentPanel<CoordinateReferenceSystem> {
             crs = fromSRS(srs);
         }
         setConvertedInput(crs);
+    }
+
+    private String getSupportedSRS(CoordinateReferenceSystem crs) {
+
+        List<String> supportedSRSList =
+                this.srsProvider
+                        .getItems()
+                        .stream()
+                        .map(srsObject -> srsObject.getCode())
+                        .collect(Collectors.toList());
+
+        for (String supportedSRS : supportedSRSList) {
+            try {
+                if (CRS.equalsIgnoreMetadata(CRS.decode(supportedSRS), crs)) {
+                    return supportedSRS;
+                }
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING, "Unknown code " + supportedSRS, e);
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -269,6 +312,7 @@ public class CRSPanel extends FormComponentPanel<CoordinateReferenceSystem> {
             if (crs != null) {
                 Integer epsgCode = CRS.lookupEpsgCode(crs, false);
                 String srs = srsTextField.getModelObject();
+                if (useSRSFromList) srs = getSupportedSRS(crs);
                 // do not append
                 if (srs != null
                         && srs.contains(
@@ -353,7 +397,7 @@ public class CRSPanel extends FormComponentPanel<CoordinateReferenceSystem> {
             add(wktLabel);
 
             if (crs != null) {
-                wktLabel.setDefaultModel(new Model<String>(crs.toString()));
+                wktLabel.setDefaultModel(new Model<>(crs.toString()));
             }
         }
     }

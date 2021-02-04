@@ -6,7 +6,8 @@
 
 package org.geoserver.test;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -125,7 +126,7 @@ public class IdFunctionWfsTest extends AbstractAppSchemaTestSupport {
                     doc);
             // multi-valued leaf attributes that are feature chained come in random order
             // when joining is used
-            List<String> names = new ArrayList<String>();
+            List<String> names = new ArrayList<>();
             names.add("Yaugher Volcanic Group");
             names.add("-Py");
             String name =
@@ -181,7 +182,7 @@ public class IdFunctionWfsTest extends AbstractAppSchemaTestSupport {
                     doc);
             // multi-valued leaf attributes that are feature chained come in random order
             // when joining is used
-            HashMap<String, String> names = new HashMap<String, String>();
+            HashMap<String, String> names = new HashMap<>();
             names.put("Yaugher Volcanic Group 1", "urn:ietf:rfc:2141");
             names.put("Yaugher Volcanic Group 2", "urn:ietf:rfc:2141");
             names.put("-Py", "");
@@ -300,7 +301,7 @@ public class IdFunctionWfsTest extends AbstractAppSchemaTestSupport {
                             + "']/gsml:specification"
                             + "/gsml:GeologicUnit/gml:name[@codeSpace='urn:ietf:rfc:2141']",
                     doc);
-            List<String> names = new ArrayList<String>();
+            List<String> names = new ArrayList<>();
             names.add("New Group");
             names.add("-Xy");
             String name =

@@ -110,7 +110,7 @@ Classify Raster and Vector Data
 
 The service can be used to create a set of SLD rules for the given vector
 layer, specifying the **attribute** used for classification, the  **classification 
-type** (equalInterval, uniqueInterval, quantile, jenks, equalArea) and one of the
+type** (equalInterval, uniqueInterval, quantile, jenks, equalArea, standardDeviation) and one of the
 **predefined color ranges** (red, blue, gray, jet, random, custom), together
 with some other optional parameters.
 
@@ -139,7 +139,7 @@ The parameters usable to customize the ColorMap are:
      - No default for vectors, "1" for rasters
    * - method
      - Classification method
-     - equalInterval, uniqueInterval, quantile, jenks, equalArea
+     - equalInterval, uniqueInterval, quantile, jenks, equalArea, standardDeviation (intervals above and below the mean of one standard deviation, available for vectors only)
      - equalInterval
    * - open
      - open or closed ranges
@@ -634,3 +634,72 @@ A CUSTOM color ramp with 5 classes, with colors ranging from RED (0xFF0000) to B
         </sld:NamedLayer>
     </sld:StyledLayerDescriptor>
  
+
+Capabilities
+------------
+``/capabilities[.<format>]``
+
+.. list-table::
+   :header-rows: 1
+
+   * - Method
+     - Action
+     - Status code
+     - Formats
+     - Default Format
+   * - GET
+     - Returns the supported classification's methods for rasters and vectors
+     - 200
+     - JSON, XML
+     - JSON
+
+The service can be used to retrieve the capabilities of the SldService plugin. At the time of writing the endoint
+will simply return a list of supported classification's methods for both raster and vector data. It can be usefull i.e. for clients who might be dealing with different GeoServer versions to know which classification methods is available to be used.
+Follow the service's outputs in json and xml format:
+
+.. code-block:: json
+
+    {
+    "capabilities": {
+        "vector": {
+            "classifications": [
+                "quantile",
+                "jenks",
+                "equalArea",
+                "equalInterval",
+                "uniqueInterval",
+                "standardDeviation"
+            ]
+        },
+        "raster": {
+            "classifications": [
+                "quantile",
+                "jenks",
+                "equalArea",
+                "equalInterval",
+                "uniqueInterval"
+            ]
+        }
+    }
+ }
+
+
+.. code-block:: xml
+
+  <capabilities>
+    <vector>
+        <classifications>quantile</classifications>
+        <classifications>jenks</classifications>
+        <classifications>equalArea</classifications>
+        <classifications>equalInterval</classifications>
+        <classifications>uniqueInterval</classifications>
+        <classifications>standardDeviation</classifications>
+    </vector>
+    <raster>
+        <classifications>quantile</classifications>
+        <classifications>jenks</classifications>
+        <classifications>equalArea</classifications>
+        <classifications>equalInterval</classifications>
+        <classifications>uniqueInterval</classifications>
+    </raster>
+ </capabilities>

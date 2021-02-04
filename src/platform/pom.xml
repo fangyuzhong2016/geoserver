@@ -11,10 +11,9 @@
  <parent>
   <groupId>org.geoserver</groupId>
   <artifactId>geoserver</artifactId>
-  <version>2.18-SNAPSHOT</version>
+  <version>2.19-SNAPSHOT</version>
  </parent>
 
- <groupId>org.geoserver</groupId>
  <artifactId>gs-platform</artifactId>
  <packaging>jar</packaging>
  <name>Core Platform Module</name>
@@ -72,6 +71,7 @@
   <dependency>
    <groupId>junit</groupId>
    <artifactId>junit</artifactId>
+   <scope>test</scope>
   </dependency>
   <dependency>
    <groupId>xmlunit</groupId>

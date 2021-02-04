@@ -5,8 +5,10 @@
  */
 package org.geoserver.wfs.response;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -20,7 +22,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -559,6 +560,43 @@ public class ShapeZipTest extends WFSTestSupport {
                 get4326_ESRI_WKTContent());
     }
 
+    @Test
+    public void testDoNotIncludeWFSRequestDumpFile() throws Exception {
+        final FeatureSource fs = getFeatureSource(SystemTestData.BASIC_POLYGONS);
+        GeoServer g = getGeoServer();
+        ShapeZipOutputFormat zip =
+                new ShapeZipOutputFormat(
+                        g,
+                        (Catalog) GeoServerExtensions.bean("catalog"),
+                        (GeoServerResourceLoader) GeoServerExtensions.bean("resourceLoader"));
+        zip.gs.getService(WFSInfo.class).setIncludeWFSRequestDumpFile(false);
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        FeatureCollectionResponse fct =
+                FeatureCollectionResponse.adapt(WfsFactory.eINSTANCE.createFeatureCollectionType());
+        fct.getFeature().add(fs.getFeatures());
+
+        // add the charset
+        Map options = new HashMap();
+        gft.setFormatOptions(options);
+        zip.write(fct, bos, op);
+
+        byte[] byteArrayZip = bos.toByteArray();
+        ByteArrayInputStream b = new ByteArrayInputStream(byteArrayZip);
+        checkForWFSRequestDumpFile(b, false);
+    }
+
+    @Test
+    public void testIncludeWFSRequestDumpFile() throws Exception {
+        GeoServer gs = getGeoServer();
+        gs.getService(WFSInfo.class).setIncludeWFSRequestDumpFile(true);
+        MockHttpServletResponse response =
+                getAsServletResponse(
+                        "wfs?service=WFS&version=1.0.0"
+                                + "&request=GetFeature&typeName="
+                                + getLayerId(SystemTestData.BASIC_POLYGONS)
+                                + "&outputFormat=SHAPE-ZIP");
+        checkForWFSRequestDumpFile(getBinaryInputStream(response), true);
+    }
     /**
      * Saves the feature source contents into a zipped shapefile, returns the output as a byte array
      */
@@ -636,8 +674,7 @@ public class ShapeZipTest extends WFSTestSupport {
         SimpleFeatureCollection fc = fs.getFeatures();
         SimpleFeatureType schema = fc.getSchema();
 
-        SimpleFeatureIterator iter = fc.features();
-        try {
+        try (SimpleFeatureIterator iter = fc.features()) {
             // check that every field has a not null or "empty" value
             while (iter.hasNext()) {
                 SimpleFeature f = iter.next();
@@ -646,13 +683,11 @@ public class ShapeZipTest extends WFSTestSupport {
                     if (Geometry.class.isAssignableFrom(attrValue.getClass()))
                         assertFalse("Empty geometry", ((Geometry) attrValue).isEmpty());
                     else
-                        assertFalse(
-                                "Empty value for attribute",
-                                attrValue.toString().trim().equals(""));
+                        assertNotEquals(
+                                "Empty value for attribute", "", attrValue.toString().trim());
                 }
             }
         } finally {
-            iter.close();
             ds.dispose();
             FileUtils.deleteQuietly(tempFolder);
         }
@@ -715,6 +750,24 @@ public class ShapeZipTest extends WFSTestSupport {
         zis.close();
     }
 
+    private void checkForWFSRequestDumpFile(final InputStream in, boolean includeWFSRequestDumpFile)
+            throws IOException {
+        ZipInputStream zis = new ZipInputStream(in);
+        ZipEntry entry = null;
+        byte[] bytes = new byte[1024];
+        boolean foundWFSRequestDumpFile = false;
+        while ((entry = zis.getNextEntry()) != null) {
+            if (entry.getName().endsWith(".txt")) {
+                foundWFSRequestDumpFile = true;
+            }
+        }
+        zis.close();
+        if (includeWFSRequestDumpFile) {
+            assertTrue("Found wfsrequest.txt in shape/zip output", foundWFSRequestDumpFile);
+        } else {
+            assertFalse("Did not find wfsrequest.txt in shape/zip output", foundWFSRequestDumpFile);
+        }
+    }
     /**
      * Asserts the contents for the file named {@code fileName} contained in the zip file given by
      * the {@code zippedIn} matched the {@code expectedContent}
@@ -723,9 +776,8 @@ public class ShapeZipTest extends WFSTestSupport {
             final String fileName, final InputStream zippedIn, final String expectedContent)
             throws IOException {
 
-        ZipInputStream zis = new ZipInputStream(zippedIn);
-        ZipEntry entry = null;
-        try {
+        try (ZipInputStream zis = new ZipInputStream(zippedIn)) {
+            ZipEntry entry = null;
             while ((entry = zis.getNextEntry()) != null) {
                 try {
                     final String name = entry.getName();
@@ -738,8 +790,6 @@ public class ShapeZipTest extends WFSTestSupport {
                     zis.closeEntry();
                 }
             }
-        } finally {
-            zis.close();
         }
         fail(fileName + " was not found in the provided stream");
     }
@@ -792,7 +842,7 @@ public class ShapeZipTest extends WFSTestSupport {
         SimpleFeatureBuilder fb = new SimpleFeatureBuilder(featureType);
         fb.add("point1");
         fb.add(gf.createPoint(new CoordinateXYZM(1, 2, 3, 4)));
-        List<SimpleFeature> features = new ArrayList<SimpleFeature>();
+        List<SimpleFeature> features = new ArrayList<>();
         features.add(fb.buildFeature("1"));
         SimpleFeatureCollection featureCollection = DataUtilities.collection(features);
         // write the zip shapefile bytes
@@ -807,7 +857,7 @@ public class ShapeZipTest extends WFSTestSupport {
         byte[] expectedBytes = IOUtils.toByteArray(resource);
         resource.close();
         // compare generated bytes
-        assertTrue(Arrays.equals(resultBytes, expectedBytes));
+        assertArrayEquals(resultBytes, expectedBytes);
     }
 
     /** Test for MultiPoint ZM support on GetFeature shapefile output */
@@ -825,7 +875,7 @@ public class ShapeZipTest extends WFSTestSupport {
                             gf.createPoint(new CoordinateXYZM(1, 2, 3, 4)),
                             gf.createPoint(new CoordinateXYZM(5, 6, 7, 8))
                         }));
-        List<SimpleFeature> features = new ArrayList<SimpleFeature>();
+        List<SimpleFeature> features = new ArrayList<>();
         features.add(fb.buildFeature("1"));
         SimpleFeatureCollection featureCollection = DataUtilities.collection(features);
         // write the zip shapefile bytes
@@ -840,7 +890,7 @@ public class ShapeZipTest extends WFSTestSupport {
         byte[] expectedBytes = IOUtils.toByteArray(in);
         in.close();
         // compare generated bytes
-        assertTrue(Arrays.equals(resultBytes, expectedBytes));
+        assertArrayEquals(resultBytes, expectedBytes);
     }
 
     /** Test for MultiLineString ZM support on GetFeature shapefile output */
@@ -861,7 +911,7 @@ public class ShapeZipTest extends WFSTestSupport {
                                         new CoordinateXYZM(5, 6, 7, 8)
                                     })
                         }));
-        List<SimpleFeature> features = new ArrayList<SimpleFeature>();
+        List<SimpleFeature> features = new ArrayList<>();
         features.add(fb.buildFeature("1"));
         SimpleFeatureCollection featureCollection = DataUtilities.collection(features);
         // write the zip shapefile bytes
@@ -876,7 +926,7 @@ public class ShapeZipTest extends WFSTestSupport {
         byte[] expectedBytes = IOUtils.toByteArray(is);
         is.close();
         // compare generated bytes
-        assertTrue(Arrays.equals(resultBytes, expectedBytes));
+        assertArrayEquals(resultBytes, expectedBytes);
     }
 
     /** Test for MultiPolygon ZM support on GetFeature shapefile output */
@@ -899,7 +949,7 @@ public class ShapeZipTest extends WFSTestSupport {
                                         new CoordinateXYZM(0, 0, 3, 1)
                                     })
                         }));
-        List<SimpleFeature> features = new ArrayList<SimpleFeature>();
+        List<SimpleFeature> features = new ArrayList<>();
         features.add(fb.buildFeature("1"));
         SimpleFeatureCollection featureCollection = DataUtilities.collection(features);
         // write the zip shapefile bytes
@@ -913,7 +963,7 @@ public class ShapeZipTest extends WFSTestSupport {
                         .getResourceAsStream("org/geoserver/wfs/response/polygonZm.shp");
         byte[] expectedBytes = IOUtils.toByteArray(in);
         // compare generated bytes
-        assertTrue(Arrays.equals(resultBytes, expectedBytes));
+        assertArrayEquals(resultBytes, expectedBytes);
     }
 
     /**

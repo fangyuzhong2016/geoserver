@@ -16,7 +16,10 @@ import org.geoserver.config.impl.ServiceInfoImpl;
 
 public class WMSInfoImpl extends ServiceInfoImpl implements WMSInfo {
 
-    List<String> srs = new ArrayList<String>();
+    public static final int DEFAULT_REMOTE_STYLE_MAX_REQUEST_TIME = 60000;
+    public static final int DEFAULT_REMOTE_STYLE_TIMEOUT = 30000;
+
+    List<String> srs = new ArrayList<>();
 
     Boolean bboxForEachCRS;
 
@@ -25,10 +28,10 @@ public class WMSInfoImpl extends ServiceInfoImpl implements WMSInfo {
     WMSInterpolation interpolation = WMSInterpolation.Nearest;
 
     boolean getFeatureInfoMimeTypeCheckingEnabled;
-    Set<String> getFeatureInfoMimeTypes = new HashSet<String>();
+    Set<String> getFeatureInfoMimeTypes = new HashSet<>();
 
     boolean getMapMimeTypeCheckingEnabled;
-    Set<String> getMapMimeTypes = new HashSet<String>();
+    Set<String> getMapMimeTypes = new HashSet<>();
 
     boolean dynamicStylingDisabled;
 
@@ -41,7 +44,7 @@ public class WMSInfoImpl extends ServiceInfoImpl implements WMSInfo {
      *
      * @since 2.1.3
      */
-    protected List<AuthorityURLInfo> authorityURLs = new ArrayList<AuthorityURLInfo>(2);
+    protected List<AuthorityURLInfo> authorityURLs = new ArrayList<>(2);
 
     /**
      * This property is transient in 2.1.x series and stored under the metadata map with key
@@ -49,7 +52,7 @@ public class WMSInfoImpl extends ServiceInfoImpl implements WMSInfo {
      *
      * @since 2.1.3
      */
-    protected List<LayerIdentifierInfo> identifiers = new ArrayList<LayerIdentifierInfo>(2);
+    protected List<LayerIdentifierInfo> identifiers = new ArrayList<>(2);
 
     int maxBuffer;
 
@@ -67,9 +70,12 @@ public class WMSInfoImpl extends ServiceInfoImpl implements WMSInfo {
 
     private CacheConfiguration cacheConfiguration = new CacheConfiguration();
 
+    private Integer remoteStyleMaxRequestTime;
+    private Integer remoteStyleTimeout;
+
     public WMSInfoImpl() {
-        authorityURLs = new ArrayList<AuthorityURLInfo>(2);
-        identifiers = new ArrayList<LayerIdentifierInfo>(2);
+        authorityURLs = new ArrayList<>(2);
+        identifiers = new ArrayList<>(2);
     }
 
     public int getMaxRequestMemory() {
@@ -252,5 +258,27 @@ public class WMSInfoImpl extends ServiceInfoImpl implements WMSInfo {
     @Override
     public void setCacheConfiguration(CacheConfiguration cacheCfg) {
         this.cacheConfiguration = cacheCfg;
+    }
+
+    @Override
+    public int getRemoteStyleMaxRequestTime() {
+        return remoteStyleMaxRequestTime != null
+                ? remoteStyleMaxRequestTime
+                : DEFAULT_REMOTE_STYLE_MAX_REQUEST_TIME;
+    }
+
+    @Override
+    public void setRemoteStyleMaxRequestTime(int remoteStyleMaxRequestTime) {
+        this.remoteStyleMaxRequestTime = remoteStyleMaxRequestTime;
+    }
+
+    @Override
+    public int getRemoteStyleTimeout() {
+        return remoteStyleTimeout != null ? remoteStyleTimeout : DEFAULT_REMOTE_STYLE_TIMEOUT;
+    }
+
+    @Override
+    public void setRemoteStyleTimeout(int remoteStyleTimeout) {
+        this.remoteStyleTimeout = remoteStyleTimeout;
     }
 }

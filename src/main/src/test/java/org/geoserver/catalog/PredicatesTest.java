@@ -7,7 +7,8 @@ package org.geoserver.catalog;
 
 import static org.geoserver.catalog.Predicates.contains;
 import static org.geoserver.catalog.Predicates.equal;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -112,7 +113,7 @@ public class PredicatesTest {
         assertTrue(equal("id", ws.getId()).evaluate(ws));
         assertFalse(equal("id", "somethingElse").evaluate(ws));
 
-        Set<StyleInfo> styles = new HashSet<StyleInfo>();
+        Set<StyleInfo> styles = new HashSet<>();
         styles.add(style1);
 
         assertFalse(equal("styles", styles, MatchAction.ALL).evaluate(vectorLayer));

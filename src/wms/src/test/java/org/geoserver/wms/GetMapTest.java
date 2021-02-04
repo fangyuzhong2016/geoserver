@@ -5,7 +5,9 @@
  */
 package org.geoserver.wms;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -128,7 +130,7 @@ public class GetMapTest {
     @Test
     public void testEnviroment() {
         final FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
-        EnvFunction.setLocalValues(Collections.singletonMap("myParam", (Object) 23));
+        EnvFunction.setLocalValues(Collections.singletonMap("myParam", 23));
 
         final DummyRasterMapProducer producer =
                 new DummyRasterMapProducer() {

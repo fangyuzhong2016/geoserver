@@ -163,8 +163,10 @@ public class ShapeZipOutputFormat extends WFSGetFeatureOutputFormat
     public void write(
             FeatureCollectionResponse featureCollection, OutputStream output, Operation getFeature)
             throws IOException, ServiceException {
-        List<SimpleFeatureCollection> collections = new ArrayList<SimpleFeatureCollection>();
-        collections.addAll((List) featureCollection.getFeature());
+        List<SimpleFeatureCollection> collections = new ArrayList<>();
+        @SuppressWarnings("unchecked")
+        List<SimpleFeatureCollection> features = (List) featureCollection.getFeature();
+        collections.addAll(features);
         Charset charset = getShapefileCharset(getFeature);
         write(collections, charset, output, GetFeatureRequest.adapt(getFeature.getParameters()[0]));
     }
@@ -222,8 +224,9 @@ public class ShapeZipOutputFormat extends WFSGetFeatureOutputFormat
             }
 
             // dump the request
-            createRequestDump(tempDir, request, collections.get(0));
-
+            if (this.gs.getService(WFSInfo.class).getIncludeWFSRequestDumpFile()) {
+                createRequestDump(tempDir, request, collections.get(0));
+            }
             // zip all the files produced
             final FilenameFilter filter =
                     new FilenameFilter() {
@@ -294,15 +297,11 @@ public class ShapeZipOutputFormat extends WFSGetFeatureOutputFormat
                     cfg = new WFSConfiguration_1_0();
                     elementName = org.geotools.wfs.v1_0.WFS.GetFeature;
                 }
-                FileOutputStream fos = null;
-                try {
-                    fos = new FileOutputStream(target);
+                try (FileOutputStream fos = new FileOutputStream(target)) {
                     Encoder encoder = new Encoder(cfg);
                     encoder.setIndenting(true);
                     encoder.setIndentSize(2);
                     encoder.encode(gft, elementName, fos);
-                } finally {
-                    if (fos != null) fos.close();
                 }
             }
         } catch (IOException e) {
@@ -311,14 +310,10 @@ public class ShapeZipOutputFormat extends WFSGetFeatureOutputFormat
     }
 
     private void createEmptyZipWarning(File tempDir) throws IOException {
-        PrintWriter pw = null;
-        try {
-            pw = new PrintWriter(new File(tempDir, "README.TXT"));
+        try (PrintWriter pw = new PrintWriter(new File(tempDir, "README.TXT"))) {
             pw.print(
                     "The query result is empty, and the geometric type of the features is unknwon:"
                             + "an empty point shapefile has been created to fill the zip file");
-        } finally {
-            if (pw != null) pw.close();
         }
     }
 
@@ -403,11 +398,8 @@ public class ShapeZipOutputFormat extends WFSGetFeatureOutputFormat
                 File prjShapeFile = new File(tempDir, fileName + ".prj");
                 prjShapeFile.delete();
 
-                BufferedWriter out = new BufferedWriter(new FileWriter(prjShapeFile));
-                try {
+                try (BufferedWriter out = new BufferedWriter(new FileWriter(prjShapeFile))) {
                     out.write(data);
-                } finally {
-                    out.close();
                 }
             } else {
                 LOGGER.info(
@@ -493,7 +485,7 @@ public class ShapeZipOutputFormat extends WFSGetFeatureOutputFormat
                 } else {
                     timestamp = new Date();
                 }
-                Map<String, Object> context = new HashMap<String, Object>();
+                Map<String, Object> context = new HashMap<>();
                 context.put("typename", getTypeName(ftInfo));
                 context.put("workspace", ftInfo.getNamespace().getPrefix());
                 context.put("geometryType", geometryType == null ? "" : geometryType);

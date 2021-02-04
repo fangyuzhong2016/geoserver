@@ -6,7 +6,7 @@
 package org.geoserver.web.wicket.browser;
 
 import static org.geoserver.web.GeoServerWicketTestSupport.initResourceSettings;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 import org.apache.commons.io.FileUtils;
@@ -94,7 +94,7 @@ public class FileDataViewTest {
 
     @Test
     public void testFilter() throws Exception {
-        fileProvider.setFileFilter(new Model(new ExtensionFileFilter(".txt")));
+        fileProvider.setFileFilter(new Model<>(new ExtensionFileFilter(".txt")));
         tester.startPage(tester.getLastRenderedPage());
         tester.assertLabel("form:panel:fileTable:fileContent:files:3:nameLink:name", "one.txt");
         assertEquals(

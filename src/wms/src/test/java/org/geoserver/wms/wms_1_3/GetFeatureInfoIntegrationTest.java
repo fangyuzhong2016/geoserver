@@ -6,7 +6,11 @@
 package org.geoserver.wms.wms_1_3;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.util.Arrays;
@@ -88,7 +92,7 @@ public class GetFeatureInfoIntegrationTest extends WMSTestSupport {
     protected void onSetUp(SystemTestData testData) throws Exception {
         super.onSetUp(testData);
 
-        Map<String, String> namespaces = new HashMap<String, String>();
+        Map<String, String> namespaces = new HashMap<>();
         namespaces.put("xlink", "http://www.w3.org/1999/xlink");
         namespaces.put("xsi", "http://www.w3.org/2001/XMLSchema-instance");
         namespaces.put("wms", "http://www.opengis.net/wms");
@@ -116,11 +120,11 @@ public class GetFeatureInfoIntegrationTest extends WMSTestSupport {
                 "forestsManyRules", "ForestsManyRules.sld", CapabilitiesTest.class, catalog);
         testData.addVectorLayer(
                 SQUARES,
-                Collections.EMPTY_MAP,
+                Collections.emptyMap(),
                 "squares.properties",
                 CapabilitiesTest.class,
                 catalog);
-        Map propertyMap = new HashMap();
+        Map<LayerProperty, Object> propertyMap = new HashMap<>();
         propertyMap.put(LayerProperty.STYLE, "raster");
         testData.addRasterLayer(
                 TASMANIA_BM, "tazbm.tiff", "tiff", propertyMap, SystemTestData.class, catalog);

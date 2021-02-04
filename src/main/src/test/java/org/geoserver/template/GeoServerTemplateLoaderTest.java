@@ -5,7 +5,10 @@
  */
 package org.geoserver.template;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -70,8 +73,8 @@ public class GeoServerTemplateLoaderTest extends GeoServerSystemTestSupport {
         if (file.isDirectory()) {
             File[] files = file.listFiles();
 
-            for (int i = 0; i < files.length; i++) {
-                delete(files[i]);
+            for (File value : files) {
+                delete(value);
             }
         }
 

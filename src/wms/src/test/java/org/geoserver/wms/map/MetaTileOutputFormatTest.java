@@ -4,8 +4,11 @@
  */
 package org.geoserver.wms.map;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.awt.Point;
 import java.awt.geom.Point2D;
@@ -95,7 +98,7 @@ public class MetaTileOutputFormatTest {
         RenderedImageAdapter metaTileWrapped = mock(RenderedImageAdapter.class);
         when(metaTileWrapped.getWrappedImage()).thenReturn(metaTile);
 
-        RasterCleaner.addImage((RenderedImage) (PlanarImage) metaTileWrapped);
+        RasterCleaner.addImage(metaTileWrapped);
         cleaner.finished(null);
 
         verify((ImageReader) reader, times(1)).dispose();

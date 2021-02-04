@@ -6,13 +6,22 @@
 
 package org.geoserver.security.impl;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import org.geoserver.security.*;
+import org.geoserver.security.AbstractSecurityServiceTest;
+import org.geoserver.security.GeoServerRoleService;
+import org.geoserver.security.GeoServerRoleStore;
+import org.geoserver.security.GeoServerUserGroupService;
+import org.geoserver.security.GeoServerUserGroupStore;
 import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.security.core.GrantedAuthority;
@@ -70,7 +79,7 @@ public abstract class AbstractUserDetailsServiceTest extends AbstractSecuritySer
         usergroupStore.addUser(theUser);
 
         GeoServerRole role = null;
-        Set<GeoServerRole> roles = new HashSet<GeoServerRole>();
+        Set<GeoServerRole> roles = new HashSet<>();
 
         // no roles
         checkRoles(username, roles);
@@ -214,9 +223,9 @@ public abstract class AbstractUserDetailsServiceTest extends AbstractSecuritySer
 
                 assertFalse(role.isAnonymous());
                 assertTrue(anonymousRole.isAnonymous());
-                assertFalse(role == anonymousRole);
-                assertFalse(role.equals(anonymousRole));
-                assertTrue(theUser.getUsername().equals(role.getUserName()));
+                assertNotSame(role, anonymousRole);
+                assertNotEquals(role, anonymousRole);
+                assertEquals(theUser.getUsername(), role.getUserName());
                 assertNull(anonymousRole.getUserName());
 
             } else if ("persrole2".equals(role.getAuthority())) {

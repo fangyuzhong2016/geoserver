@@ -6,6 +6,7 @@
 
 package org.geoserver.wfs.json;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
@@ -13,7 +14,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -67,10 +67,10 @@ public class GeoJSONTest extends WFSTestSupport {
         security.mkdir();
         File layers = new File(security, "layers.properties");
         IOUtils.copy(GeoJSONTest.class.getResourceAsStream("layers_ro.properties"), layers);
-        data.addVectorLayer(LINE3D, Collections.EMPTY_MAP, getClass(), getCatalog());
+        data.addVectorLayer(LINE3D, Collections.emptyMap(), getClass(), getCatalog());
 
         // A feature type with Lat-Lon/North-East axis ordering.
-        data.addVectorLayer(POINT_LATLON, Collections.EMPTY_MAP, getClass(), getCatalog());
+        data.addVectorLayer(POINT_LATLON, Collections.emptyMap(), getClass(), getCatalog());
         CoordinateReferenceSystem crsLatLon = CRS.decode("urn:ogc:def:crs:EPSG::4326");
         FeatureTypeInfo pointLatLon =
                 getCatalog()
@@ -82,7 +82,7 @@ public class GeoJSONTest extends WFSTestSupport {
         getCatalog().save(pointLatLon);
 
         // A feature type with Lon-Lat/East-North axis ordering.
-        data.addVectorLayer(POINT_LONLAT, Collections.EMPTY_MAP, getClass(), getCatalog());
+        data.addVectorLayer(POINT_LONLAT, Collections.emptyMap(), getClass(), getCatalog());
         CoordinateReferenceSystem crsLonLat = CRS.decode("EPSG:4326", true);
         FeatureTypeInfo pointLonLat =
                 getCatalog()
@@ -96,10 +96,10 @@ public class GeoJSONTest extends WFSTestSupport {
         // A feature with a constant test setup for testing geometry/geometry_name consistency with
         // null geometries
         data.addVectorLayer(
-                MULTI_GEOMETRIES_WITH_NULL, Collections.EMPTY_MAP, getClass(), getCatalog());
+                MULTI_GEOMETRIES_WITH_NULL, Collections.emptyMap(), getClass(), getCatalog());
 
         // A feature type with reduced precision
-        data.addVectorLayer(POINT_REDUCED, Collections.EMPTY_MAP, getClass(), getCatalog());
+        data.addVectorLayer(POINT_REDUCED, Collections.emptyMap(), getClass(), getCatalog());
         FeatureTypeInfo pointReduced =
                 getCatalog()
                         .getFeatureTypeByName(
@@ -113,7 +113,7 @@ public class GeoJSONTest extends WFSTestSupport {
         // add a feature with NaN and infinite for both float and double
         data.addVectorLayer(
                 NAN_INFINITE,
-                Collections.EMPTY_MAP,
+                Collections.emptyMap(),
                 "nanInfinite.properties",
                 getClass(),
                 getCatalog());
@@ -711,10 +711,10 @@ public class GeoJSONTest extends WFSTestSupport {
         assertThat(geometry.getString("type"), is("Point"));
 
         JSONArray coords = geometry.getJSONArray("coordinates");
-        assertThat((Iterable<?>) coords, contains((Object) 120, 0));
+        assertThat((Iterable<?>) coords, contains(120, 0));
 
         JSONArray bbox = collection.getJSONArray("bbox");
-        assertThat((Iterable<?>) bbox, Matchers.contains((Object) (-170), -30, 120, 45));
+        assertThat((Iterable<?>) bbox, Matchers.contains(-170, -30, 120, 45));
 
         CoordinateReferenceSystem expectedCrs = CRS.decode("EPSG:4326");
         JSONObject aCRS = collection.getJSONObject("crs");
@@ -740,11 +740,10 @@ public class GeoJSONTest extends WFSTestSupport {
         assertThat(geometry.getString("type"), is("Point"));
 
         JSONArray coords = geometry.getJSONArray("coordinates");
-        assertThat((Iterable<?>) coords, contains((Object) 120.12, 0.56));
+        assertThat((Iterable<?>) coords, contains(120.12, 0.56));
 
         JSONArray bbox = collection.getJSONArray("bbox");
-        assertThat(
-                (Iterable<?>) bbox, Matchers.contains((Object) (-170.19), -30.13, 120.12, 45.23));
+        assertThat((Iterable<?>) bbox, Matchers.contains(-170.19, -30.13, 120.12, 45.23));
 
         CoordinateReferenceSystem expectedCrs = CRS.decode("EPSG:4326");
         JSONObject aCRS = collection.getJSONObject("crs");
@@ -933,6 +932,36 @@ public class GeoJSONTest extends WFSTestSupport {
         JSONObject f3 = features.getJSONObject(2);
         assertEquals("Infinity", getProperty(f3, "d"));
         assertEquals("Infinity", getProperty(f3, "f"));
+    }
+
+    @Test
+    public void testBoundingBoxAxisOrderInWfs10AndWfs11() throws Exception {
+        // test that AxisOrder of bbox coordinates are switched to EAST-NORTH,
+        // as for the other coordinates array in the json features, when the CRS
+        // has NORTH-EAST axis order
+        JSONObject rootObject =
+                (JSONObject)
+                        getAsJSON(
+                                "wfs?request=GetFeature&version=1.0.0&typename="
+                                        + getLayerId(POINT_LATLON)
+                                        + "&outputformat="
+                                        + JSONType.json);
+
+        JSONArray bbox = rootObject.getJSONArray("bbox");
+
+        JSONObject rootObjectRep =
+                (JSONObject)
+                        getAsJSON(
+                                "wfs?request=GetFeature&version=1.1.0&typename="
+                                        + getLayerId(POINT_LATLON)
+                                        + "&outputformat="
+                                        + JSONType.json
+                                        + "&srsName=urn:x-ogc:def:crs:EPSG:4326");
+
+        JSONArray bboxRep = rootObjectRep.getJSONArray("bbox");
+        // bbox should be equal since the NORTH-EAST axis order in the wfs 1.1.0
+        // should have been ignored and kept to EAST-NORTH
+        assertEquals(bboxRep, bbox);
     }
 
     private Object getProperty(JSONObject feature, String propertyName) {

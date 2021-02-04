@@ -9,7 +9,12 @@ import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.isA;
 import static org.easymock.EasyMock.replay;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
@@ -233,7 +238,7 @@ public class FullyRetypingDataStoreTest {
         SimpleFeature original = store.getFeatures(fidFilter).features().next();
 
         // test a non mapped attribute
-        String newDescription = ((String) original.getAttribute("description")) + " xxx";
+        String newDescription = original.getAttribute("description") + " xxx";
         store.modifyFeatures(new NameImpl("description"), newDescription, fidFilter);
         SimpleFeature modified = store.getFeatures(fidFilter).features().next();
         assertEquals(newDescription, modified.getAttribute("description"));
@@ -290,7 +295,7 @@ public class FullyRetypingDataStoreTest {
         SimpleFeatureStore store = (SimpleFeatureStore) rts.getFeatureSource("oaks");
         List<FeatureId> ids = store.addFeatures(fc);
         assertEquals(1, ids.size());
-        String id = ((FeatureId) ids.iterator().next()).getID();
+        String id = ids.iterator().next().getID();
         assertTrue("Id does not start with " + "oaks" + " it's " + id, id.startsWith("oaks"));
     }
 

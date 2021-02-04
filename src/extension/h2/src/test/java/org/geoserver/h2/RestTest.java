@@ -7,7 +7,7 @@ package org.geoserver.h2;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -30,6 +30,8 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.opengis.feature.Feature;
+import org.opengis.feature.type.FeatureType;
 import org.opengis.feature.type.Name;
 import org.springframework.mock.web.MockHttpServletResponse;
 
@@ -109,7 +111,7 @@ public final class RestTest extends GeoServerSystemTestSupport {
         // let's see if the data store was correctly created
         DataStoreInfo storeInfo = getCatalog().getDataStoreByName(dataStoreName);
         assertThat(storeInfo, notNullValue());
-        DataAccess store = storeInfo.getDataStore(null);
+        DataAccess<? extends FeatureType, ? extends Feature> store = storeInfo.getDataStore(null);
         assertThat(store, notNullValue());
         List<Name> names = store.getNames();
         assertThat(store, notNullValue());

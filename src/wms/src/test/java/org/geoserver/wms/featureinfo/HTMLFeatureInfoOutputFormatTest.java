@@ -6,14 +6,11 @@
 
 package org.geoserver.wms.featureinfo;
 
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.hasProperty;
-import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
-import freemarker.template.TemplateException;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -50,12 +47,11 @@ import org.geoserver.wms.WMSTestSupport;
 import org.geotools.data.DataUtilities;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
-import org.hamcrest.Matchers;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.function.ThrowingRunnable;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockServletContext;
@@ -72,8 +68,6 @@ public class HTMLFeatureInfoOutputFormatTest extends WMSTestSupport {
     private static final String templateFolder = "/org/geoserver/wms/featureinfo/";
 
     private String currentTemplate;
-
-    @Rule public ExpectedException exception = ExpectedException.none();
 
     @Before
     public void setUp() throws URISyntaxException, IOException {
@@ -109,11 +103,11 @@ public class HTMLFeatureInfoOutputFormatTest extends WMSTestSupport {
 
         // test request with some parameters to use in templates
         Request request = new Request();
-        parameters = new HashMap<String, Object>();
+        parameters = new HashMap<>();
         parameters.put("LAYER", "testLayer");
         parameters.put("NUMBER1", 10);
         parameters.put("NUMBER2", 100);
-        Map<String, String> env = new HashMap<String, String>();
+        Map<String, String> env = new HashMap<>();
         env.put("TEST1", "VALUE1");
         env.put("TEST2", "VALUE2");
         parameters.put("ENV", env);
@@ -123,11 +117,10 @@ public class HTMLFeatureInfoOutputFormatTest extends WMSTestSupport {
 
         final FeatureTypeInfo featureType = getFeatureTypeInfo(MockData.PRIMITIVEGEOFEATURE);
 
-        fcType = WfsFactory.eINSTANCE.createFeatureCollectionType();
-        fcType.getFeature().add(featureType.getFeatureSource(null, null).getFeatures());
+        initFeatureType(featureType);
 
         // fake layer list
-        List<MapLayerInfo> queryLayers = new ArrayList<MapLayerInfo>();
+        List<MapLayerInfo> queryLayers = new ArrayList<>();
         LayerInfo layerInfo = new LayerInfoImpl();
         layerInfo.setType(PublishedType.VECTOR);
         ResourceInfo resourceInfo = new FeatureTypeInfoImpl(null);
@@ -140,6 +133,12 @@ public class HTMLFeatureInfoOutputFormatTest extends WMSTestSupport {
         queryLayers.add(mapLayerInfo);
         getFeatureInfoRequest = new GetFeatureInfoRequest();
         getFeatureInfoRequest.setQueryLayers(queryLayers);
+    }
+
+    @SuppressWarnings("unchecked") // EMF model without generics
+    private void initFeatureType(FeatureTypeInfo featureType) throws IOException {
+        fcType = WfsFactory.eINSTANCE.createFeatureCollectionType();
+        fcType.getFeature().add(featureType.getFeatureSource(null, null).getFeatures());
     }
 
     /** Test request values are inserted in processed template */
@@ -215,19 +214,20 @@ public class HTMLFeatureInfoOutputFormatTest extends WMSTestSupport {
 
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
 
-        exception.expect(
-                allOf(
-                        instanceOf(IOException.class),
-                        hasProperty(
-                                "cause",
-                                allOf(
-                                        instanceOf(TemplateException.class),
-                                        hasProperty(
-                                                "message",
-                                                Matchers.containsString(
-                                                        "freemarker.template.utility.Execute"))))));
+        IOException e =
+                Assert.assertThrows(
+                        IOException.class,
+                        new ThrowingRunnable() {
 
-        outputFormat.write(fcType, getFeatureInfoRequest, outStream);
+                            @Override
+                            public void run() throws Throwable {
+                                outputFormat.write(fcType, getFeatureInfoRequest, outStream);
+                            }
+                        });
+        System.out.println(e.getMessage());
+        assertThat(
+                "Bad Message",
+                e.getMessage().contains("Error occurred processing content template content.ftl"));
     }
 
     /**
@@ -267,7 +267,7 @@ public class HTMLFeatureInfoOutputFormatTest extends WMSTestSupport {
         assertEquals("text/html", response.getContentType());
 
         // Check if the character encoding is the one expected
-        assertTrue("UTF-8".equals(response.getCharacterEncoding()));
+        assertEquals("UTF-8", response.getCharacterEncoding());
     }
 
     @SuppressWarnings("unchecked")

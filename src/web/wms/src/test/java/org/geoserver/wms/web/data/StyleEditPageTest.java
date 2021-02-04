@@ -7,9 +7,15 @@ package org.geoserver.wms.web.data;
 
 import static org.custommonkey.xmlunit.XMLAssert.assertXMLEqual;
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
-import java.awt.*;
+import java.awt.Color;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
@@ -32,7 +38,17 @@ import org.apache.wicket.markup.html.form.TextField;
 import org.apache.wicket.util.tester.FormTester;
 import org.apache.wicket.util.tester.WicketTester;
 import org.apache.wicket.util.tester.WicketTesterHelper;
-import org.geoserver.catalog.*;
+import org.geoserver.catalog.Catalog;
+import org.geoserver.catalog.CatalogBuilder;
+import org.geoserver.catalog.DataStoreInfo;
+import org.geoserver.catalog.FeatureTypeInfo;
+import org.geoserver.catalog.LayerInfo;
+import org.geoserver.catalog.LegendInfo;
+import org.geoserver.catalog.ProjectionPolicy;
+import org.geoserver.catalog.StyleInfo;
+import org.geoserver.catalog.TestHttpClientProvider;
+import org.geoserver.catalog.WMSLayerInfo;
+import org.geoserver.catalog.WMSStoreInfo;
 import org.geoserver.catalog.impl.StyleInfoImpl;
 import org.geoserver.config.GeoServerDataDirectory;
 import org.geoserver.data.test.MockData;
@@ -366,7 +382,7 @@ public class StyleEditPageTest extends GeoServerWicketTestSupport {
     public void testLayerAssociationsTab() {
 
         LayerInfo l = getCatalog().getLayers().get(0);
-        assertFalse(l.getDefaultStyle() == buildingsStyle);
+        assertNotSame(l.getDefaultStyle(), buildingsStyle);
         tester.executeAjaxEvent("styleForm:context:tabs-container:tabs:1:link", "click");
         tester.assertComponent("styleForm:context:panel:layer.table", GeoServerTablePanel.class);
 
@@ -715,7 +731,7 @@ public class StyleEditPageTest extends GeoServerWicketTestSupport {
     public void testLayerPreviewTab() {
 
         LayerInfo l = getCatalog().getLayers().get(0);
-        assertFalse(l.getDefaultStyle() == buildingsStyle);
+        assertNotSame(l.getDefaultStyle(), buildingsStyle);
         // used to fail with an exception here because the template file cannot be found
         tester.executeAjaxEvent("styleForm:context:tabs-container:tabs:2:link", "click");
         print(tester.getLastRenderedPage(), true, true);
@@ -726,7 +742,7 @@ public class StyleEditPageTest extends GeoServerWicketTestSupport {
     public void testLayerPreviewTabStyleGroup() {
 
         LayerInfo l = getCatalog().getLayers().get(0);
-        assertFalse(l.getDefaultStyle() == buildingsStyle);
+        assertNotSame(l.getDefaultStyle(), buildingsStyle);
         // used to fail with an exception here because the template file cannot be found
         tester.executeAjaxEvent("styleForm:context:tabs-container:tabs:2:link", "click");
 
