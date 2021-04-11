@@ -178,14 +178,17 @@ public class WFSXmlUtils {
         Object obj;
         Class<?> clazz;
 
-        public DirectObjectParameter(Object obj, Class clazz) {
+        public DirectObjectParameter(Object obj, Class<?> clazz) {
             super(clazz);
             this.obj = obj;
             this.clazz = clazz;
         }
 
+        @Override
         public boolean isResolvable(
-                PicoContainer container, ComponentAdapter adapter, Class expectedType) {
+                PicoContainer container,
+                ComponentAdapter adapter,
+                @SuppressWarnings("rawtypes") Class expectedType) {
             if (clazz.isAssignableFrom(expectedType)) {
                 return true;
             }
@@ -194,7 +197,9 @@ public class WFSXmlUtils {
 
         @Override
         public Object resolveInstance(
-                PicoContainer container, ComponentAdapter adapter, Class expectedType) {
+                PicoContainer container,
+                ComponentAdapter adapter,
+                @SuppressWarnings("rawtypes") Class expectedType) {
             if (clazz.isAssignableFrom(expectedType)) {
                 return obj;
             }

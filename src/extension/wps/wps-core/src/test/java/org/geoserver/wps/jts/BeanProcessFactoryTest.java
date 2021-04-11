@@ -6,6 +6,7 @@
 package org.geoserver.wps.jts;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -66,6 +67,7 @@ public class BeanProcessFactoryTest extends WPSTestSupport {
         GeoTools.addFactoryIteratorProvider(
                 new FactoryIteratorProvider() {
 
+                    @Override
                     @SuppressWarnings("unchecked")
                     public <T> Iterator<T> iterator(Class<T> category) {
                         if (ProcessFactory.class.isAssignableFrom(category)) {
@@ -80,7 +82,7 @@ public class BeanProcessFactoryTest extends WPSTestSupport {
     @Test
     public void testNames() {
         Set<Name> names = factory.getNames();
-        assertTrue(names.size() > 0);
+        assertFalse(names.isEmpty());
         // System.out.println(names);
         assertTrue(names.contains(new NameImpl("bean", "Bounds")));
     }

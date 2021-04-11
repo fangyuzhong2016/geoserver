@@ -270,8 +270,8 @@ public class VectorMapRenderUtils {
         }
 
         // the basic crs transformation, if any
-        MathTransform2D sourceToTarget;
-        sourceToTarget = (MathTransform2D) CRS.findMathTransform(sourceCRS, destCRS, true);
+        MathTransform2D sourceToTarget =
+                (MathTransform2D) CRS.findMathTransform(sourceCRS, destCRS, true);
 
         if (transform == null) {
             return sourceToTarget;
@@ -393,9 +393,6 @@ public class VectorMapRenderUtils {
         List<Rule> ruleList = new ArrayList<>();
         List<Rule> elseRuleList = new ArrayList<>();
 
-        ruleList = new ArrayList<>();
-        elseRuleList = new ArrayList<>();
-
         for (Rule r : fts.rules()) {
             if (isWithInScale(r, scaleDenominator)) {
                 if (r.isElseFilter()) {
@@ -406,7 +403,7 @@ public class VectorMapRenderUtils {
             }
         }
 
-        @SuppressWarnings("unchecked")
+        @SuppressWarnings({"unchecked", "PMD.UseShortArrayInitializer"})
         List<Rule>[] ret = new List[] {ruleList, elseRuleList};
         return ret;
     }

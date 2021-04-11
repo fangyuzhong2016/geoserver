@@ -40,6 +40,7 @@ public class AcceptVersionsTypeBinding extends AbstractComplexEMFBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return OWS.ACCEPTVERSIONSTYPE;
     }
@@ -51,7 +52,8 @@ public class AcceptVersionsTypeBinding extends AbstractComplexEMFBinding {
      *
      * @generated modifiable
      */
-    public Class getType() {
+    @Override
+    public Class<AcceptVersionsType> getType() {
         return AcceptVersionsType.class;
     }
 
@@ -62,6 +64,7 @@ public class AcceptVersionsTypeBinding extends AbstractComplexEMFBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         AcceptVersionsType acceptVersions = owsfactory.createAcceptVersionsType();
         @SuppressWarnings("unchecked")

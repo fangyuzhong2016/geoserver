@@ -6,7 +6,6 @@ package org.geoserver.catalog.impl;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.function.ThrowingRunnable;
 
 public class MetadataLinkInfoImplTest {
 
@@ -36,12 +35,7 @@ public class MetadataLinkInfoImplTest {
         MetadataLinkInfoImpl info = new MetadataLinkInfoImpl();
 
         Assert.assertThrows(
-                IllegalArgumentException.class,
-                new ThrowingRunnable() {
-                    public void run() throws Throwable {
-                        info.setContent("telnet:example.com");
-                    };
-                });
+                IllegalArgumentException.class, () -> info.setContent("telnet:example.com"));
     }
 
     @Test
@@ -77,12 +71,7 @@ public class MetadataLinkInfoImplTest {
         MetadataLinkInfoImpl info = new MetadataLinkInfoImpl();
 
         Assert.assertThrows(
-                IllegalArgumentException.class,
-                new ThrowingRunnable() {
-                    public void run() throws Throwable {
-                        info.setContent("::^%/[*] FOO ::");
-                    };
-                });
+                IllegalArgumentException.class, () -> info.setContent("::^%/[*] FOO ::"));
     }
 
     @Test
@@ -91,10 +80,6 @@ public class MetadataLinkInfoImplTest {
 
         Assert.assertThrows(
                 IllegalArgumentException.class,
-                new ThrowingRunnable() {
-                    public void run() throws Throwable {
-                        info.setContent("https://example.com/::^%/[*] FOO ::");
-                    };
-                });
+                () -> info.setContent("https://example.com/::^%/[*] FOO ::"));
     }
 }

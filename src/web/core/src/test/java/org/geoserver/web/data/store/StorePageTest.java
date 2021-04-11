@@ -8,6 +8,10 @@ package org.geoserver.web.data.store;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import org.apache.wicket.markup.repeater.data.DataView;
 import org.apache.wicket.markup.repeater.data.IDataProvider;
 import org.geoserver.catalog.Catalog;
@@ -59,21 +63,13 @@ public class StorePageTest extends GeoServerWicketTestSupport {
         assertTrue(catchedException);
 
         StoreInfo actual = provider.iterator(0, 1).next();
-        CloseableIterator<StoreInfo> list =
+        try (CloseableIterator<StoreInfo> list =
                 catalog.list(
-                        StoreInfo.class, Filter.INCLUDE, 0, 1, Predicates.sortBy("name", true));
-        assertTrue(list.hasNext());
-        StoreInfo expected = list.next();
-
-        // Close the iterator
-        try {
-            if (list != null) {
-                list.close();
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+                        StoreInfo.class, Filter.INCLUDE, 0, 1, Predicates.sortBy("name", true))) {
+            assertTrue(list.hasNext());
+            StoreInfo expected = list.next();
+            assertEquals(expected, actual);
         }
-        assertEquals(expected, actual);
     }
 
     @Test
@@ -103,5 +99,26 @@ public class StorePageTest extends GeoServerWicketTestSupport {
         // should show both columns
         assertTrue(provider.getProperties().contains(StoreProvider.CREATED_TIMESTAMP));
         assertTrue(provider.getProperties().contains(StoreProvider.MODIFIED_TIMESTAMP));
+    }
+
+    @Test
+    public void testSerializedProvider() throws Exception {
+        StoreProvider provider = new StoreProvider();
+
+        byte[] serialized;
+        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+            try (ObjectOutputStream oos = new ObjectOutputStream(os)) {
+                oos.writeObject(provider);
+            }
+            serialized = os.toByteArray();
+        }
+        StoreProvider provider2;
+        try (ByteArrayInputStream is = new ByteArrayInputStream(serialized)) {
+            try (ObjectInputStream ois = new ObjectInputStream(is)) {
+                provider2 = (StoreProvider) ois.readObject();
+            }
+        }
+
+        assertEquals(provider.getProperties(), provider2.getProperties());
     }
 }

@@ -43,12 +43,7 @@ public class WCSEOLayerConfigTest extends GeoServerWicketTestSupport {
         final LayerInfo layer = getCatalog().getLayerByName(getLayerId(MockData.TASMANIA_DEM));
         tester.startPage(
                 new FormTestPage(
-                        new ComponentBuilder() {
-
-                            public Component buildComponent(String id) {
-                                return new WCSEOLayerConfig(id, new Model<>(layer));
-                            }
-                        }));
+                        (ComponentBuilder) id -> new WCSEOLayerConfig(id, new Model<>(layer))));
 
         // print(tester.getLastRenderedPage(), true, true);
         Component panel = tester.getLastRenderedPage().get("form:panel");
@@ -62,12 +57,7 @@ public class WCSEOLayerConfigTest extends GeoServerWicketTestSupport {
         final LayerInfo layer = getCatalog().getLayerByName(getLayerId(WATTEMP));
         tester.startPage(
                 new FormTestPage(
-                        new ComponentBuilder() {
-
-                            public Component buildComponent(String id) {
-                                return new WCSEOLayerConfig(id, new Model<>(layer));
-                            }
-                        }));
+                        (ComponentBuilder) id -> new WCSEOLayerConfig(id, new Model<>(layer))));
 
         // print(tester.getLastRenderedPage(), true, true);
         Component panel = tester.getLastRenderedPage().get("form:panel");

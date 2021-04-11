@@ -345,9 +345,7 @@ public class CatalogConfigurationTest {
             assertTrue(true);
         }
 
-        String layerName;
-
-        layerName = tileLayerName(layer1);
+        String layerName = tileLayerName(layer1);
         assertNotNull(config.getLayer(layerName));
 
         final int initialCount = config.getLayerCount();
@@ -498,24 +496,16 @@ public class CatalogConfigurationTest {
         final int LOOPS = 1000;
         ExecutorService service = Executors.newFixedThreadPool(8);
         Runnable reloader =
-                new Runnable() {
-
-                    @Override
-                    public void run() {
-                        config.setGridSetBroker(gridSetBroker);
-                        config.afterPropertiesSet();
-                    }
+                () -> {
+                    config.setGridSetBroker(gridSetBroker);
+                    config.afterPropertiesSet();
                 };
         Runnable tileLayerFetcher =
-                new Runnable() {
-
-                    @Override
-                    public void run() {
-                        config.getLayer(layer1.getName());
-                        config.getLayer(layer2.getName());
-                        config.getLayer(group1.getName());
-                        config.getLayer(group2.getName());
-                    }
+                () -> {
+                    config.getLayer(layer1.getName());
+                    config.getLayer(layer2.getName());
+                    config.getLayer(group1.getName());
+                    config.getLayer(group2.getName());
                 };
         try {
             List<Future<?>> futures = new ArrayList<>();

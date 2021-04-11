@@ -59,8 +59,8 @@ public class Ogr2OgrOutputFormat extends WFSGetFeatureOutputFormat
         implements FormatConverter, ComplexFeatureAwareFormat {
 
     /** The types of geometries a shapefile can handle */
-    private static final Set<Class> SHAPEFILE_GEOM_TYPES =
-            new HashSet<Class>() {
+    private static final Set<Class<?>> SHAPEFILE_GEOM_TYPES =
+            new HashSet<Class<?>>() {
                 {
                     add(Point.class);
                     add(LineString.class);
@@ -135,6 +135,7 @@ public class Ogr2OgrOutputFormat extends WFSGetFeatureOutputFormat
     }
 
     /** @see WFSGetFeatureOutputFormat#getMimeType(Object, Operation) */
+    @Override
     public String getMimeType(Object value, Operation operation) throws ServiceException {
         GetFeatureRequest request = GetFeatureRequest.adapt(operation.getParameters()[0]);
         String outputFormat = request.getOutputFormat();
@@ -191,12 +192,36 @@ public class Ogr2OgrOutputFormat extends WFSGetFeatureOutputFormat
         if (format == null) {
             throw new WFSException("Unknown output format " + outputFormat);
         } else {
-            String outputFileName = queries.get(0).getTypeNames().get(0).getLocalPart();
+            String outputFileName;
+
+            if (request.getFormatOptions() != null
+                    && request.getFormatOptions().containsKey("FILENAME")) {
+                outputFileName = (String) request.getFormatOptions().get("FILENAME");
+                if (outputFileName.contains(".")) {
+                    return outputFileName; // includes extension
+                }
+            } else {
+                outputFileName = queries.get(0).getTypeNames().get(0).getLocalPart();
+            }
+
             if (!format.isSingleFile() || queries.size() > 1) {
                 return outputFileName + ".zip";
             } else {
                 return outputFileName + format.getFileExtension();
             }
+        }
+    }
+
+    @Override
+    protected String getExtension(FeatureCollectionResponse response) {
+        String outputFormat = response.getOutputFormat();
+        Format format = formats.get(outputFormat);
+        if (format == null) {
+            throw new WFSException("Unknown output format " + outputFormat);
+        } else if (!format.isSingleFile() || response.getTypeNames().size() > 1) {
+            return "zip";
+        } else {
+            return format.getFileExtension();
         }
     }
 

@@ -63,11 +63,20 @@ public interface OpenSearchAccess extends DataAccess<FeatureType, Feature> {
      */
     public static String GRANULES = "granules";
 
+    /** Property used to enable/disable products and collections */
+    public static final String ENABLED = "enabled";
+
     /**
      * Just like in WCS 2.0, setting up a separator that's unlikely to be found in the wild, since
      * there is no option that's absolutely unique
      */
     String BAND_LAYER_SEPARATOR = "__";
+
+    /**
+     * Attribute prefix, to be used when encoding XML outputs or referencing attributes in feature
+     * templates.
+     */
+    String PREFIX = "prefix";
 
     /**
      * Returns the feature source backing collections (dynamic, as the store has to respect the

@@ -40,6 +40,7 @@ import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
 import javax.media.jai.PlanarImage;
 import javax.xml.namespace.QName;
 import javax.xml.transform.TransformerFactory;
@@ -406,22 +407,23 @@ public class ResourcePoolTest extends GeoServerSystemTestSupport {
         File info = dd.config(lakes).file();
         // File info = getResourceLoader().find("featureTypes", "cite_Lakes", "info.xml");
 
-        FileReader in = new FileReader(info);
-        Element dom = ReaderUtils.parse(in);
-        Element title = ReaderUtils.getChildElement(dom, "title");
-        title.getFirstChild().setNodeValue("foo");
+        try (FileReader in = new FileReader(info)) {
+            Element dom = ReaderUtils.parse(in);
+            Element title = ReaderUtils.getChildElement(dom, "title");
+            title.getFirstChild().setNodeValue("foo");
 
-        try (OutputStream output = new FileOutputStream(info)) {
-            TransformerFactory.newInstance()
-                    .newTransformer()
-                    .transform(new DOMSource(dom), new StreamResult(output));
+            try (OutputStream output = new FileOutputStream(info)) {
+                TransformerFactory.newInstance()
+                        .newTransformer()
+                        .transform(new DOMSource(dom), new StreamResult(output));
+            }
+
+            getGeoServer().reload();
+            lakes =
+                    cat.getFeatureTypeByName(
+                            MockData.LAKES.getNamespaceURI(), MockData.LAKES.getLocalPart());
+            assertEquals("foo", lakes.getTitle());
         }
-
-        getGeoServer().reload();
-        lakes =
-                cat.getFeatureTypeByName(
-                        MockData.LAKES.getNamespaceURI(), MockData.LAKES.getLocalPart());
-        assertEquals("foo", lakes.getTitle());
     }
 
     @Test
@@ -524,7 +526,7 @@ public class ResourcePoolTest extends GeoServerSystemTestSupport {
             assertEquals("${jdbc.host}", ds.getConnectionParameters().get("host"));
             assertEquals("${jdbc.port}", ds.getConnectionParameters().get("port"));
 
-            if (GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
+            if (GeoServerEnvironment.allowEnvParametrization()) {
                 assertEquals(
                         expandedDs.getConnectionParameters().get("host"),
                         gsEnvironment.resolveValue("${jdbc.host}"));
@@ -577,7 +579,7 @@ public class ResourcePoolTest extends GeoServerSystemTestSupport {
         try {
             rp.getGridCoverageReader(info, null);
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.log(Level.WARNING, "", e);
             fail("Unable to add an imagepyramid with a space in it's name");
         }
         rp.dispose();
@@ -773,6 +775,7 @@ public class ResourcePoolTest extends GeoServerSystemTestSupport {
         ResourcePool pool =
                 new ResourcePool(catalog) {
                     // cannot clone the mock objects
+                    @Override
                     public CoverageStoreInfo clone(
                             CoverageStoreInfo source, boolean allowEnvParametrization) {
                         return source;
@@ -853,14 +856,16 @@ public class ResourcePoolTest extends GeoServerSystemTestSupport {
         GeometryDescriptor schemaDefaultGeometry =
                 featureType.getFeatureType().getGeometryDescriptor();
 
-        FeatureIterator i = featureType.getFeatureSource(null, null).getFeatures().features();
-        GeometryDescriptor featureDefaultGeometry =
-                i.next().getDefaultGeometryProperty().getDescriptor();
+        try (FeatureIterator i =
+                featureType.getFeatureSource(null, null).getFeatures().features()) {
+            GeometryDescriptor featureDefaultGeometry =
+                    i.next().getDefaultGeometryProperty().getDescriptor();
 
-        assertNotNull(schemaDefaultGeometry);
-        assertNotNull(featureDefaultGeometry);
-        assertEquals("pointProperty", schemaDefaultGeometry.getLocalName());
-        assertEquals(schemaDefaultGeometry, featureDefaultGeometry);
+            assertNotNull(schemaDefaultGeometry);
+            assertNotNull(featureDefaultGeometry);
+            assertEquals("pointProperty", schemaDefaultGeometry.getLocalName());
+            assertEquals(schemaDefaultGeometry, featureDefaultGeometry);
+        }
     }
 
     /**

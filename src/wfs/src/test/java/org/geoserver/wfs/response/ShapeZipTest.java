@@ -142,8 +142,8 @@ public class ShapeZipTest extends WFSTestSupport {
 
     @Test
     public void testCharset() throws Exception {
-        FeatureSource<? extends FeatureType, ? extends Feature> fs;
-        fs = getFeatureSource(SystemTestData.BASIC_POLYGONS);
+        FeatureSource<? extends FeatureType, ? extends Feature> fs =
+                getFeatureSource(SystemTestData.BASIC_POLYGONS);
         ShapeZipOutputFormat zip =
                 new ShapeZipOutputFormat(
                         GeoServerExtensions.bean(GeoServer.class),
@@ -205,21 +205,19 @@ public class ShapeZipTest extends WFSTestSupport {
     public void testMultiType() throws Exception {
         byte[] zip = writeOut(getFeatureSource(ALL_TYPES).getFeatures());
 
-        final String[] expectedTypes =
-                new String[] {"AllTypesPoint", "AllTypesMPoint", "AllTypesPolygon", "AllTypesLine"};
+        final String[] expectedTypes = {
+            "AllTypesPoint", "AllTypesMPoint", "AllTypesPolygon", "AllTypesLine"
+        };
         checkShapefileIntegrity(expectedTypes, new ByteArrayInputStream(zip));
         checkFieldsAreNotEmpty(new ByteArrayInputStream(zip));
     }
 
     @Test
     public void testSplitSize() throws Exception {
-        ShapeZipOutputFormat of =
-                (ShapeZipOutputFormat) applicationContext.getBean("shapezipOutputFormat");
         byte[] zip =
                 writeOut(getFeatureSource(SystemTestData.BASIC_POLYGONS).getFeatures(), 500, 500);
         String shapefileName = SystemTestData.BASIC_POLYGONS.getLocalPart();
-        final String[] expectedTypes =
-                new String[] {shapefileName, shapefileName + "1", shapefileName + "2"};
+        final String[] expectedTypes = {shapefileName, shapefileName + "1", shapefileName + "2"};
         checkShapefileIntegrity(expectedTypes, new ByteArrayInputStream(zip));
     }
 
@@ -227,13 +225,12 @@ public class ShapeZipTest extends WFSTestSupport {
     public void testMultiTypeDots() throws Exception {
         byte[] zip = writeOut(getFeatureSource(ALL_DOTS).getFeatures());
 
-        final String[] expectedTypes =
-                new String[] {
-                    "All_Types_DotsPoint",
-                    "All_Types_DotsMPoint",
-                    "All_Types_DotsPolygon",
-                    "All_Types_DotsLine"
-                };
+        final String[] expectedTypes = {
+            "All_Types_DotsPoint",
+            "All_Types_DotsMPoint",
+            "All_Types_DotsPolygon",
+            "All_Types_DotsLine"
+        };
         checkShapefileIntegrity(expectedTypes, new ByteArrayInputStream(zip));
         checkFieldsAreNotEmpty(new ByteArrayInputStream(zip));
     }
@@ -249,7 +246,7 @@ public class ShapeZipTest extends WFSTestSupport {
     public void testNullGeometries() throws Exception {
         byte[] zip = writeOut(getFeatureSource(NULLGEOM).getFeatures());
 
-        final String[] expectedTypes = new String[] {"nullgeom"};
+        final String[] expectedTypes = {"nullgeom"};
         checkShapefileIntegrity(expectedTypes, new ByteArrayInputStream(zip));
     }
 
@@ -282,7 +279,7 @@ public class ShapeZipTest extends WFSTestSupport {
     public void testDots() throws Exception {
         byte[] zip = writeOut(getFeatureSource(DOTS).getFeatures());
 
-        final String[] expectedTypes = new String[] {"dots_in_name"};
+        final String[] expectedTypes = {"dots_in_name"};
         checkShapefileIntegrity(expectedTypes, new ByteArrayInputStream(zip));
         checkFieldsAreNotEmpty(new ByteArrayInputStream(zip));
     }
@@ -476,8 +473,8 @@ public class ShapeZipTest extends WFSTestSupport {
     @Test
     public void testESRIFormat() throws Exception {
         setupESRIPropertyFile();
-        FeatureSource<? extends FeatureType, ? extends Feature> fs;
-        fs = getFeatureSource(SystemTestData.BASIC_POLYGONS);
+        FeatureSource<? extends FeatureType, ? extends Feature> fs =
+                getFeatureSource(SystemTestData.BASIC_POLYGONS);
         ShapeZipOutputFormat zip =
                 new ShapeZipOutputFormat(getGeoServer(), getCatalog(), getResourceLoader());
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -516,8 +513,9 @@ public class ShapeZipTest extends WFSTestSupport {
         zip.write(fct, bos, op);
         byte[] byteArrayZip = bos.toByteArray();
 
-        final String[] expectedTypes =
-                new String[] {"AllTypesPoint", "AllTypesMPoint", "AllTypesPolygon", "AllTypesLine"};
+        final String[] expectedTypes = {
+            "AllTypesPoint", "AllTypesMPoint", "AllTypesPolygon", "AllTypesLine"
+        };
         checkShapefileIntegrity(expectedTypes, new ByteArrayInputStream(byteArrayZip));
 
         for (String fileName : expectedTypes) {
@@ -660,9 +658,9 @@ public class ShapeZipTest extends WFSTestSupport {
             if (name.toLowerCase().endsWith("shp")) shapeFileName = outName;
             // copy each file to temp folder
 
-            FileOutputStream outFile = new FileOutputStream(outName);
-            copyStream(zis, outFile);
-            outFile.close();
+            try (FileOutputStream outFile = new FileOutputStream(outName)) {
+                copyStream(zis, outFile);
+            }
             zis.closeEntry();
         }
         zis.close();
@@ -722,7 +720,7 @@ public class ShapeZipTest extends WFSTestSupport {
         ZipInputStream zis = new ZipInputStream(in);
         ZipEntry entry = null;
 
-        final String[] extensions = new String[] {".shp", ".shx", ".dbf", ".prj", ".cst"};
+        final String[] extensions = {".shp", ".shx", ".dbf", ".prj", ".cst"};
         Set names = new HashSet();
         for (String name : typeNames) {
             for (String extension : extensions) {
@@ -850,14 +848,14 @@ public class ShapeZipTest extends WFSTestSupport {
         // get shp file bytes only
         byte[] resultBytes = getShpOnlyBytes(zipBytes);
         // get expected byte array
-        InputStream resource =
+        try (InputStream resource =
                 getClass()
                         .getClassLoader()
-                        .getResourceAsStream("org/geoserver/wfs/response/pointZm.shp");
-        byte[] expectedBytes = IOUtils.toByteArray(resource);
-        resource.close();
-        // compare generated bytes
-        assertArrayEquals(resultBytes, expectedBytes);
+                        .getResourceAsStream("org/geoserver/wfs/response/pointZm.shp")) {
+            byte[] expectedBytes = IOUtils.toByteArray(resource);
+            // compare generated bytes
+            assertArrayEquals(resultBytes, expectedBytes);
+        }
     }
 
     /** Test for MultiPoint ZM support on GetFeature shapefile output */
@@ -883,14 +881,14 @@ public class ShapeZipTest extends WFSTestSupport {
         // get shp file bytes only
         byte[] resultBytes = getShpOnlyBytes(zipBytes);
         // get expected byte array
-        InputStream in =
+        try (InputStream in =
                 getClass()
                         .getClassLoader()
-                        .getResourceAsStream("org/geoserver/wfs/response/multiPointZm.shp");
-        byte[] expectedBytes = IOUtils.toByteArray(in);
-        in.close();
-        // compare generated bytes
-        assertArrayEquals(resultBytes, expectedBytes);
+                        .getResourceAsStream("org/geoserver/wfs/response/multiPointZm.shp")) {
+            byte[] expectedBytes = IOUtils.toByteArray(in);
+            // compare generated bytes
+            assertArrayEquals(resultBytes, expectedBytes);
+        }
     }
 
     /** Test for MultiLineString ZM support on GetFeature shapefile output */
@@ -919,14 +917,14 @@ public class ShapeZipTest extends WFSTestSupport {
         // get shp file bytes only
         byte[] resultBytes = getShpOnlyBytes(zipBytes);
         // get expected byte array
-        InputStream is =
+        try (InputStream is =
                 getClass()
                         .getClassLoader()
-                        .getResourceAsStream("org/geoserver/wfs/response/lineStringZm.shp");
-        byte[] expectedBytes = IOUtils.toByteArray(is);
-        is.close();
-        // compare generated bytes
-        assertArrayEquals(resultBytes, expectedBytes);
+                        .getResourceAsStream("org/geoserver/wfs/response/lineStringZm.shp")) {
+            byte[] expectedBytes = IOUtils.toByteArray(is);
+            // compare generated bytes
+            assertArrayEquals(resultBytes, expectedBytes);
+        }
     }
 
     /** Test for MultiPolygon ZM support on GetFeature shapefile output */
@@ -957,13 +955,14 @@ public class ShapeZipTest extends WFSTestSupport {
         // get shp file bytes only
         byte[] resultBytes = getShpOnlyBytes(zipBytes);
         // get expected byte array
-        InputStream in =
+        try (InputStream in =
                 getClass()
                         .getClassLoader()
-                        .getResourceAsStream("org/geoserver/wfs/response/polygonZm.shp");
-        byte[] expectedBytes = IOUtils.toByteArray(in);
-        // compare generated bytes
-        assertArrayEquals(resultBytes, expectedBytes);
+                        .getResourceAsStream("org/geoserver/wfs/response/polygonZm.shp")) {
+            byte[] expectedBytes = IOUtils.toByteArray(in);
+            // compare generated bytes
+            assertArrayEquals(resultBytes, expectedBytes);
+        }
     }
 
     /**
@@ -973,7 +972,7 @@ public class ShapeZipTest extends WFSTestSupport {
      * @return shp file byte array
      */
     private byte[] getShpOnlyBytes(byte[] zipBytes) throws IOException {
-        byte[] resultBytes = new byte[] {};
+        byte[] resultBytes = {};
         ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zipBytes));
         ZipEntry entry = null;
         while ((entry = zis.getNextEntry()) != null) {

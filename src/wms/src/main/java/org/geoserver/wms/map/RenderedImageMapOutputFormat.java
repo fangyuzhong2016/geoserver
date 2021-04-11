@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.Interpolation;
 import javax.media.jai.InterpolationBicubic2;
@@ -49,6 +50,7 @@ import org.geoserver.platform.ServiceException;
 import org.geoserver.wms.DefaultWebMapService;
 import org.geoserver.wms.GetMapOutputFormat;
 import org.geoserver.wms.GetMapRequest;
+import org.geoserver.wms.MapLayerInfo;
 import org.geoserver.wms.MapProducerCapabilities;
 import org.geoserver.wms.WMS;
 import org.geoserver.wms.WMSInfo;
@@ -257,6 +259,7 @@ public class RenderedImageMapOutputFormat extends AbstractMapOutputFormat {
         this.extension = extension;
     }
 
+    @Override
     public MapProducerCapabilities getCapabilities(String format) {
         return capabilities.get(format);
     }
@@ -266,6 +269,7 @@ public class RenderedImageMapOutputFormat extends AbstractMapOutputFormat {
     }
 
     /** @see org.geoserver.wms.GetMapOutputFormat#produceMap(org.geoserver.wms.WMSMapContent) */
+    @Override
     public final RenderedImageMap produceMap(WMSMapContent mapContent) throws ServiceException {
         return produceMap(mapContent, false);
     }
@@ -575,8 +579,8 @@ public class RenderedImageMapOutputFormat extends AbstractMapOutputFormat {
 
         // Add a render listener that ignores well known rendering exceptions and reports back non
         // ignorable ones
-        final RenderExceptionStrategy nonIgnorableExceptionListener;
-        nonIgnorableExceptionListener = new RenderExceptionStrategy(renderer);
+        final RenderExceptionStrategy nonIgnorableExceptionListener =
+                new RenderExceptionStrategy(renderer);
         renderer.addRenderListener(nonIgnorableExceptionListener);
         RenderTimeStatistics statistics = null;
         if (!request.getRequest().equalsIgnoreCase("GETFEATUREINFO")) {
@@ -632,7 +636,8 @@ public class RenderedImageMapOutputFormat extends AbstractMapOutputFormat {
                         new ServiceException(
                                 "More than "
                                         + maxErrors
-                                        + " rendering errors occurred, bailing out.",
+                                        + " rendering errors occurred, bailing out. Layers: "
+                                        + buildMapLayerNameList(mapContent),
                                 errorChecker.getLastException(),
                                 "internalError");
             }
@@ -643,14 +648,18 @@ public class RenderedImageMapOutputFormat extends AbstractMapOutputFormat {
                                 "This request used more time than allowed and has been forcefully stopped. "
                                         + "Max rendering time is "
                                         + (maxRenderingTime / 1000.0)
-                                        + "s");
+                                        + "s. Layers: "
+                                        + buildMapLayerNameList(mapContent));
             }
             // check if a non ignorable error occurred
             if (nonIgnorableExceptionListener.exceptionOccurred()) {
                 Exception renderError = nonIgnorableExceptionListener.getException();
                 serviceException =
                         new ServiceException(
-                                "Rendering process failed", renderError, "internalError");
+                                "Rendering process failed. Layers: "
+                                        + buildMapLayerNameList(mapContent),
+                                renderError,
+                                "internalError");
             }
 
             // If there were no exceptions, return the map
@@ -676,6 +685,14 @@ public class RenderedImageMapOutputFormat extends AbstractMapOutputFormat {
             }
         }
         throw serviceException;
+    }
+
+    /** Helper method to build a comma separated list of layer names in the map. * */
+    private String buildMapLayerNameList(WMSMapContent mapContent) {
+        List<MapLayerInfo> layers = mapContent.getRequest().getLayers();
+        return layers == null
+                ? ""
+                : layers.stream().map(MapLayerInfo::getName).collect(Collectors.joining(", "));
     }
 
     /**
@@ -1614,13 +1631,12 @@ public class RenderedImageMapOutputFormat extends AbstractMapOutputFormat {
     private static final RenderedImage createBkgImage(
             float width, float height, Color bgColor, RenderingHints renderingHints) {
         // prepare bands for constant image if needed
-        final Number[] bands =
-                new Byte[] {
-                    (byte) bgColor.getRed(),
-                    (byte) bgColor.getGreen(),
-                    (byte) bgColor.getBlue(),
-                    (byte) bgColor.getAlpha()
-                };
+        final Byte[] bands = {
+            (byte) bgColor.getRed(),
+            (byte) bgColor.getGreen(),
+            (byte) bgColor.getBlue(),
+            (byte) bgColor.getAlpha()
+        };
         return ConstantDescriptor.create(width, height, bands, renderingHints);
     }
 
@@ -1640,12 +1656,11 @@ public class RenderedImageMapOutputFormat extends AbstractMapOutputFormat {
         final GridCoverage2DReader reader = context.reader;
         final Object params = context.params;
 
-        GridCoverage2D coverage;
         GeneralParameterValue[] readParams =
                 getReadParameters(
                         params, envelope, requestedRasterArea, interpolation, bgColor, bandIndices);
 
-        coverage = reader.read(readParams);
+        GridCoverage2D coverage = reader.read(readParams);
         context.params = readParams;
         return coverage;
     }

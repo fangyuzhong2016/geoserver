@@ -34,3 +34,10 @@ This section describes most of the extensions available for GeoServer. Other dat
    geofence/index
    geofence-server/index
    cas/index
+   params-extractor/index
+   gwc-s3/index
+   wmts-multidimensional/index
+   wps-download/index
+   wps-jdbc/index
+   mapml/index
+

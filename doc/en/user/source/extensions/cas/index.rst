@@ -84,7 +84,7 @@ from a given attribute repository, and then allow their release in the GeoServer
 For example, the following ``cas.properties`` file sets up a JDBC user source, as well as as JDBC
 attribute repository (this configuration file might useful for testing purposes, but not setup for production):
 
-.. code-block::
+.. code-block:: none
 
     cas.server.name=https://localhost:8443
     cas.server.prefix=${cas.server.name}/cas
@@ -161,4 +161,46 @@ and development only):
         "@class" : "org.apereo.cas.services.ReturnAllAttributeReleasePolicy"
       }
     }
+
+Configuring the web chain
+-------------------------
+
+The CAS authentication can be included in the web filter chain, with different behavior depending
+on which filters are included. The following discusses three possible examples.
+
+As first case, let's consider having only the CAS authentication in the "web" filter chain:
+
+    .. figure:: images/webCasOnly.png
+       :align: center
+
+Since anonymous access is not allowed, any attempt to access the GeoServer web console will cause
+a redirect to the CAS server, for login. Once logged in, the user interface shows a button to initiate
+a CAS logout (the logout is shared among all examples, won't be repeated in the following text).
+
+    .. figure:: images/webCasLogout.png
+       :align: center
+
+A second option is to allow anonymous access in the web chain, allowing users to access the layer
+preview and other demo functionality without loggin in:
+
+    .. figure:: images/webCasAnonymous.png
+       :align: center
+
+In this case the web console does not immediately redirect to the CAS server, but 
+provides a CAS login button instead:
+
+    .. figure:: images/webCasLogin.png
+       :align: center
+
+As a final example, let's consider having both CAS and form login in the web chain:
+
+    .. figure:: images/webCasFormAnonymous.png
+       :align: center
+
+This allows both a CAS login, and a form based login using GeoServer local username/password.
+It could be useful to allow GeoServer adminstration while the CAS server is offline for any reason.
+In this case both the form login and the CAS login button appear at the same time:
+
+    .. figure:: images/webCasFormLogin.png
+       :align: center
 

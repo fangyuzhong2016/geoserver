@@ -133,7 +133,7 @@ public abstract class WPSTestSupport extends GeoServerSystemTestSupport {
         if (!p.getValidationErrors().isEmpty()) {
             for (Exception exception : p.getValidationErrors()) {
                 SAXParseException ex = (SAXParseException) exception;
-                System.out.println(
+                LOGGER.warning(
                         ex.getLineNumber() + "," + ex.getColumnNumber() + " -" + ex.toString());
             }
             fail("Document did not validate.");
@@ -141,15 +141,15 @@ public abstract class WPSTestSupport extends GeoServerSystemTestSupport {
     }
 
     protected String readFileIntoString(String filename) throws IOException {
-        InputStream stream = getClass().getResourceAsStream(filename);
-        BufferedReader in = new BufferedReader(new InputStreamReader(stream));
-        StringBuffer sb = new StringBuffer();
-        String line = null;
-        while ((line = in.readLine()) != null) {
-            sb.append(line);
+        try (InputStream stream = getClass().getResourceAsStream(filename);
+                BufferedReader in = new BufferedReader(new InputStreamReader(stream))) {
+            StringBuffer sb = new StringBuffer();
+            String line = null;
+            while ((line = in.readLine()) != null) {
+                sb.append(line);
+            }
+            return sb.toString();
         }
-        in.close();
-        return sb.toString();
     }
 
     /** Adds the wcs 1.1 coverages. */
@@ -214,13 +214,9 @@ public abstract class WPSTestSupport extends GeoServerSystemTestSupport {
         return waitForProcessEnd(
                 statusLocation,
                 maxWaitSeconds,
-                new Callable<Void>() {
-
-                    @Override
-                    public Void call() throws Exception {
-                        Thread.sleep(100);
-                        return null;
-                    }
+                () -> {
+                    Thread.sleep(100);
+                    return null;
                 });
     }
 

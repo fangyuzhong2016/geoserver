@@ -468,16 +468,15 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
     void migrateFrom24() throws SecurityConfigException, IOException {
         // allows migration of RoleSource from PreAuthenticatedUserNameFilterConfig
         MigrationHelper mh =
-                new MigrationHelper() {
-                    @Override
-                    public void migrationPersister(XStreamPersister xp) {
+                xp ->
                         xp.getXStream()
                                 .registerConverter(
                                         new Converter() {
 
                                             @Override
                                             @SuppressWarnings("unchecked")
-                                            public boolean canConvert(Class cls) {
+                                            public boolean canConvert(
+                                                    @SuppressWarnings("rawtypes") Class cls) {
                                                 return cls.isAssignableFrom(RoleSource.class);
                                             }
 
@@ -502,8 +501,6 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
                                                 return null;
                                             }
                                         });
-                    }
-                };
         for (String fName : listFilters()) {
             SecurityFilterConfig fConfig = loadFilterConfig(fName, mh);
             if (fConfig != null) {
@@ -1958,17 +1955,10 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
             return false;
         }
 
-        String[][] allowedMethods =
-                new String[][] {
-                    {
-                        "org.geoserver.security.GeoServerSecurityManagerTest",
-                        "testMasterPasswordDump"
-                    },
-                    {
-                        "org.geoserver.security.web.passwd.MasterPasswordInfoPage",
-                        "dumpMasterPassword"
-                    }
-                };
+        String[][] allowedMethods = {
+            {"org.geoserver.security.GeoServerSecurityManagerTest", "testMasterPasswordDump"},
+            {"org.geoserver.security.web.passwd.MasterPasswordInfoPage", "dumpMasterPassword"}
+        };
 
         String result = checkStackTrace(10, allowedMethods);
 
@@ -1996,10 +1986,9 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
             throw new IOException("Unauthorized user tries to read master password");
         }
 
-        String[][] allowedMethods =
-                new String[][] {
-                    {"org.geoserver.rest.security.MasterPasswordController", "masterPasswordGet"}
-                };
+        String[][] allowedMethods = {
+            {"org.geoserver.rest.security.MasterPasswordController", "masterPasswordGet"}
+        };
 
         String result = checkStackTrace(10, allowedMethods);
         if (result != null) {
@@ -2822,6 +2811,7 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
 
     class UserGroupServiceHelper
             extends HelperBase<GeoServerUserGroupService, SecurityUserGroupServiceConfig> {
+        @Override
         public GeoServerUserGroupService load(String name) throws IOException {
 
             SecurityNamedServiceConfig config = loadConfig(name);
@@ -2889,6 +2879,7 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
     class RoleServiceHelper extends HelperBase<GeoServerRoleService, SecurityRoleServiceConfig> {
 
         /** Loads the role service for the named config from persistence. */
+        @Override
         public GeoServerRoleService load(String name) throws IOException {
 
             SecurityNamedServiceConfig config = loadConfig(name);
@@ -2982,6 +2973,7 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
     class PasswordValidatorHelper extends HelperBase<PasswordValidator, PasswordPolicyConfig> {
 
         /** Loads the password policy for the named config from persistence. */
+        @Override
         public PasswordValidator load(String name) throws IOException {
 
             PasswordPolicyConfig config = loadConfig(name);
@@ -3175,6 +3167,7 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
             extends HelperBase<GeoServerAuthenticationProvider, SecurityAuthProviderConfig> {
 
         /** Loads the auth provider for the named config from persistence. */
+        @Override
         public GeoServerAuthenticationProvider load(String name) throws IOException {
 
             SecurityNamedServiceConfig config = loadConfig(name);
@@ -3215,6 +3208,7 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
 
     class FilterHelper extends HelperBase<GeoServerSecurityFilter, SecurityFilterConfig> {
         /** Loads the filter for the named config from persistence. */
+        @Override
         public GeoServerSecurityFilter load(String name) throws IOException {
 
             SecurityNamedServiceConfig config = loadConfig(name);
@@ -3261,7 +3255,7 @@ public class GeoServerSecurityManager implements ApplicationContextAware, Applic
         }
 
         @Override
-        public boolean canConvert(Class type) {
+        public boolean canConvert(@SuppressWarnings("rawtypes") Class type) {
             return GeoServerSecurityFilterChain.class.isAssignableFrom(type);
         }
 

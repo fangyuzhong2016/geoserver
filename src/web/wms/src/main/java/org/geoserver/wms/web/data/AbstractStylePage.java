@@ -14,7 +14,6 @@ import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.regex.Pattern;
@@ -243,6 +242,7 @@ public abstract class AbstractStylePage extends GeoServerSecuredPage {
                 new PanelCachingTab(
                         new AbstractTab(new Model<>("Data")) {
 
+                            @Override
                             public Panel getPanel(String id) {
                                 return new StyleAdminPanel(id, AbstractStylePage.this);
                             }
@@ -253,6 +253,7 @@ public abstract class AbstractStylePage extends GeoServerSecuredPage {
                         new AbstractTab(new Model<>("Publishing")) {
                             private static final long serialVersionUID = 4184410057835108176L;
 
+                            @Override
                             public Panel getPanel(String id) {
                                 return new LayerAssociationPanel(id, AbstractStylePage.this);
                             };
@@ -262,6 +263,7 @@ public abstract class AbstractStylePage extends GeoServerSecuredPage {
                 new PanelCachingTab(
                         new AbstractTab(new Model<>("Layer Preview")) {
 
+                            @Override
                             public Panel getPanel(String id) {
                                 return new OpenLayersPreviewPanel(id, AbstractStylePage.this);
                             }
@@ -272,6 +274,7 @@ public abstract class AbstractStylePage extends GeoServerSecuredPage {
                         new AbstractTab(new Model<>("Layer Attributes")) {
                             private static final long serialVersionUID = 4184410057835108176L;
 
+                            @Override
                             public Panel getPanel(String id) {
                                 try {
                                     return new LayerAttributePanel(id, AbstractStylePage.this);
@@ -296,13 +299,11 @@ public abstract class AbstractStylePage extends GeoServerSecuredPage {
         // sort the tabs based on order
         Collections.sort(
                 tabPanels,
-                new Comparator<StyleEditTabPanelInfo>() {
-                    public int compare(StyleEditTabPanelInfo o1, StyleEditTabPanelInfo o2) {
-                        Integer order1 = o1.getOrder() >= 0 ? o1.getOrder() : Integer.MAX_VALUE;
-                        Integer order2 = o2.getOrder() >= 0 ? o2.getOrder() : Integer.MAX_VALUE;
+                (o1, o2) -> {
+                    Integer order1 = o1.getOrder() >= 0 ? o1.getOrder() : Integer.MAX_VALUE;
+                    Integer order2 = o2.getOrder() >= 0 ? o2.getOrder() : Integer.MAX_VALUE;
 
-                        return order1.compareTo(order2);
-                    }
+                    return order1.compareTo(order2);
                 });
         // instantiate tab panels and add to tabs list
         for (StyleEditTabPanelInfo tabPanelInfo : tabPanels) {
@@ -341,6 +342,7 @@ public abstract class AbstractStylePage extends GeoServerSecuredPage {
 
         tabbedPanel =
                 new AjaxTabbedPanel<ITab>("context", tabs) {
+                    @Override
                     protected String getTabContainerCssClass() {
                         return "tab-row tab-row-compact";
                     }
@@ -613,6 +615,23 @@ public abstract class AbstractStylePage extends GeoServerSecuredPage {
                     }
                 };
         add(cancelLink);
+
+        // add additional style components that may be used e.g. by extensions
+        List<StyleComponentInfo> compInfo =
+                getGeoServerApplication().getBeansOfType(StyleComponentInfo.class);
+        for (StyleComponentInfo comp : compInfo) {
+            try {
+                Class<?> component = comp.getComponentClass();
+                Component c =
+                        (Component)
+                                component
+                                        .getConstructor(String.class, AbstractStylePage.class)
+                                        .newInstance(comp.getId(), this);
+                styleForm.add(c);
+            } catch (Exception e) {
+                throw new WicketRuntimeException(e);
+            }
+        }
     }
 
     StyleHandler styleHandler() {

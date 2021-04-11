@@ -5,13 +5,16 @@
  */
 package org.geoserver.data.test;
 
-import static org.easymock.EasyMock.*;
+import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.createMock;
 import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.or;
 import static org.easymock.EasyMock.replay;
 import static org.geoserver.data.test.CiteTestData.DEFAULT_LATLON_ENVELOPE;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import java.io.File;
 import java.io.IOException;
@@ -56,9 +59,7 @@ import org.geoserver.util.IOUtils;
 import org.geotools.coverage.grid.io.AbstractGridFormat;
 import org.geotools.coverage.grid.io.GridCoverage2DReader;
 import org.geotools.coverage.grid.io.GridFormatFinder;
-import org.geotools.data.DataAccess;
 import org.geotools.data.DataStore;
-import org.geotools.data.FeatureSource;
 import org.geotools.data.property.PropertyDataStore;
 import org.geotools.data.property.PropertyDataStoreFactory;
 import org.geotools.feature.NameImpl;
@@ -66,7 +67,6 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.util.URLs;
 import org.geotools.util.Version;
-import org.opengis.feature.type.FeatureType;
 
 public class MockCatalogBuilder {
     public static interface Callback {
@@ -195,14 +195,7 @@ public class MockCatalogBuilder {
 
         try {
             expect(ds.getDataStore(null))
-                    .andAnswer(
-                            (IAnswer)
-                                    new IAnswer<DataAccess>() {
-                                        @Override
-                                        public DataAccess answer() throws Throwable {
-                                            return new PropertyDataStore(propDir, ns.getURI());
-                                        }
-                                    })
+                    .andAnswer((IAnswer) () -> new PropertyDataStore(propDir, ns.getURI()))
                     .anyTimes();
         } catch (IOException e) {
         }
@@ -231,7 +224,6 @@ public class MockCatalogBuilder {
     public MockCatalogBuilder coverageStore(String name, String filename, String format) {
         String csId = newId();
         WorkspaceInfo ws = workspaces.peekLast();
-        NamespaceInfo ns = namespaces.peekLast();
 
         final CoverageStoreInfo cs = createNiceMock(CoverageStoreInfo.class);
         coverageStores.add(cs);
@@ -241,24 +233,8 @@ public class MockCatalogBuilder {
         File covDir = new File(dataDirRoot, name);
         final File covFile = new File(covDir, filename);
         expect(cs.getURL()).andReturn(URLs.fileToUrl(covFile).toString()).anyTimes();
-        expect(cs.getType())
-                .andAnswer(
-                        new IAnswer<String>() {
-                            @Override
-                            public String answer() throws Throwable {
-                                return lookupGridFormat(covFile).getName();
-                            }
-                        })
-                .anyTimes();
-        expect(cs.getFormat())
-                .andAnswer(
-                        new IAnswer<AbstractGridFormat>() {
-                            @Override
-                            public AbstractGridFormat answer() throws Throwable {
-                                return lookupGridFormat(covFile);
-                            }
-                        })
-                .anyTimes();
+        expect(cs.getType()).andAnswer(() -> lookupGridFormat(covFile).getName()).anyTimes();
+        expect(cs.getFormat()).andAnswer(() -> lookupGridFormat(covFile)).anyTimes();
         expect(cs.getConnectionParameters()).andReturn(new HashMap<>()).anyTimes();
 
         expect(catalog.getCoverageStore(csId)).andReturn(cs).anyTimes();
@@ -357,24 +333,14 @@ public class MockCatalogBuilder {
 
         try {
             expect(ft.getFeatureType())
-                    .andAnswer(
-                            new IAnswer<FeatureType>() {
-                                @Override
-                                public FeatureType answer() throws Throwable {
-                                    return ((DataStore) ds.getDataStore(null)).getSchema(name);
-                                }
-                            })
+                    .andAnswer(() -> ((DataStore) ds.getDataStore(null)).getSchema(name))
                     .anyTimes();
             expect(ft.getFeatureSource(null, null))
                     .andAnswer(
                             (IAnswer)
-                                    new IAnswer<FeatureSource>() {
-                                        @Override
-                                        public FeatureSource answer() throws Throwable {
-                                            return ((DataStore) ds.getDataStore(null))
-                                                    .getFeatureSource(name);
-                                        }
-                                    })
+                                    () ->
+                                            ((DataStore) ds.getDataStore(null))
+                                                    .getFeatureSource(name))
                     .anyTimes();
         } catch (IOException e) {
         }
@@ -414,7 +380,7 @@ public class MockCatalogBuilder {
         return this;
     }
 
-    public MockCatalogBuilder coverage(QName qName, String fileName, String srs, Class scope) {
+    public MockCatalogBuilder coverage(QName qName, String fileName, String srs, Class<?> scope) {
         scope = scope != null ? scope : getClass();
 
         String cId = newId();
@@ -552,7 +518,6 @@ public class MockCatalogBuilder {
         expect(r.isAdvertised()).andReturn(true).anyTimes();
         expect(r.getProjectionPolicy()).andReturn(projPolicy).anyTimes();
         expect(r.getLatLonBoundingBox()).andReturn(latLonEnvelope).anyTimes();
-        ;
         expect(r.getNativeBoundingBox()).andReturn(envelope).anyTimes();
 
         expect(catalog.getResource(rId, clazz)).andReturn(r).anyTimes();
@@ -641,7 +606,6 @@ public class MockCatalogBuilder {
         }
 
         String sId = newId();
-        String format = SLDHandler.FORMAT;
         Version version = SLDHandler.VERSION_10;
 
         final StyleInfo s = createNiceMock(StyleInfo.class);
@@ -944,14 +908,7 @@ public class MockCatalogBuilder {
     }
 
     <T extends CatalogInfo> T find(final String name, List<T> list) {
-        return Iterables.find(
-                list,
-                new Predicate<T>() {
-                    @Override
-                    public boolean apply(T input) {
-                        return name.equals(OwsUtils.get(input, "name"));
-                    }
-                });
+        return Iterables.find(list, input -> name.equals(OwsUtils.get(input, "name")));
     }
 
     protected String newId() {

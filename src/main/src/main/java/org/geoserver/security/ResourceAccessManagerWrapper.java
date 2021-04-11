@@ -102,11 +102,10 @@ public abstract class ResourceAccessManagerWrapper implements ResourceAccessMana
                 } else {
                     final List<Polygon> accum = new ArrayList<>();
                     intersection.apply(
-                            new GeometryComponentFilter() {
-                                public void filter(Geometry geom) {
-                                    if (geom instanceof Polygon) accum.add((Polygon) geom);
-                                }
-                            });
+                            (GeometryComponentFilter)
+                                    geom -> {
+                                        if (geom instanceof Polygon) accum.add((Polygon) geom);
+                                    });
 
                     rasterFilter =
                             geomFactory.createMultiPolygon(
@@ -212,31 +211,38 @@ public abstract class ResourceAccessManagerWrapper implements ResourceAccessMana
         this.delegate = delegate;
     }
 
+    @Override
     public DataAccessLimits getAccessLimits(Authentication user, ResourceInfo resource) {
         return delegate.getAccessLimits(user, resource);
     }
 
+    @Override
     public DataAccessLimits getAccessLimits(Authentication user, LayerInfo layer) {
         return delegate.getAccessLimits(user, layer);
     }
 
+    @Override
     public DataAccessLimits getAccessLimits(
             Authentication user, LayerInfo layer, List<LayerGroupInfo> containers) {
         return delegate.getAccessLimits(user, layer, containers);
     }
 
+    @Override
     public WorkspaceAccessLimits getAccessLimits(Authentication user, WorkspaceInfo workspace) {
         return delegate.getAccessLimits(user, workspace);
     }
 
+    @Override
     public StyleAccessLimits getAccessLimits(Authentication user, StyleInfo style) {
         return delegate.getAccessLimits(user, style);
     }
 
+    @Override
     public LayerGroupAccessLimits getAccessLimits(Authentication user, LayerGroupInfo layerGroup) {
         return delegate.getAccessLimits(user, layerGroup);
     }
 
+    @Override
     public LayerGroupAccessLimits getAccessLimits(
             Authentication user, LayerGroupInfo layerGroup, List<LayerGroupInfo> containers) {
         return delegate.getAccessLimits(user, layerGroup, containers);

@@ -74,6 +74,7 @@ public class ModificationProxy implements WrappingProxy, Serializable {
     }
 
     /** Intercepts getter and setter methods. */
+    @Override
     @SuppressWarnings("unchecked") // lots of generic behavior, cannot use params
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 
@@ -155,6 +156,7 @@ public class ModificationProxy implements WrappingProxy, Serializable {
         }
     }
 
+    @Override
     public Object getProxyObject() {
         return proxyObject;
     }
@@ -232,7 +234,7 @@ public class ModificationProxy implements WrappingProxy, Serializable {
     }
 
     /** Helper method for determining if a property of a proxied object should also be proxied. */
-    boolean shouldProxyProperty(Class propertyType) {
+    boolean shouldProxyProperty(Class<?> propertyType) {
         if (Catalog.class.isAssignableFrom(propertyType)) {
             // never proxy the catalog
             return false;
@@ -399,7 +401,7 @@ public class ModificationProxy implements WrappingProxy, Serializable {
     /*
      * Helper method for looking up a getter method.
      */
-    Method setter(String propertyName, Class type) {
+    Method setter(String propertyName, Class<?> type) {
         Method s = null;
         try {
             s = proxyObject.getClass().getMethod("set" + propertyName, type);
@@ -594,6 +596,7 @@ public class ModificationProxy implements WrappingProxy, Serializable {
             super(list, clazz);
         }
 
+        @Override
         protected <T> T createProxy(T proxyObject, Class<T> proxyInterface) {
             if (proxyObject instanceof Proxy) {
                 InvocationHandler h = handler(proxyObject);
@@ -604,6 +607,7 @@ public class ModificationProxy implements WrappingProxy, Serializable {
             return ModificationProxy.create(proxyObject, proxyInterface);
         }
 
+        @Override
         protected <U> U unwrapProxy(U proxy, java.lang.Class<U> proxyInterface) {
             return ModificationProxy.unwrap(proxy);
         };

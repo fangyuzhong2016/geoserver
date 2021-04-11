@@ -67,7 +67,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.commons.io.FileUtils;
 import org.geoserver.catalog.Catalog;
-import org.geoserver.catalog.FeatureTypeInfo;
 import org.geoserver.catalog.LayerGroupInfo;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.PublishedType;
@@ -85,9 +84,6 @@ import org.geoserver.platform.GeoServerEnvironment;
 import org.geoserver.platform.resource.Files;
 import org.geoserver.platform.resource.Resource;
 import org.geoserver.platform.resource.Resources;
-import org.geoserver.security.CoverageAccessLimits;
-import org.geoserver.security.WrapperPolicy;
-import org.geoserver.security.decorators.SecuredLayerInfo;
 import org.geoserver.wms.GetMapRequest;
 import org.geoserver.wms.kvp.PaletteManager;
 import org.geotools.filter.identity.FeatureIdImpl;
@@ -133,17 +129,10 @@ import org.geowebcache.storage.StorageException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.function.ThrowingRunnable;
 import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.geom.MultiPolygon;
 import org.mockito.ArgumentCaptor;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.opengis.filter.Filter;
-import org.opengis.referencing.FactoryException;
-import org.opengis.referencing.NoSuchAuthorityCodeException;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.cs.CoordinateSystem;
 import org.springframework.context.ApplicationContext;
 
 /** Unit test suite for the {@link GWC} mediator. */
@@ -486,8 +475,7 @@ public class GWCTest {
         final String newName = "TEST_CHANGED";
 
         final GridSet oldGridset = gridSetBroker.get(oldName);
-        final GridSet newGridset;
-        newGridset = namedGridsetCopy(newName, oldGridset);
+        final GridSet newGridset = namedGridsetCopy(newName, oldGridset);
 
         assertNotNull(tileLayer.getGridSubset(oldName));
         assertNotNull(tileLayerGroup.getGridSubset(oldName));
@@ -766,9 +754,9 @@ public class GWCTest {
 
         when(storageBroker.getCachedParameters(layerName)).thenReturn(cachedParameters);
 
-        ReferencedEnvelope bounds;
         // bounds outside layer bounds (which are -180,0,0,90)
-        bounds = new ReferencedEnvelope(10, 20, 10, 20, DefaultGeographicCRS.WGS84);
+        ReferencedEnvelope bounds =
+                new ReferencedEnvelope(10, 20, 10, 20, DefaultGeographicCRS.WGS84);
         BoundingBox layerBounds = tileLayer.getGridSubset("EPSG:4326").getOriginalExtent();
 
         assertFalse(bounds.intersects(layerBounds.getMinX(), layerBounds.getMinY()));
@@ -838,9 +826,9 @@ public class GWCTest {
 
         when(storageBroker.getCachedParameters(layerName)).thenReturn(cachedParameters);
 
-        ReferencedEnvelope bounds;
         // bounds outside layer bounds (which are -180,0,0,90)
-        bounds = new ReferencedEnvelope(10, 20, 10, 20, DefaultGeographicCRS.WGS84);
+        ReferencedEnvelope bounds =
+                new ReferencedEnvelope(10, 20, 10, 20, DefaultGeographicCRS.WGS84);
         BoundingBox layerBounds =
                 tileLayer.getGridSubset("EPSG:4326").getGridSet().getOriginalExtent();
 
@@ -961,14 +949,11 @@ public class GWCTest {
 
         when(tld.getLayerNames()).thenReturn(layerNames);
         doAnswer(
-                        new Answer<Void>() {
-
-                            @Override
-                            public Void answer(InvocationOnMock invocation) throws Throwable {
-                                layerNames.remove(removedLayer);
-                                return null;
-                            }
-                        })
+                        (Answer<Void>)
+                                invocation -> {
+                                    layerNames.remove(removedLayer);
+                                    return null;
+                                })
                 .when(tld)
                 .reInit();
 
@@ -1153,10 +1138,8 @@ public class GWCTest {
 
         StringBuilder target = new StringBuilder();
 
-        boolean cachingPossible;
-
         request.setElevation(Arrays.asList((Object) null));
-        cachingPossible = mediator.isCachingPossible(tileLayer, request, target);
+        boolean cachingPossible = mediator.isCachingPossible(tileLayer, request, target);
         assertTrue(cachingPossible);
         assertEquals(0, target.length());
         request.setElevation(Collections.emptyList());
@@ -1254,8 +1237,7 @@ public class GWCTest {
         tileLayer = mockTileLayer("mockLayer", gridSetNames);
 
         // make the request match a tile in the expected gridset
-        BoundingBox bounds;
-        bounds = tileLayer.getGridSubset(expectedGridset).boundsFromIndex(tileIndex);
+        BoundingBox bounds = tileLayer.getGridSubset(expectedGridset).boundsFromIndex(tileIndex);
 
         Envelope reqBbox =
                 new Envelope(
@@ -1344,8 +1326,8 @@ public class GWCTest {
         // tileLayer = mockTileLayer("mockLayer", ImmutableList.of("EPSG:900913", "EPSG:4326"));
 
         // make the request match a tile in the expected gridset
-        BoundingBox bounds;
-        bounds = tileLayer.getGridSubset("EPSG:900913").boundsFromIndex(new long[] {0, 0, 1});
+        BoundingBox bounds =
+                tileLayer.getGridSubset("EPSG:900913").boundsFromIndex(new long[] {0, 0, 1});
 
         Envelope reqBbox =
                 new Envelope(
@@ -1475,15 +1457,7 @@ public class GWCTest {
     public void testSetBlobStoresNull() throws ConfigurationException {
 
         NullPointerException e =
-                assertThrows(
-                        NullPointerException.class,
-                        new ThrowingRunnable() {
-
-                            @Override
-                            public void run() throws Throwable {
-                                mediator.setBlobStores(null);
-                            }
-                        });
+                assertThrows(NullPointerException.class, () -> mediator.setBlobStores(null));
         assertTrue(e.getMessage().contains("stores is null"));
     }
 
@@ -1537,45 +1511,8 @@ public class GWCTest {
 
     @Test
     public void testGeoServerEnvParametrization() throws Exception {
-        if (GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
+        if (GeoServerEnvironment.allowEnvParametrization()) {
             assertEquals("H2", jdbcStorage.getJDBCDiskQuotaConfig().clone(true).getDialect());
         }
-    }
-
-    private void mockCachedSecureLayer(
-            Envelope filterBox,
-            BoundingBox bounds,
-            final String layerName,
-            final String gridName,
-            final long zoom,
-            final long col,
-            final long row)
-            throws GeoWebCacheException, NoSuchAuthorityCodeException, FactoryException {
-        GeoServerTileLayer tileLayer = mock(GeoServerTileLayer.class);
-        GridSubset subset = mock(GridSubset.class);
-        SRS srs = mock(SRS.class);
-        SecuredLayerInfo layer = mock(SecuredLayerInfo.class);
-        FeatureTypeInfo featureType = mock(FeatureTypeInfo.class);
-        CoordinateReferenceSystem crs = mock(CoordinateReferenceSystem.class);
-        CoordinateSystem cs = mock(CoordinateSystem.class);
-        WrapperPolicy policy = mock(WrapperPolicy.class);
-        CoverageAccessLimits limits = mock(CoverageAccessLimits.class);
-        MultiPolygon filter = mock(MultiPolygon.class);
-
-        when(tld.getTileLayer(eq(layerName))).thenReturn(tileLayer);
-        when(tileLayer.getGridSubset(eq(gridName))).thenReturn(subset);
-        when(subset.boundsFromIndex(eq(new long[] {col, row, zoom}))).thenReturn(bounds);
-        when(subset.getSRS()).thenReturn(srs);
-        doReturn(crs).when(mediator).getCRSForGridset(eq(subset));
-        when(tileLayer.getPublishedInfo()).thenReturn(layer);
-        when(layer.getResource()).thenReturn(featureType);
-        when(featureType.getCRS()).thenReturn(crs);
-        when(crs.getCoordinateSystem()).thenReturn(cs);
-        when(cs.getDimension()).thenReturn(2);
-        when(catalog.getLayerByName(layerName)).thenReturn(layer);
-        when(layer.getWrapperPolicy()).thenReturn(policy);
-        when(policy.getLimits()).thenReturn(limits);
-        when(limits.getRasterFilter()).thenReturn(filter);
-        when(filter.getEnvelopeInternal()).thenReturn(filterBox);
     }
 }

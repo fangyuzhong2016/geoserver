@@ -45,7 +45,7 @@ public class WMTSStoreNewPage extends AbstractWMTSStorePage {
                     GeoServerExtensions.bean(GeoServerEnvironment.class);
 
             // AF: Disable Binding if GeoServer Env Parametrization is enabled!
-            if (gsEnvironment == null || !GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
+            if (gsEnvironment == null || !GeoServerEnvironment.allowEnvParametrization()) {
                 capabilitiesURL.getFormComponent().add(new WMTSCapabilitiesURLValidator());
             }
         } catch (IOException e) {
@@ -133,7 +133,7 @@ public class WMTSStoreNewPage extends AbstractWMTSStorePage {
                     }
                 }
 
-                WebMapTileServer server = new WebMapTileServer(new URL(url), client, null);
+                WebMapTileServer server = new WebMapTileServer(new URL(url), client);
                 server.getCapabilities();
             } catch (IOException | ServiceException e) {
                 IValidationError err =

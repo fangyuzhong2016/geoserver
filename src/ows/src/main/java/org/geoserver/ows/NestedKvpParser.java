@@ -40,11 +40,12 @@ public class NestedKvpParser extends KvpParser {
      * @param key The key to bind to.
      * @param binding The class of each token in the value.
      */
-    public NestedKvpParser(String key, Class binding) {
+    public NestedKvpParser(String key, Class<?> binding) {
         super(key, binding);
     }
 
     /** Tokenizes the value and delegates to {@link #parseToken(String)} to parse each token. */
+    @Override
     public Object parse(String value) throws Exception {
         List<List<String>> nestedTokens = KvpUtils.readNested(value);
         List<Object> result = new ArrayList<>();

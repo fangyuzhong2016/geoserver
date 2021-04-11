@@ -5,9 +5,12 @@
  */
 package org.geoserver.template;
 
+import static org.geoserver.template.TemplateUtils.FM_VERSION;
+
 import freemarker.ext.beans.BeansWrapper;
 import freemarker.ext.beans.CollectionModel;
 import freemarker.template.Configuration;
+import freemarker.template.DefaultObjectWrapper;
 import freemarker.template.SimpleHash;
 import freemarker.template.TemplateCollectionModel;
 import freemarker.template.TemplateModel;
@@ -106,11 +109,13 @@ public class FeatureWrapper extends BeansWrapper {
     protected TemplateFeatureCollectionFactory templateFeatureCollectionFactory;
 
     public FeatureWrapper() {
+        super(FM_VERSION);
         setSimpleMapWrapper(true);
         this.templateFeatureCollectionFactory = copyTemplateFeatureCollectionFactory;
     }
 
     public FeatureWrapper(TemplateFeatureCollectionFactory templateFeatureCollectionFactory) {
+        super(FM_VERSION);
         setSimpleMapWrapper(true);
         this.templateFeatureCollectionFactory = templateFeatureCollectionFactory;
     }
@@ -197,11 +202,12 @@ public class FeatureWrapper extends BeansWrapper {
         return name.getNamespaceURI() == null ? "" : name.getNamespaceURI();
     }
 
+    @Override
     public TemplateModel wrap(Object object) throws TemplateModelException {
         // check for feature collection
         if (object instanceof FeatureCollection) {
             // create a model with just one variable called 'features'
-            SimpleHash map = new SimpleHash();
+            SimpleHash map = new SimpleHash(new DefaultObjectWrapper(FM_VERSION));
             map.put(
                     "features",
                     templateFeatureCollectionFactory.createTemplateFeatureCollection(
@@ -241,7 +247,7 @@ public class FeatureWrapper extends BeansWrapper {
 
         // build up the result, feature type is represented by its name an
         // attributes
-        SimpleHash map = new SimpleHash();
+        SimpleHash map = new SimpleHash(new DefaultObjectWrapper(FM_VERSION));
         map.put("attributes", new SequenceMapModel(attributeMap, this));
         map.put("name", ft.getName().getLocalPart());
         map.put("namespace", getNamespace(ft.getName()));
@@ -252,7 +258,7 @@ public class FeatureWrapper extends BeansWrapper {
 
     private SimpleHash buildComplex(ComplexAttribute att) {
         // create the model
-        SimpleHash map = new SimpleHash();
+        SimpleHash map = new SimpleHash(new DefaultObjectWrapper(FM_VERSION));
 
         // next create the Map representing the per attribute useful
         // properties for a template
@@ -289,6 +295,9 @@ public class FeatureWrapper extends BeansWrapper {
         // create a variable "attributes" which his a list of all the
         // attributes, but at the same time, is a map keyed by name
         map.put("attributes", new SequenceMapModel(attributeMap, this));
+        if (att instanceof Feature) {
+            map.put("bounds", ((Feature) att).getBounds());
+        }
 
         return map;
     }
@@ -332,6 +341,7 @@ public class FeatureWrapper extends BeansWrapper {
             this.feature = feature;
         }
 
+        @Override
         public Set entrySet() {
             if (entrySet == null) {
                 entrySet = new LinkedHashSet<>();
@@ -392,6 +402,7 @@ public class FeatureWrapper extends BeansWrapper {
          * Override so asking for the hashCode does not implies traversing the whole map and thus
          * calling entrySet() prematurely
          */
+        @Override
         @SuppressWarnings("PMD.OverrideBothEqualsAndHashcode")
         public int hashCode() {
             return attributeName.hashCode();
@@ -403,6 +414,7 @@ public class FeatureWrapper extends BeansWrapper {
          * </code> property, which is lazily evaluated through the use of a {@link
          * DeferredValueEntry}
          */
+        @Override
         public Set entrySet() {
             if (entrySet == null) {
                 entrySet = new LinkedHashSet<>();
@@ -478,6 +490,7 @@ public class FeatureWrapper extends BeansWrapper {
             }
 
             /** Returns the value corresponding to this entry, as a String. */
+            @Override
             public Object getValue() {
                 Object actualValue = super.getValue();
                 String stringValue = FeatureWrapper.valueToString(actualValue);
@@ -506,6 +519,7 @@ public class FeatureWrapper extends BeansWrapper {
     protected static class CopyTemplateFeatureCollectionFactory
             implements TemplateFeatureCollectionFactory<CollectionModel> {
 
+        @Override
         @SuppressWarnings("unchecked")
         public CollectionModel createTemplateFeatureCollection(
                 FeatureCollection collection, BeansWrapper wrapper) {

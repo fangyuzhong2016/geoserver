@@ -45,17 +45,17 @@ public class SpringBeanProcessFactory
         extends org.geotools.process.factory.AnnotationDrivenProcessFactory
         implements ApplicationContextAware, ApplicationListener {
 
-    Map<String, Class> classMap;
+    Map<String, Class<?>> classMap;
 
     Map<String, String> beanMap;
 
-    Class markerInterface;
+    Class<?> markerInterface;
 
     ApplicationContext applicationContext;
 
     FactoryIteratorProvider iterator;
 
-    public SpringBeanProcessFactory(String title, String namespace, Class markerInterface) {
+    public SpringBeanProcessFactory(String title, String namespace, Class<?> markerInterface) {
         super(new SimpleInternationalString(title), namespace);
         this.markerInterface = markerInterface;
 
@@ -63,6 +63,7 @@ public class SpringBeanProcessFactory
         iterator =
                 new FactoryIteratorProvider() {
 
+                    @Override
                     public <T> Iterator<T> iterator(Class<T> category) {
                         if (ProcessFactory.class.isAssignableFrom(category)) {
                             return getFactoryIterator();
@@ -88,6 +89,7 @@ public class SpringBeanProcessFactory
         }
     }
 
+    @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
 
@@ -97,7 +99,7 @@ public class SpringBeanProcessFactory
         classMap = new HashMap<>();
         beanMap = new HashMap<>();
         for (String beanName : beanNames) {
-            Class c = applicationContext.getType(beanName);
+            Class<?> c = applicationContext.getType(beanName);
             if (c != null) {
                 String name = c.getSimpleName();
                 if (name.endsWith("Process")) {
@@ -121,7 +123,7 @@ public class SpringBeanProcessFactory
 
     @Override
     protected Method method(String className) {
-        Class c = classMap.get(className);
+        Class<?> c = classMap.get(className);
         Method lastExecute = null;
         if (c != null) {
             for (Method m : c.getMethods()) {
@@ -140,6 +142,7 @@ public class SpringBeanProcessFactory
         return lastExecute;
     }
 
+    @Override
     public Set<Name> getNames() {
         Set<Name> result = new LinkedHashSet<>();
         List<String> names = new ArrayList<>(classMap.keySet());
@@ -159,6 +162,7 @@ public class SpringBeanProcessFactory
         return applicationContext.getBean(beanName);
     }
 
+    @Override
     public void onApplicationEvent(ApplicationEvent event) {
         // add and remove the process factory as necessary
         if (event instanceof ContextRefreshedEvent) {

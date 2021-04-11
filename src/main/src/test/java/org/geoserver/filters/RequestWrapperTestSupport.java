@@ -16,14 +16,14 @@ import org.springframework.mock.web.MockServletContext;
 
 public class RequestWrapperTestSupport {
 
-    protected final String[] testStrings =
-            new String[] {
-                "Hello, this is a test",
-                "LongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLong",
-                "",
-                "test\ncontaining\nnewlines"
-            };
+    protected final String[] testStrings = {
+        "Hello, this is a test",
+        "LongLongLongLongLongLongLongLongLongLongLongLongLongLongLongLong",
+        "",
+        "test\ncontaining\nnewlines"
+    };
 
+    @SuppressWarnings("PMD.AvoidUsingHardCodedIP")
     protected MockHttpServletRequest makeRequest(String body, String queryString)
             throws UnsupportedEncodingException {
         MockHttpServletRequest request = new MockHttpServletRequest();

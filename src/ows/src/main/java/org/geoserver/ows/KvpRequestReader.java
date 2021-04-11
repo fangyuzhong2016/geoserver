@@ -78,7 +78,7 @@ public class KvpRequestReader {
      *
      * @param requestBean The type of the request read, not <code>null</code>
      */
-    public KvpRequestReader(Class requestBean) {
+    public KvpRequestReader(Class<?> requestBean) {
         if (requestBean == null) {
             throw new NullPointerException();
         }
@@ -218,6 +218,7 @@ public class KvpRequestReader {
     }
 
     /** Equals override, equality is based on {@link #getRequestBean()} */
+    @Override
     public final boolean equals(Object obj) {
         if (obj instanceof KvpRequestReader) {
             KvpRequestReader other = (KvpRequestReader) obj;
@@ -228,6 +229,7 @@ public class KvpRequestReader {
         return false;
     }
 
+    @Override
     public final int hashCode() {
         return requestBean.hashCode();
     }

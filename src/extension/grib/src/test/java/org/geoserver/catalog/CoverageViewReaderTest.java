@@ -230,7 +230,6 @@ public class CoverageViewReaderTest extends GeoServerSystemTestSupport {
 
         final Catalog cat = getCatalog();
         final CoverageInfo coverageInfo = cat.getCoverageByName("multiband_select");
-        final MetadataMap metadata = coverageInfo.getMetadata();
 
         final ResourcePool resPool = cat.getResourcePool();
         final ReferencedEnvelope bbox = coverageInfo.getLatLonBoundingBox();
@@ -242,7 +241,7 @@ public class CoverageViewReaderTest extends GeoServerSystemTestSupport {
         ((GridCoverage2D) coverage).dispose(true);
         final GridCoverageReader reader =
                 resPool.getGridCoverageReader(coverageInfo, "multiband_select", null);
-        int[] bandIndices = new int[] {2, 0, 1, 0, 2, 2, 2, 3};
+        int[] bandIndices = {2, 0, 1, 0, 2, 2, 2, 3};
         Parameter<int[]> bandIndicesParam = null;
 
         if (bandIndices != null) {
@@ -304,19 +303,17 @@ public class CoverageViewReaderTest extends GeoServerSystemTestSupport {
 
         final Catalog cat = getCatalog();
         final CoverageInfo coverageInfo = cat.getCoverageByName("multiband_select");
-        final MetadataMap metadata = coverageInfo.getMetadata();
 
         final ResourcePool resPool = cat.getResourcePool();
         final ReferencedEnvelope bbox = coverageInfo.getLatLonBoundingBox();
         final GridCoverage coverage =
                 resPool.getGridCoverage(coverageInfo, "multiband_select", bbox, null);
-        RenderedImage srcImage = coverage.getRenderedImage();
 
         assertEquals(coverage.getNumSampleDimensions(), 5);
         ((GridCoverage2D) coverage).dispose(true);
         final GridCoverageReader reader =
                 resPool.getGridCoverageReader(coverageInfo, "multiband_select", null);
-        int[] bandIndices = new int[] {2, 0, 1, 0, 2, 2, 2, 3, 4, 0, 1, 0, 4, 2, 3};
+        int[] bandIndices = {2, 0, 1, 0, 2, 2, 2, 3, 4, 0, 1, 0, 4, 2, 3};
         Parameter<int[]> bandIndicesParam = null;
 
         if (bandIndices != null) {

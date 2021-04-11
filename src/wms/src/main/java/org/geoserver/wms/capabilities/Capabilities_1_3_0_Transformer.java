@@ -29,7 +29,6 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -280,6 +279,7 @@ public class Capabilities_1_3_0_Transformer extends TransformerBase {
          * @param o the {@link GetCapabilitiesRequest}
          * @throws IllegalArgumentException if {@code o} is not of the expected type
          */
+        @Override
         public void encode(Object o) throws IllegalArgumentException {
             if (!(o instanceof GetCapabilitiesRequest)) {
                 throw new IllegalArgumentException();
@@ -633,18 +633,22 @@ public class Capabilities_1_3_0_Transformer extends TransformerBase {
                 try {
                     cp.encode(
                             new ExtendedCapabilitiesProvider.Translator() {
+                                @Override
                                 public void start(String element) {
                                     Capabilities_1_3_0_Translator.this.start(element);
                                 }
 
+                                @Override
                                 public void start(String element, Attributes attributes) {
                                     Capabilities_1_3_0_Translator.this.start(element, attributes);
                                 }
 
+                                @Override
                                 public void chars(String text) {
                                     Capabilities_1_3_0_Translator.this.chars(text);
                                 }
 
+                                @Override
                                 public void end(String element) {
                                     Capabilities_1_3_0_Translator.this.end(element);
                                 }
@@ -990,13 +994,7 @@ public class Capabilities_1_3_0_Transformer extends TransformerBase {
             final List<LayerInfo> data = new ArrayList<>(layerTree.getData());
             final Collection<LayerTree> children = layerTree.getChildrens();
 
-            Collections.sort(
-                    data,
-                    new Comparator<LayerInfo>() {
-                        public int compare(LayerInfo o1, LayerInfo o2) {
-                            return o1.getName().compareTo(o2.getName());
-                        }
-                    });
+            Collections.sort(data, (o1, o2) -> o1.getName().compareTo(o2.getName()));
 
             for (LayerInfo layer : data) {
                 // no sense in exposing a geometryless layer through wms...
@@ -1578,7 +1576,6 @@ public class Capabilities_1_3_0_Transformer extends TransformerBase {
             if (LOGGER.isLoggable(Level.FINE)) {
                 LOGGER.fine("Adding GetLegendGraphic call as LegendURL");
             }
-
             AttributesImpl attrs = new AttributesImpl();
             attrs.addAttribute("", "width", "width", "", String.valueOf(legendWidth));
 
@@ -1589,6 +1586,8 @@ public class Capabilities_1_3_0_Transformer extends TransformerBase {
             element("Format", defaultFormat);
             attrs.clear();
 
+            // encode the Legend width and height in the URL too if we have a static legend
+            boolean hasExternalGraphic = legend != null && legend.getOnlineResource() != null;
             Map<String, String> params =
                     params(
                             "service",
@@ -1598,9 +1597,15 @@ public class Capabilities_1_3_0_Transformer extends TransformerBase {
                             "format",
                             defaultFormat,
                             "width",
-                            String.valueOf(GetLegendGraphicRequest.DEFAULT_WIDTH),
+                            String.valueOf(
+                                    hasExternalGraphic
+                                            ? legendWidth
+                                            : GetLegendGraphicRequest.DEFAULT_WIDTH),
                             "height",
-                            String.valueOf(GetLegendGraphicRequest.DEFAULT_HEIGHT),
+                            String.valueOf(
+                                    hasExternalGraphic
+                                            ? legendHeight
+                                            : GetLegendGraphicRequest.DEFAULT_HEIGHT),
                             "layer",
                             layerName);
             if (style != null) {

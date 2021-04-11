@@ -58,15 +58,15 @@ public class GeoServerImplTest {
         // GEOS-7890
         GeoServerInfo global1 = geoServer.getFactory().createGlobal();
         GeoServerInfo global2 = geoServer.getFactory().createGlobal();
-        global1.setGlobalServices(Boolean.valueOf(true));
-        global1.setXmlExternalEntitiesEnabled(Boolean.valueOf(false));
-        global1.getSettings().setVerbose(Boolean.valueOf(false));
-        global1.getSettings().setVerboseExceptions(Boolean.valueOf(false));
+        global1.setGlobalServices(true);
+        global1.setXmlExternalEntitiesEnabled(false);
+        global1.getSettings().setVerbose(false);
+        global1.getSettings().setVerboseExceptions(false);
 
-        global2.setGlobalServices(Boolean.valueOf(true));
-        global2.setXmlExternalEntitiesEnabled(Boolean.valueOf(false));
-        global2.getSettings().setVerbose(Boolean.valueOf(false));
-        global2.getSettings().setVerboseExceptions(Boolean.valueOf(false));
+        global2.setGlobalServices(true);
+        global2.setXmlExternalEntitiesEnabled(false);
+        global2.getSettings().setVerbose(false);
+        global2.getSettings().setVerboseExceptions(false);
         assertEquals(global1, global2);
     }
 
@@ -157,6 +157,7 @@ public class GeoServerImplTest {
         List<Object> sOldValues = new ArrayList<>();
         List<Object> sNewValues = new ArrayList<>();
 
+        @Override
         public void handleGlobalChange(
                 GeoServerInfo global,
                 List<String> propertyNames,
@@ -167,6 +168,7 @@ public class GeoServerImplTest {
             gNewValues.addAll(newValues);
         }
 
+        @Override
         public void handleServiceChange(
                 ServiceInfo service,
                 List<String> propertyNames,

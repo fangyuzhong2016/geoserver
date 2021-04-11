@@ -88,6 +88,7 @@ public class WCS20DescribeCoverageTransformer extends GMLTransformer {
                 wcsDescribeCoverageExtensions != null && !wcsDescribeCoverageExtensions.isEmpty();
     }
 
+    @Override
     public WCS20DescribeCoverageTranslator createTranslator(ContentHandler handler) {
         return new WCS20DescribeCoverageTranslator(handler);
     }
@@ -367,7 +368,7 @@ public class WCS20DescribeCoverageTransformer extends GMLTransformer {
          * </gmlcov:rangeType>
          * }</pre>
          */
-        public void handleRangeType(final List<CoverageDimensionInfo> bands) {
+        private void handleRangeType(final List<CoverageDimensionInfo> bands) {
             start("gmlcov:rangeType");
             start("swe:DataRecord");
 

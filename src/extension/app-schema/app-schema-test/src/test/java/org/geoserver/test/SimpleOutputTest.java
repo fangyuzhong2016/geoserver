@@ -91,7 +91,7 @@ public class SimpleOutputTest extends StationsAppSchemaTestSupport {
     }
 
     private void checkCsv(String result) {
-        String lines[] = result.split("\\r?\\n");
+        String[] lines = result.split("\\r?\\n");
         assertEquals(4, lines.length);
         assertEquals("FID,mail,name,codeNumber,captureDate,location", lines[0]);
         assertEquals("st.1,station1@stations.org,station1,12,2006-10-25,POINT (1 -1)", lines[1]);
@@ -223,9 +223,7 @@ public class SimpleOutputTest extends StationsAppSchemaTestSupport {
 
     private void activateLayer(String workspace, String layerName) {
         Catalog catalog = this.getCatalog();
-        WorkspaceInfo workspaceInfo = catalog.getWorkspaceByName(workspace);
         // setup layer rule
-        String wsName = workspaceInfo.getName();
         Name layerNameComplex = new NameImpl(workspace, layerName);
         LayerInfo layerInfo = catalog.getLayerByName(layerNameComplex);
         layerInfo.getResource().setSimpleConversionEnabled(true);

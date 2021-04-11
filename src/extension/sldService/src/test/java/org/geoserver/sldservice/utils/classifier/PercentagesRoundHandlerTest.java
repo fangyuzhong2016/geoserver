@@ -17,14 +17,13 @@ public class PercentagesRoundHandlerTest {
     @Test
     public void testPercentagesRoundedToOneArr() {
         PercentagesRoundHandler handler = new PercentagesRoundHandler();
-        double[] percentages =
-                new double[] {
-                    34.42846516241011,
-                    5.684354078849492,
-                    19.929333002727496,
-                    20.078105628564344,
-                    19.879742127448548
-                };
+        double[] percentages = {
+            34.42846516241011,
+            5.684354078849492,
+            19.929333002727496,
+            20.078105628564344,
+            19.879742127448548
+        };
         double[] rounded = handler.roundPercentages(percentages);
         for (double d : rounded) {
             testRounded(1, d);
@@ -35,14 +34,13 @@ public class PercentagesRoundHandlerTest {
     @Test
     public void testPercentagesRoundedToFiveArr() {
         PercentagesRoundHandler handler = new PercentagesRoundHandler(5);
-        double[] percentages =
-                new double[] {
-                    34.42846516241011,
-                    5.684354078849492,
-                    19.929333002727496,
-                    20.078105628564344,
-                    19.879742127448548
-                };
+        double[] percentages = {
+            34.42846516241011,
+            5.684354078849492,
+            19.929333002727496,
+            20.078105628564344,
+            19.879742127448548
+        };
         double[] rounded = handler.roundPercentages(percentages);
         for (double d : rounded) {
             testRounded(5, d);
@@ -84,15 +82,15 @@ public class PercentagesRoundHandlerTest {
         testSumTo100(rounded);
     }
 
-    public void testRounded(int scale, double percentage) {
+    protected void testRounded(int scale, double percentage) {
         assertTrue(String.valueOf(percentage).split("\\.")[1].length() <= scale);
     }
 
-    public void testSumTo100(double[] rounded) {
+    protected void testSumTo100(double[] rounded) {
         assertEquals(100.0, DoubleStream.of(rounded).sum(), 0.0);
     }
 
-    public void testSumTo100(List<Double> rounded) {
+    protected void testSumTo100(List<Double> rounded) {
         assertEquals(100.0, rounded.stream().mapToDouble(d -> d).sum(), 0.0);
     }
 }

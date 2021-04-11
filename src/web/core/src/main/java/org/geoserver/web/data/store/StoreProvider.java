@@ -43,6 +43,7 @@ public class StoreProvider extends GeoServerDataProvider<StoreInfo> {
     static final Property<StoreInfo> DATA_TYPE =
             new AbstractProperty<StoreInfo>("datatype") {
 
+                @Override
                 public IModel<String> getModel(final IModel<StoreInfo> itemModel) {
                     return new AbstractReadOnlyModel<String>() {
 
@@ -54,6 +55,7 @@ public class StoreProvider extends GeoServerDataProvider<StoreInfo> {
                     };
                 }
 
+                @Override
                 public Object getPropertyValue(StoreInfo item) {
                     if (item instanceof DataStoreInfo) return "vector";
                     else return "raster";
@@ -64,16 +66,17 @@ public class StoreProvider extends GeoServerDataProvider<StoreInfo> {
 
     static final Property<StoreInfo> NAME = new BeanProperty<>("name", "name");
 
-    final Property<StoreInfo> TYPE =
+    static final Property<StoreInfo> TYPE =
             new AbstractProperty<StoreInfo>("type") {
 
+                @Override
                 public Object getPropertyValue(StoreInfo item) {
                     String type = item.getType();
                     if (type != null) {
                         return type;
                     }
                     try {
-                        ResourcePool resourcePool = getCatalog().getResourcePool();
+                        ResourcePool resourcePool = item.getCatalog().getResourcePool();
                         if (item instanceof DataStoreInfo) {
                             DataStoreInfo dsInfo = (DataStoreInfo) item;
                             DataAccessFactory factory = resourcePool.getDataStoreFactory(dsInfo);
@@ -102,7 +105,7 @@ public class StoreProvider extends GeoServerDataProvider<StoreInfo> {
     static final Property<StoreInfo> CREATED_TIMESTAMP =
             new BeanProperty<>("datecreated", "dateCreated");
 
-    final List<Property<StoreInfo>> PROPERTIES =
+    static final List<Property<StoreInfo>> PROPERTIES =
             Arrays.asList(DATA_TYPE, WORKSPACE, NAME, TYPE, ENABLED);
 
     WorkspaceInfo workspace;
@@ -144,6 +147,7 @@ public class StoreProvider extends GeoServerDataProvider<StoreInfo> {
         return super.getComparator(sort);
     }
 
+    @Override
     public IModel<StoreInfo> newModel(StoreInfo object) {
         return new StoreInfoDetachableModel(object);
     }

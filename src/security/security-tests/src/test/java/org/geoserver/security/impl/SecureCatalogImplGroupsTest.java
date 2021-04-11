@@ -21,6 +21,7 @@ import org.geoserver.ows.Dispatcher;
 import org.geoserver.platform.GeoServerExtensionsHelper;
 import org.geoserver.security.ResourceAccessManager;
 import org.geoserver.security.SecureCatalogImpl;
+import org.junit.Before;
 import org.junit.Test;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -40,9 +41,10 @@ public class SecureCatalogImplGroupsTest extends AbstractAuthorizationTest {
 
     private static final String NESTED_GROUP_NAME = "nested";
 
-    private static final String[] DEFAULT_RULES = new String[] {"*.*.r=*", "*.*.w=*"};
+    private static final String[] DEFAULT_RULES = {"*.*.r=*", "*.*.w=*"};
 
     @Override
+    @Before
     public void setUp() throws Exception {
         super.setUp();
 

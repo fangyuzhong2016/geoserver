@@ -12,22 +12,15 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.geotools.util.logging.Logging;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 public class PipeliningTaskQueueTest {
-
-    static {
-        //        java.util.logging.ConsoleHandler handler = new java.util.logging.ConsoleHandler();
-        //        handler.setLevel(java.util.logging.Level.ALL);
-        //
-        //
-        // org.geotools.util.logging.Logging.getLogger("org.geoserver.monitor").setLevel(java.util.logging.Level.ALL);
-        //
-        // org.geotools.util.logging.Logging.getLogger("org.geoserver.monitor").addHandler(handler);
-    }
-
+    static final Logger LOGGER = Logging.getLogger(PipeliningTaskQueueTest.class);
     PipeliningTaskQueue<Integer> taskQueue;
 
     @Before
@@ -85,13 +78,14 @@ public class PipeliningTaskQueueTest {
             this.completed = completed;
         }
 
+        @Override
         public void run() {
             Random r = new Random();
             int x = r.nextInt(10) + 1;
             try {
                 Thread.sleep(x * 100);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                LOGGER.log(Level.WARNING, "", e);
             }
 
             completed.add(this);

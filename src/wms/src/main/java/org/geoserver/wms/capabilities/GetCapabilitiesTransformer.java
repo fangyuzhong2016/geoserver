@@ -29,7 +29,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -312,6 +311,7 @@ public class GetCapabilitiesTransformer extends TransformerBase {
          * @param o the {@link GetCapabilitiesRequest}
          * @throws IllegalArgumentException if {@code o} is not of the expected type
          */
+        @Override
         public void encode(Object o) throws IllegalArgumentException {
             if (!(o instanceof GetCapabilitiesRequest)) {
                 throw new IllegalArgumentException();
@@ -635,18 +635,22 @@ public class GetCapabilitiesTransformer extends TransformerBase {
                 try {
                     cp.encode(
                             new ExtendedCapabilitiesProvider.Translator() {
+                                @Override
                                 public void start(String element) {
                                     CapabilitiesTranslator.this.start(element);
                                 }
 
+                                @Override
                                 public void start(String element, Attributes attributes) {
                                     CapabilitiesTranslator.this.start(element, attributes);
                                 }
 
+                                @Override
                                 public void chars(String text) {
                                     CapabilitiesTranslator.this.chars(text);
                                 }
 
+                                @Override
                                 public void end(String element) {
                                     CapabilitiesTranslator.this.end(element);
                                 }
@@ -929,13 +933,7 @@ public class GetCapabilitiesTransformer extends TransformerBase {
             final List<LayerInfo> data = new ArrayList<>(layerTree.getData());
             final Collection<LayerTree> children = layerTree.getChildrens();
 
-            Collections.sort(
-                    data,
-                    new Comparator<LayerInfo>() {
-                        public int compare(LayerInfo o1, LayerInfo o2) {
-                            return o1.getName().compareTo(o2.getName());
-                        }
-                    });
+            Collections.sort(data, (o1, o2) -> o1.getName().compareTo(o2.getName()));
 
             for (LayerInfo layer : data) {
                 // ask for enabled() instead of isEnabled() to account for disabled resource/store
@@ -1510,6 +1508,9 @@ public class GetCapabilitiesTransformer extends TransformerBase {
             element("Format", defaultFormat);
             attrs.clear();
 
+            // encode the Legend width and height in the URL too if we have a static legend
+            boolean hasExternalGraphic = legend != null && legend.getOnlineResource() != null;
+
             Map<String, String> params =
                     params(
                             "request",
@@ -1517,9 +1518,15 @@ public class GetCapabilitiesTransformer extends TransformerBase {
                             "format",
                             defaultFormat,
                             "width",
-                            String.valueOf(GetLegendGraphicRequest.DEFAULT_WIDTH),
+                            String.valueOf(
+                                    hasExternalGraphic
+                                            ? legendWidth
+                                            : GetLegendGraphicRequest.DEFAULT_WIDTH),
                             "height",
-                            String.valueOf(GetLegendGraphicRequest.DEFAULT_HEIGHT),
+                            String.valueOf(
+                                    hasExternalGraphic
+                                            ? legendHeight
+                                            : GetLegendGraphicRequest.DEFAULT_HEIGHT),
                             "layer",
                             layerName);
             if (style != null) {

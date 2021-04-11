@@ -63,12 +63,7 @@ public class WMSLayerConfigTest extends GeoServerWicketTestSupport {
         final LayerInfo layer = getCatalog().getLayerByName(MockData.PONDS.getLocalPart());
         FormTestPage page =
                 new FormTestPage(
-                        new ComponentBuilder() {
-
-                            public Component buildComponent(String id) {
-                                return new WMSLayerConfig(id, new Model<>(layer));
-                            }
-                        });
+                        (ComponentBuilder) id -> new WMSLayerConfig(id, new Model<>(layer)));
         tester.startPage(page);
         tester.assertRenderedPage(FormTestPage.class);
         tester.assertComponent("form", Form.class);
@@ -89,12 +84,7 @@ public class WMSLayerConfigTest extends GeoServerWicketTestSupport {
         layer.setResource(getCatalog().getFactory().createFeatureType());
         FormTestPage page =
                 new FormTestPage(
-                        new ComponentBuilder() {
-
-                            public Component buildComponent(String id) {
-                                return new WMSLayerConfig(id, new Model<>(layer));
-                            }
-                        });
+                        (ComponentBuilder) id -> new WMSLayerConfig(id, new Model<>(layer)));
         Component layerConfig = page.get("form:panel:styles:defaultStyle");
 
         tester.startPage(page);
@@ -128,12 +118,7 @@ public class WMSLayerConfigTest extends GeoServerWicketTestSupport {
         final LayerInfo layer = getCatalog().getLayerByName(MockData.PONDS.getLocalPart());
         FormTestPage page =
                 new FormTestPage(
-                        new ComponentBuilder() {
-
-                            public Component buildComponent(String id) {
-                                return new WMSLayerConfig(id, new Model<>(layer));
-                            }
-                        });
+                        (ComponentBuilder) id -> new WMSLayerConfig(id, new Model<>(layer)));
         tester.startPage(page);
         tester.assertRenderedPage(FormTestPage.class);
         tester.debugComponentTrees();
@@ -158,13 +143,7 @@ public class WMSLayerConfigTest extends GeoServerWicketTestSupport {
         final Model<LayerInfo> layerModel = new Model<>(layer);
 
         FormTestPage page =
-                new FormTestPage(
-                        new ComponentBuilder() {
-
-                            public Component buildComponent(String id) {
-                                return new WMSLayerConfig(id, layerModel);
-                            }
-                        });
+                new FormTestPage((ComponentBuilder) id -> new WMSLayerConfig(id, layerModel));
 
         tester.startPage(page);
         tester.assertRenderedPage(FormTestPage.class);
@@ -215,13 +194,7 @@ public class WMSLayerConfigTest extends GeoServerWicketTestSupport {
         final Model<LayerInfo> layerModel = new Model<>(gsLayer);
 
         FormTestPage page =
-                new FormTestPage(
-                        new ComponentBuilder() {
-
-                            public Component buildComponent(String id) {
-                                return new WMSLayerConfig(id, layerModel);
-                            }
-                        });
+                new FormTestPage((ComponentBuilder) id -> new WMSLayerConfig(id, layerModel));
 
         tester.startPage(page);
         tester.assertRenderedPage(FormTestPage.class);
@@ -354,13 +327,7 @@ public class WMSLayerConfigTest extends GeoServerWicketTestSupport {
         final Model<LayerInfo> layerModel = new Model<>(gsLayer);
 
         FormTestPage page =
-                new FormTestPage(
-                        new ComponentBuilder() {
-
-                            public Component buildComponent(String id) {
-                                return new WMSLayerConfig(id, layerModel);
-                            }
-                        });
+                new FormTestPage((ComponentBuilder) id -> new WMSLayerConfig(id, layerModel));
 
         tester.startPage(page);
         tester.assertRenderedPage(FormTestPage.class);

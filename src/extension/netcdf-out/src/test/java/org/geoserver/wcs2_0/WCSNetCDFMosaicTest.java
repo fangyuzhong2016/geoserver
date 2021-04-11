@@ -14,12 +14,12 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
+import java.util.TimeZone;
 import java.util.logging.Level;
 import javax.xml.namespace.QName;
 import org.apache.commons.io.FileUtils;
@@ -37,6 +37,7 @@ import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.ProjectionPolicy;
 import org.geoserver.catalog.ResourceInfo;
 import org.geoserver.data.test.CiteTestData;
+import org.geoserver.data.test.MockData;
 import org.geoserver.data.test.SystemTestData;
 import org.geoserver.test.TestSetup;
 import org.geoserver.test.TestSetupFrequency;
@@ -54,6 +55,7 @@ import org.geotools.coverage.io.netcdf.crs.NetCDFCRSAuthorityFactory;
 import org.geotools.feature.NameImpl;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
+import org.geotools.util.DateRange;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
@@ -99,6 +101,8 @@ public class WCSNetCDFMosaicTest extends WCSNetCDFBaseTest {
 
     public static QName BANDWITHCRS =
             new QName(CiteTestData.WCS_URI, "Band1", CiteTestData.WCS_PREFIX);
+    private static final QName TIMESERIES =
+            new QName(MockData.SF_URI, "timeseries", MockData.SF_PREFIX);
 
     private static final String STANDARD_NAME = "visibility_in_air";
     private static final Section NETCDF_SECTION;
@@ -141,17 +145,9 @@ public class WCSNetCDFMosaicTest extends WCSNetCDFBaseTest {
     @Override
     protected void onSetUp(SystemTestData testData) throws Exception {
         // workaround to add our custom multi dimensional format
-        try {
-            Field field = GetCoverage.class.getDeclaredField("mdFormats");
-            field.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            Set<String> values = (Set<String>) field.get(null);
-            values.add(WCSResponseInterceptor.MIME_TYPE);
-        } catch (NoSuchFieldException
-                | IllegalAccessException
-                | IllegalArgumentException
-                | SecurityException e) {
-        }
+        testData.addRasterLayer(TIMESERIES, "timeseries.zip", null, getCatalog());
+        setupRasterDimension(
+                TIMESERIES, ResourceInfo.TIME, DimensionPresentation.LIST, null, null, null);
 
         super.onSetUp(testData);
         testData.addRasterLayer(
@@ -320,12 +316,9 @@ public class WCSNetCDFMosaicTest extends WCSNetCDFBaseTest {
         assertEquals("application/x-netcdf", response.getContentType());
         byte[] netcdfOut = getBinary(response);
         File file = File.createTempFile("netcdf", "out.nc", new File("./target"));
-        try {
-            FileUtils.writeByteArrayToFile(file, netcdfOut);
-
-            NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath());
+        FileUtils.writeByteArrayToFile(file, netcdfOut);
+        try (NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath())) {
             assertNotNull(dataset);
-            dataset.close();
         } finally {
             FileUtils.deleteQuietly(file);
         }
@@ -354,9 +347,9 @@ public class WCSNetCDFMosaicTest extends WCSNetCDFBaseTest {
             File file = File.createTempFile("netcdf", "out.nc", new File("./target"));
             FileUtils.writeByteArrayToFile(file, netcdfOut);
 
-            NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath());
-            assertNotNull(dataset);
-            dataset.close();
+            try (NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath())) {
+                assertNotNull(dataset);
+            }
         }
     }
 
@@ -376,35 +369,34 @@ public class WCSNetCDFMosaicTest extends WCSNetCDFBaseTest {
         File file = File.createTempFile("netcdf", "outCF.nc", new File("./target"));
         FileUtils.writeByteArrayToFile(file, netcdfOut);
 
-        NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath());
-        Variable var = dataset.findVariable(STANDARD_NAME);
-        assertNotNull(var);
+        try (NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath())) {
+            Variable var = dataset.findVariable(STANDARD_NAME);
+            assertNotNull(var);
 
-        // Check the unit has been converted to meter
-        String unit = var.getUnitsString();
-        assertEquals(CANONICAL_UNIT, unit);
+            // Check the unit has been converted to meter
+            String unit = var.getUnitsString();
+            assertEquals(CANONICAL_UNIT, unit);
 
-        Array readData = var.read(NETCDF_SECTION);
-        assertEquals(DataType.FLOAT, readData.getDataType());
-        float data = readData.getFloat(0);
+            Array readData = var.read(NETCDF_SECTION);
+            assertEquals(DataType.FLOAT, readData.getDataType());
+            float data = readData.getFloat(0);
 
-        // Data have been converted to canonical unit (m) from km.
-        // Data value is bigger
-        assertEquals(data, (ORIGINAL_PIXEL_VALUE) * 1000, DELTA);
+            // Data have been converted to canonical unit (m) from km.
+            // Data value is bigger
+            assertEquals(data, (ORIGINAL_PIXEL_VALUE) * 1000, DELTA);
 
-        Attribute fillValue = var.findAttribute(NetCDFUtilities.FILL_VALUE);
-        Attribute standardName = var.findAttribute(NetCDFUtilities.STANDARD_NAME);
-        assertNotNull(standardName);
-        assertEquals(STANDARD_NAME, standardName.getStringValue());
-        assertNotNull(fillValue);
-        assertEquals(ORIGINAL_FILL_VALUE, fillValue.getNumericValue().doubleValue(), DELTA);
+            Attribute fillValue = var.findAttribute(NetCDFUtilities.FILL_VALUE);
+            Attribute standardName = var.findAttribute(NetCDFUtilities.STANDARD_NAME);
+            assertNotNull(standardName);
+            assertEquals(STANDARD_NAME, standardName.getStringValue());
+            assertNotNull(fillValue);
+            assertEquals(ORIGINAL_FILL_VALUE, fillValue.getNumericValue().doubleValue(), DELTA);
 
-        // Check global attributes have been added
-        Attribute attribute = dataset.findGlobalAttribute("custom_attribute");
-        assertNotNull(attribute);
-        assertEquals("testing WCS", attribute.getStringValue());
-
-        dataset.close();
+            // Check global attributes have been added
+            Attribute attribute = dataset.findGlobalAttribute("custom_attribute");
+            assertNotNull(attribute);
+            assertEquals("testing WCS", attribute.getStringValue());
+        }
     }
 
     @Test
@@ -430,17 +422,17 @@ public class WCSNetCDFMosaicTest extends WCSNetCDFBaseTest {
             File file = File.createTempFile("netcdf", "outCompressed.nc", new File("./target"));
             FileUtils.writeByteArrayToFile(file, netcdfOut);
 
-            NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath());
-            assertNotNull(dataset);
+            try (NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath())) {
+                assertNotNull(dataset);
 
-            Variable var = dataset.findVariable(STANDARD_NAME);
-            assertNotNull(var);
-            final long varByteSize = var.getSize() * var.getDataType().getSize();
+                Variable var = dataset.findVariable(STANDARD_NAME);
+                assertNotNull(var);
+                final long varByteSize = var.getSize() * var.getDataType().getSize();
 
-            // The output file is smaller than the size of the underlying variable.
-            // Compression successfully occurred
-            assertTrue(netcdfOut.length < varByteSize);
-            dataset.close();
+                // The output file is smaller than the size of the underlying variable.
+                // Compression successfully occurred
+                assertTrue(netcdfOut.length < varByteSize);
+            }
         }
     }
 
@@ -457,37 +449,36 @@ public class WCSNetCDFMosaicTest extends WCSNetCDFBaseTest {
         File file = File.createTempFile("netcdf", "outPK.nc", new File("./target"));
         FileUtils.writeByteArrayToFile(file, netcdfOut);
 
-        NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath());
-        Variable var = dataset.findVariable(STANDARD_NAME);
-        assertNotNull(var);
+        try (NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath())) {
+            Variable var = dataset.findVariable(STANDARD_NAME);
+            assertNotNull(var);
 
-        // Check the unit hasn't been converted
-        String unit = var.getUnitsString();
-        assertEquals(ORIGINAL_UNIT, unit);
+            // Check the unit hasn't been converted
+            String unit = var.getUnitsString();
+            assertEquals(ORIGINAL_UNIT, unit);
 
-        Attribute fillValue = var.findAttribute(NetCDFUtilities.FILL_VALUE);
-        assertNotNull(fillValue);
+            Attribute fillValue = var.findAttribute(NetCDFUtilities.FILL_VALUE);
+            assertNotNull(fillValue);
 
-        // There is dataPacking, therefore, fillValue should have been changed
-        assertEquals(PACKED_FILL_VALUE, fillValue.getNumericValue().doubleValue(), 1E-6);
+            // There is dataPacking, therefore, fillValue should have been changed
+            assertEquals(PACKED_FILL_VALUE, fillValue.getNumericValue().doubleValue(), 1E-6);
 
-        Attribute addOffsetAttr = var.findAttribute(DataPacking.ADD_OFFSET);
-        assertNotNull(addOffsetAttr);
+            Attribute addOffsetAttr = var.findAttribute(DataPacking.ADD_OFFSET);
+            assertNotNull(addOffsetAttr);
 
-        Attribute scaleFactorAttr = var.findAttribute(DataPacking.SCALE_FACTOR);
-        assertNotNull(scaleFactorAttr);
-        double scaleFactor = scaleFactorAttr.getNumericValue().doubleValue();
-        double addOffset = addOffsetAttr.getNumericValue().doubleValue();
+            Attribute scaleFactorAttr = var.findAttribute(DataPacking.SCALE_FACTOR);
+            assertNotNull(scaleFactorAttr);
+            double scaleFactor = scaleFactorAttr.getNumericValue().doubleValue();
+            double addOffset = addOffsetAttr.getNumericValue().doubleValue();
 
-        Array readData = var.read(NETCDF_SECTION);
-        assertEquals(DataType.SHORT, readData.getDataType());
-        short data = readData.getShort(0);
-        // Data has been packed to short
+            Array readData = var.read(NETCDF_SECTION);
+            assertEquals(DataType.SHORT, readData.getDataType());
+            short data = readData.getShort(0);
+            // Data has been packed to short
 
-        double packedData = (ORIGINAL_PIXEL_VALUE - addOffset) / scaleFactor;
-        assertEquals((short) (packedData + 0.5), data, DELTA);
-
-        dataset.close();
+            double packedData = (ORIGINAL_PIXEL_VALUE - addOffset) / scaleFactor;
+            assertEquals((short) (packedData + 0.5), data, DELTA);
+        }
     }
 
     @Test
@@ -503,42 +494,41 @@ public class WCSNetCDFMosaicTest extends WCSNetCDFBaseTest {
         File file = File.createTempFile("netcdf", "outCFPK.nc", new File("./target"));
         FileUtils.writeByteArrayToFile(file, netcdfOut);
 
-        NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath());
-        Variable var = dataset.findVariable(STANDARD_NAME);
-        assertNotNull(var);
+        try (NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath())) {
+            Variable var = dataset.findVariable(STANDARD_NAME);
+            assertNotNull(var);
 
-        // Check the unit has been converted to meter
-        String unit = var.getUnitsString();
-        assertEquals(CANONICAL_UNIT, unit);
+            // Check the unit has been converted to meter
+            String unit = var.getUnitsString();
+            assertEquals(CANONICAL_UNIT, unit);
 
-        Attribute addOffsetAttr = var.findAttribute(DataPacking.ADD_OFFSET);
-        assertNotNull(addOffsetAttr);
+            Attribute addOffsetAttr = var.findAttribute(DataPacking.ADD_OFFSET);
+            assertNotNull(addOffsetAttr);
 
-        Attribute scaleFactorAttr = var.findAttribute(DataPacking.SCALE_FACTOR);
-        assertNotNull(scaleFactorAttr);
-        double scaleFactor = scaleFactorAttr.getNumericValue().doubleValue();
-        double addOffset = addOffsetAttr.getNumericValue().doubleValue();
+            Attribute scaleFactorAttr = var.findAttribute(DataPacking.SCALE_FACTOR);
+            assertNotNull(scaleFactorAttr);
+            double scaleFactor = scaleFactorAttr.getNumericValue().doubleValue();
+            double addOffset = addOffsetAttr.getNumericValue().doubleValue();
 
-        Array readData = var.read(NETCDF_SECTION);
-        assertEquals(DataType.SHORT, readData.getDataType());
-        short data = readData.getShort(0);
-        // Data has been packed to short
+            Array readData = var.read(NETCDF_SECTION);
+            assertEquals(DataType.SHORT, readData.getDataType());
+            short data = readData.getShort(0);
+            // Data has been packed to short
 
-        // Going from original unit to canonical, then packing
-        double packedData = ((ORIGINAL_PIXEL_VALUE * 1000) - addOffset) / scaleFactor;
-        assertEquals((short) (packedData + 0.5), data, DELTA);
+            // Going from original unit to canonical, then packing
+            double packedData = ((ORIGINAL_PIXEL_VALUE * 1000) - addOffset) / scaleFactor;
+            assertEquals((short) (packedData + 0.5), data, DELTA);
 
-        Attribute fillValue = var.findAttribute(NetCDFUtilities.FILL_VALUE);
-        assertNotNull(fillValue);
-        // There is dataPacking, therefore, fillValue should have been changed
-        assertEquals(PACKED_FILL_VALUE, fillValue.getNumericValue().doubleValue(), DELTA);
+            Attribute fillValue = var.findAttribute(NetCDFUtilities.FILL_VALUE);
+            assertNotNull(fillValue);
+            // There is dataPacking, therefore, fillValue should have been changed
+            assertEquals(PACKED_FILL_VALUE, fillValue.getNumericValue().doubleValue(), DELTA);
 
-        // Check global attributes have been added
-        Attribute attribute = dataset.findGlobalAttribute("custom_attribute");
-        assertNotNull(attribute);
-        assertEquals("testing WCS", attribute.getStringValue());
-
-        dataset.close();
+            // Check global attributes have been added
+            Attribute attribute = dataset.findGlobalAttribute("custom_attribute");
+            assertNotNull(attribute);
+            assertEquals("testing WCS", attribute.getStringValue());
+        }
     }
 
     @Test
@@ -554,16 +544,16 @@ public class WCSNetCDFMosaicTest extends WCSNetCDFBaseTest {
         File file = File.createTempFile("netcdf", "outNaNPK.nc", new File("./target"));
         FileUtils.writeByteArrayToFile(file, netcdfOut);
 
-        NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath());
-        Variable var = dataset.findVariable(STANDARD_NAME);
-        assertNotNull(var);
+        try (NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath())) {
+            Variable var = dataset.findVariable(STANDARD_NAME);
+            assertNotNull(var);
 
-        Array readData = var.read(NETCDF_SECTION);
-        assertEquals(DataType.SHORT, readData.getDataType());
+            Array readData = var.read(NETCDF_SECTION);
+            assertEquals(DataType.SHORT, readData.getDataType());
 
-        // Check the fix on dataPacking NaN management
-        assertNotEquals(readData.getShort(0), -32768, 1E-6);
-        dataset.close();
+            // Check the fix on dataPacking NaN management
+            assertNotEquals(readData.getShort(0), -32768, 1E-6);
+        }
     }
 
     @Test
@@ -583,32 +573,33 @@ public class WCSNetCDFMosaicTest extends WCSNetCDFBaseTest {
         FileUtils.writeByteArrayToFile(file, netcdfOut);
 
         // Retrieve the GeoTransform attribute from the output NetCDF
-        NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath());
-        String geoTransform = dataset.findGlobalAttribute("GeoTransform").getStringValue();
-        dataset.close();
-        assertNotNull(geoTransform);
+        try (NetcdfDataset dataset = NetcdfDataset.openDataset(file.getAbsolutePath())) {
+            String geoTransform = dataset.findGlobalAttribute("GeoTransform").getStringValue();
+            dataset.close();
+            assertNotNull(geoTransform);
 
-        String[] coefficients = geoTransform.split(" ");
-        double m00 = Double.parseDouble(coefficients[1]);
-        double m01 = Double.parseDouble(coefficients[2]);
-        double m02 = Double.parseDouble(coefficients[0]);
-        double m10 = Double.parseDouble(coefficients[4]);
-        double m11 = Double.parseDouble(coefficients[5]);
-        double m12 = Double.parseDouble(coefficients[3]);
+            String[] coefficients = geoTransform.split(" ");
+            double m00 = Double.parseDouble(coefficients[1]);
+            double m01 = Double.parseDouble(coefficients[2]);
+            double m02 = Double.parseDouble(coefficients[0]);
+            double m10 = Double.parseDouble(coefficients[4]);
+            double m11 = Double.parseDouble(coefficients[5]);
+            double m12 = Double.parseDouble(coefficients[3]);
 
-        NetCDFReader reader = new NetCDFReader(file, null);
-        MathTransform transform = reader.getOriginalGridToWorld(PixelInCell.CELL_CENTER);
-        AffineTransform2D affineTransform = (AffineTransform2D) transform;
+            NetCDFReader reader = new NetCDFReader(file, null);
+            MathTransform transform = reader.getOriginalGridToWorld(PixelInCell.CELL_CENTER);
+            AffineTransform2D affineTransform = (AffineTransform2D) transform;
 
-        reader.dispose();
+            reader.dispose();
 
-        // Check the GeoTransform coefficients are valid
-        assertEquals(m02, affineTransform.getTranslateX(), DELTA2);
-        assertEquals(m12, affineTransform.getTranslateY(), DELTA2);
-        assertEquals(m00, affineTransform.getScaleX(), DELTA2);
-        assertEquals(m11, affineTransform.getScaleY(), DELTA2);
-        assertEquals(m01, affineTransform.getShearX(), DELTA2);
-        assertEquals(m10, affineTransform.getShearY(), DELTA2);
+            // Check the GeoTransform coefficients are valid
+            assertEquals(m02, affineTransform.getTranslateX(), DELTA2);
+            assertEquals(m12, affineTransform.getTranslateY(), DELTA2);
+            assertEquals(m00, affineTransform.getScaleX(), DELTA2);
+            assertEquals(m11, affineTransform.getScaleY(), DELTA2);
+            assertEquals(m01, affineTransform.getShearX(), DELTA2);
+            assertEquals(m10, affineTransform.getShearY(), DELTA2);
+        }
     }
 
     private void addViewToCatalog() throws Exception {
@@ -857,6 +848,34 @@ public class WCSNetCDFMosaicTest extends WCSNetCDFBaseTest {
                     dataset.findGlobalAttribute("test-global-attribute-double").getNumericValue());
         } finally {
             FileUtils.deleteQuietly(file);
+        }
+    }
+
+    @Test
+    public void getTime() throws Exception {
+        MockHttpServletResponse response =
+                getAsServletResponse(
+                        "wcs?request=GetCoverage&service=WCS&version=2.0.1"
+                                + "&coverageId=timeseries"
+                                + "&subset=time(\"2014-01-01T00:00:00Z\",\"2019-01-01T00:00:00Z\")"
+                                + "&format=application/custom");
+        assertNotNull(response);
+        GridCoverage2D lastResult =
+                applicationContext.getBean(WCSResponseInterceptor.class).getLastResult();
+        assertTrue(lastResult instanceof GranuleStack);
+        GranuleStack stack = (GranuleStack) lastResult;
+
+        // we expect 6 granules with 6 years starting from 2014
+        List<GridCoverage2D> granulesList = stack.getGranules();
+        int startingYear = 2014;
+        assertEquals(6, granulesList.size());
+
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeZone(TimeZone.getTimeZone("UTC"));
+        for (GridCoverage2D c : granulesList) {
+            calendar.setTime(((DateRange) c.getProperty("TIME")).getMinValue());
+            assertEquals(0, calendar.get(Calendar.HOUR));
+            assertEquals(startingYear++, calendar.get(Calendar.YEAR));
         }
     }
 }

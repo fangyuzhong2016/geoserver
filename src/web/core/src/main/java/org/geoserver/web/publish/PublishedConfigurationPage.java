@@ -8,7 +8,6 @@ package org.geoserver.web.publish;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map.Entry;
@@ -120,6 +119,7 @@ public abstract class PublishedConfigurationPage<T extends PublishedInfo>
                                 "ResourceConfigurationPage.Data")) {
                     private static final long serialVersionUID = 1L;
 
+                    @Override
                     public Panel getPanel(String panelID) {
                         return createMainTab(panelID).setInputEnabled(inputEnabled);
                     }
@@ -131,6 +131,7 @@ public abstract class PublishedConfigurationPage<T extends PublishedInfo>
                                 "ResourceConfigurationPage.Publishing")) {
                     private static final long serialVersionUID = 1L;
 
+                    @Override
                     public Panel getPanel(String panelID) {
                         return new PublishingEditTabPanel(panelID).setInputEnabled(inputEnabled);
                     }
@@ -233,13 +234,11 @@ public abstract class PublishedConfigurationPage<T extends PublishedInfo>
     private void sortTabPanels(List<PublishedEditTabPanelInfo> tabPanels) {
         Collections.sort(
                 tabPanels,
-                new Comparator<PublishedEditTabPanelInfo>() {
-                    public int compare(PublishedEditTabPanelInfo o1, PublishedEditTabPanelInfo o2) {
-                        Integer order1 = o1.getOrder() >= 0 ? o1.getOrder() : Integer.MAX_VALUE;
-                        Integer order2 = o2.getOrder() >= 0 ? o2.getOrder() : Integer.MAX_VALUE;
+                (o1, o2) -> {
+                    Integer order1 = o1.getOrder() >= 0 ? o1.getOrder() : Integer.MAX_VALUE;
+                    Integer order2 = o2.getOrder() >= 0 ? o2.getOrder() : Integer.MAX_VALUE;
 
-                        return order1.compareTo(order2);
-                    }
+                    return order1.compareTo(order2);
                 });
     }
 
@@ -252,9 +251,9 @@ public abstract class PublishedConfigurationPage<T extends PublishedInfo>
     protected abstract void doSaveInternal() throws IOException;
 
     public void setSelectedTab(Class<? extends PublishedEditTabPanel<?>> selectedTabClass) {
-        int selectedTabIndex;
         // relying on LinkedHashMap here
-        selectedTabIndex = new ArrayList<>(tabPanelCustomModels.keySet()).indexOf(selectedTabClass);
+        int selectedTabIndex =
+                new ArrayList<>(tabPanelCustomModels.keySet()).indexOf(selectedTabClass);
         if (selectedTabIndex > -1) {
             // add differential to match index of tabPanelCustomModels with total tabs count
             int diff = (tabbedPanel.getTabs().size() - tabPanelCustomModels.size());
@@ -339,7 +338,7 @@ public abstract class PublishedConfigurationPage<T extends PublishedInfo>
 
             onSuccessfulSave(doReturn);
         } catch (Exception e) {
-            LOGGER.log(Level.INFO, "Error saving layer", e);
+            LOGGER.log(Level.SEVERE, "Error saving layer", e);
             error(e.getMessage() == null ? e.toString() : e.getMessage());
         }
     }

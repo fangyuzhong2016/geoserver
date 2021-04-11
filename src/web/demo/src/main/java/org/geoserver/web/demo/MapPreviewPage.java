@@ -159,8 +159,8 @@ public class MapPreviewPage extends GeoServerBasePage {
         formats = new ArrayList<>();
 
         final GeoServerApplication application = getGeoServerApplication();
-        final List<GetMapOutputFormat> outputFormats;
-        outputFormats = application.getBeansOfType(GetMapOutputFormat.class);
+        final List<GetMapOutputFormat> outputFormats =
+                application.getBeansOfType(GetMapOutputFormat.class);
         for (GetMapOutputFormat producer : outputFormats) {
             Set<String> producerFormats = new HashSet<>(producer.getOutputFormatNames());
             producerFormats.add(producer.getMimeType());
@@ -297,6 +297,7 @@ public class MapPreviewPage extends GeoServerBasePage {
             this.prefix = prefix;
         }
 
+        @Override
         public int compare(String f1, String f2) {
             String t1 = translateFormat(prefix, f1);
             String t2 = translateFormat(prefix, f2);

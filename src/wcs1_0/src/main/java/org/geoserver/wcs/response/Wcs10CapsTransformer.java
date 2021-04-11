@@ -89,6 +89,7 @@ public class Wcs10CapsTransformer extends TransformerBase {
                         geoServer.getGlobal().getResourceErrorHandling());
     }
 
+    @Override
     public Translator createTranslator(ContentHandler handler) {
         return new WCS100CapsTranslator(handler);
     }
@@ -110,6 +111,7 @@ public class Wcs10CapsTransformer extends TransformerBase {
          * @param o The Object to encode.
          * @throws IllegalArgumentException if the Object is not encodeable.
          */
+        @Override
         public void encode(Object o) throws IllegalArgumentException {
             if (!(o instanceof GetCapabilitiesType)) {
                 throw new IllegalArgumentException(
@@ -371,8 +373,7 @@ public class Wcs10CapsTransformer extends TransformerBase {
                 tmp = contact.getAddressType();
 
                 if (StringUtils.isNotBlank(tmp)) {
-                    String addr = "";
-                    addr = contact.getAddress();
+                    String addr = contact.getAddress();
 
                     if (StringUtils.isNotBlank(addr)) {
                         element("wcs:deliveryPoint", tmp + " " + addr);
@@ -565,13 +566,10 @@ public class Wcs10CapsTransformer extends TransformerBase {
 
             Collections.sort(
                     finalArray,
-                    new Comparator<String>() {
+                    (o1, o2) -> {
+                        if (o1.equals(o2)) return 0;
 
-                        public int compare(String o1, String o2) {
-                            if (o1.equals(o2)) return 0;
-
-                            return (Double.parseDouble(o1) > Double.parseDouble(o2) ? 1 : -1);
-                        }
+                        return (Double.parseDouble(o1) > Double.parseDouble(o2) ? 1 : -1);
                     });
 
             return finalArray.toArray(new String[1]);
@@ -596,6 +594,7 @@ public class Wcs10CapsTransformer extends TransformerBase {
                             "yyyy"
                         };
 
+                        @Override
                         public int compare(String o1, String o2) {
                             if (o1.equals(o2)) return 0;
 
@@ -680,12 +679,10 @@ public class Wcs10CapsTransformer extends TransformerBase {
             if (cv.isEnabled()) {
                 start("wcs:CoverageOfferingBrief");
 
-                String tmp;
-
                 for (MetadataLinkInfo mdl : cv.getMetadataLinks())
                     handleMetadataLink(mdl, "simple");
 
-                tmp = cv.getDescription();
+                String tmp = cv.getDescription();
 
                 if (StringUtils.isNotBlank(tmp)) {
                     element("wcs:description", tmp);

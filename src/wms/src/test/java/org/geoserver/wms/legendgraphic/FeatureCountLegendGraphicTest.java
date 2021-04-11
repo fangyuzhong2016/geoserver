@@ -453,6 +453,7 @@ public class FeatureCountLegendGraphicTest extends WMSTestSupport {
         final Style style = legend.getStyle();
         DuplicatingStyleVisitor matchFirstCloner =
                 new DuplicatingStyleVisitor() {
+                    @Override
                     public void visit(FeatureTypeStyle fts) {
                         super.visit(fts);
                         FeatureTypeStyle copy = (FeatureTypeStyle) pages.peek();
@@ -528,7 +529,7 @@ public class FeatureCountLegendGraphicTest extends WMSTestSupport {
                 "TheRule (0)");
     }
 
-    public void testScaleDependent(String bboxSpecification, String expectedLabel)
+    protected void testScaleDependent(String bboxSpecification, String expectedLabel)
             throws Exception {
         // around 4k
         String requestURL =

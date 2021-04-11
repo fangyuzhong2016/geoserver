@@ -41,6 +41,7 @@ public class JobQueue {
     ThreadPoolExecutor pool =
             new ThreadPoolExecutor(
                     0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS, new SynchronousQueue<>()) {
+                @Override
                 protected <T extends Object> RunnableFuture<T> newTaskFor(Callable<T> callable) {
                     if (callable instanceof Job) {
                         return new Task<>((Job<T>) callable);
@@ -48,12 +49,14 @@ public class JobQueue {
                     return super.newTaskFor(callable);
                 };
 
+                @Override
                 protected void beforeExecute(Thread t, Runnable r) {
                     if (t != null && r instanceof Task) {
                         ((Task) r).started();
                     }
                 };
 
+                @Override
                 protected void afterExecute(Runnable r, Throwable t) {
                     if (t != null && r instanceof Task) {
                         ((Task) r).setError(t);
@@ -66,44 +69,42 @@ public class JobQueue {
 
     {
         cleaner.scheduleAtFixedRate(
-                new Runnable() {
-                    public void run() {
-                        List<Long> toremove = new ArrayList<>();
-                        for (Map.Entry<Long, Task<?>> e : jobs.entrySet()) {
-                            if (e.getValue().isCancelled()
-                                    || (e.getValue()
-                                            .isDone() /* AF: This condition is never verified ?!? && e.getValue().isRecieved() */)) {
-                                try {
-                                    ImportContext context = (ImportContext) e.getValue().get();
+                () -> {
+                    List<Long> toremove = new ArrayList<>();
+                    for (Map.Entry<Long, Task<?>> e : jobs.entrySet()) {
+                        if (e.getValue().isCancelled()
+                                || (e.getValue()
+                                        .isDone() /* AF: This condition is never verified ?!? && e.getValue().isRecieved() */)) {
+                            try {
+                                ImportContext context = (ImportContext) e.getValue().get();
 
-                                    if (context.getState() == ImportContext.State.COMPLETE
-                                            && context.isEmpty()) {
-                                        context.unlockUploadFolder(context.getUploadDirectory());
-                                        toremove.add(e.getKey());
-                                    }
-                                } catch (Exception ex) {
-                                    LOGGER.log(Level.INFO, ex.getMessage(), ex);
+                                if (context.getState() == ImportContext.State.COMPLETE
+                                        && context.isEmpty()) {
+                                    context.unlockUploadFolder(context.getUploadDirectory());
+                                    toremove.add(e.getKey());
                                 }
+                            } catch (Exception ex) {
+                                LOGGER.log(Level.INFO, ex.getMessage(), ex);
                             }
                         }
-                        for (Long l : toremove) {
-                            jobs.remove(l);
-                        }
+                    }
+                    for (Long l : toremove) {
+                        jobs.remove(l);
+                    }
 
-                        final Importer importer = GeoServerExtensions.bean(Importer.class);
-                        File[] files = importer.getUploadRoot().listFiles();
-                        if (files != null) {
-                            for (File f : files) {
-                                if (f.isDirectory() && new File(f, ".clean-me").exists()) {
-                                    try {
-                                        IOUtils.delete(f);
-                                    } catch (IOException e) {
-                                        LOGGER.log(
-                                                Level.WARNING,
-                                                "It was not possible to cleanup Importer temporary folder "
-                                                        + f,
-                                                e);
-                                    }
+                    final Importer importer = GeoServerExtensions.bean(Importer.class);
+                    File[] files = importer.getUploadRoot().listFiles();
+                    if (files != null) {
+                        for (File f : files) {
+                            if (f.isDirectory() && new File(f, ".clean-me").exists()) {
+                                try {
+                                    IOUtils.delete(f);
+                                } catch (IOException e) {
+                                    LOGGER.log(
+                                            Level.WARNING,
+                                            "It was not possible to cleanup Importer temporary folder "
+                                                    + f,
+                                            e);
                                 }
                             }
                         }

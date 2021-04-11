@@ -74,6 +74,7 @@ public class GeoserverInitStartupListener implements ServletContextListener {
 
     private static final double DEFAULT_COMPARISON_TOLERANCE = 1e-8;
 
+    @Override
     public void contextInitialized(ServletContextEvent sce) {
         // start up tctool - remove it before committing!!!!
         // new tilecachetool.TCTool().setVisible(true);
@@ -250,6 +251,7 @@ public class GeoserverInitStartupListener implements ServletContextListener {
      * back reference to the classloader that loaded it). The same happens for any residual thread
      * launched by the web app.
      */
+    @Override
     @SuppressWarnings("PMD.ForLoopCanBeForeach")
     public void contextDestroyed(ServletContextEvent sce) {
         try {
@@ -273,7 +275,7 @@ public class GeoserverInitStartupListener implements ServletContextListener {
                         driversToUnload.add(driver);
                     }
                 } catch (Throwable t) {
-                    t.printStackTrace();
+                    LOGGER.log(Level.SEVERE, "", t);
                 }
             }
             for (Driver driver : driversToUnload) {
@@ -424,12 +426,11 @@ public class GeoserverInitStartupListener implements ServletContextListener {
                 System.gc();
                 System.runFinalization();
             } catch (Throwable t) {
-                LOGGER.severe("Failed to perform closing up finalization");
-                t.printStackTrace();
+                LOGGER.log(Level.SEVERE, "Failed to perform closing up finalization", t);
             }
         } catch (Throwable t) {
             // if anything goes south during the cleanup procedures I want to know what it is
-            t.printStackTrace();
+            LOGGER.log(Level.SEVERE, "", t);
         }
     }
 

@@ -65,7 +65,7 @@ public class UTFGridMapOutputFormat extends AbstractMapOutputFormat {
      * </ol>
      */
     private static MapProducerCapabilities CAPABILITIES =
-            new MapProducerCapabilities(false, false, false, true, null);
+            new MapProducerCapabilities(false, false, true);
 
     private WMS wms;
 
@@ -74,6 +74,7 @@ public class UTFGridMapOutputFormat extends AbstractMapOutputFormat {
         this.wms = wms;
     }
 
+    @Override
     public MapProducerCapabilities getCapabilities(String format) {
         return CAPABILITIES;
     }

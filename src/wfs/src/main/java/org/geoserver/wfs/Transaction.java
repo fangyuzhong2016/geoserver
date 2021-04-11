@@ -225,8 +225,8 @@ public class Transaction {
                             meta.getFeatureSource(null, null);
 
                     if (source instanceof FeatureStore) {
-                        FeatureStore<? extends FeatureType, ? extends Feature> store;
-                        store = (FeatureStore<? extends FeatureType, ? extends Feature>) source;
+                        FeatureStore<? extends FeatureType, ? extends Feature> store =
+                                (FeatureStore<? extends FeatureType, ? extends Feature>) source;
                         store.setTransaction(transaction);
                         stores.put(elementName, (FeatureStore) source);
 
@@ -462,7 +462,7 @@ public class Transaction {
      * Finds the best transaction element handler for the specified element type (the one matching
      * the most specialized superclass of type)
      */
-    protected final TransactionElementHandler findElementHandler(Class type)
+    protected final TransactionElementHandler findElementHandler(Class<?> type)
             throws WFSTransactionException {
         List<TransactionElementHandler> matches = new ArrayList<>();
 
@@ -481,15 +481,12 @@ public class Transaction {
         if (matches.size() > 1) {
             // sort by class hierarchy
             Comparator<TransactionElementHandler> comparator =
-                    new Comparator<TransactionElementHandler>() {
-                        public int compare(
-                                TransactionElementHandler h1, TransactionElementHandler h2) {
-                            if (h2.getElementClass().isAssignableFrom(h1.getElementClass())) {
-                                return -1;
-                            }
-
-                            return 1;
+                    (h1, h2) -> {
+                        if (h2.getElementClass().isAssignableFrom(h1.getElementClass())) {
+                            return -1;
                         }
+
+                        return 1;
                     };
 
             Collections.sort(matches, comparator);
@@ -620,6 +617,7 @@ public class Transaction {
             }
         }
 
+        @Override
         public void dataStoreChange(TransactionEvent event) throws WFSException {
             dataStoreChange(transactionCallbacks, event);
             dataStoreChange(transactionListeners, event);

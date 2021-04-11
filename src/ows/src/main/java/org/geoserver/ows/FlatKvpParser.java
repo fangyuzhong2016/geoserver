@@ -38,7 +38,7 @@ public class FlatKvpParser extends KvpParser {
      * @param key The key to bind to.
      * @param binding The class of each token in the value.
      */
-    public FlatKvpParser(String key, Class binding) {
+    public FlatKvpParser(String key, Class<?> binding) {
         this(key, binding, ",");
     }
 
@@ -49,13 +49,14 @@ public class FlatKvpParser extends KvpParser {
      * @param binding The class of each token in the value.
      * @param delimiter The delimiter used to seperate tokens
      */
-    public FlatKvpParser(String key, Class binding, String delimiter) {
+    public FlatKvpParser(String key, Class<?> binding, String delimiter) {
         super(key, binding);
 
         this.delimiter = delimiter;
     }
 
     /** Tokenizes the value and delegates to {@link #parseToken(String)} to parse each token. */
+    @Override
     public final Object parse(String value) throws Exception {
         List tokens = KvpUtils.readFlat(value, delimiter);
         List<Object> parsed = new ArrayList<>(tokens.size());

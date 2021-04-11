@@ -8,8 +8,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.lang.reflect.Field;
-import java.util.Set;
 import javax.xml.namespace.QName;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.DimensionPresentation;
@@ -24,7 +22,6 @@ import org.geotools.geometry.Envelope2D;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.opengis.coverage.grid.GridCoverageReader;
-import org.opengis.parameter.GeneralParameterValue;
 import org.opengis.parameter.ParameterValue;
 import org.springframework.mock.web.MockHttpServletResponse;
 
@@ -46,17 +43,6 @@ public class WCSMultiDimSubsetTest extends WCSNetCDFBaseTest {
     @Override
     protected void onSetUp(SystemTestData testData) throws Exception {
         // workaround to add our custom multi dimensional format
-        try {
-            Field field = GetCoverage.class.getDeclaredField("mdFormats");
-            field.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            Set<String> values = (Set<String>) field.get(null);
-            values.add(WCSResponseInterceptor.MIME_TYPE);
-        } catch (NoSuchFieldException
-                | IllegalAccessException
-                | IllegalArgumentException
-                | SecurityException e) {
-        }
 
         super.onSetUp(testData);
         testData.addRasterLayer(
@@ -86,8 +72,7 @@ public class WCSMultiDimSubsetTest extends WCSNetCDFBaseTest {
             final ParameterValue<Boolean> useJAI =
                     ImageMosaicFormat.USE_JAI_IMAGEREAD.createValue();
             useJAI.setValue(false);
-            sourceCoverage =
-                    (GridCoverage2D) coverageReader.read(new GeneralParameterValue[] {useJAI});
+            sourceCoverage = (GridCoverage2D) coverageReader.read(useJAI);
             final Envelope2D sourceEnvelope = sourceCoverage.getEnvelope2D();
 
             // subsample using the original extension

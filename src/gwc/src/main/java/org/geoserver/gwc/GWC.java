@@ -14,7 +14,6 @@ import static org.geowebcache.grid.GridUtil.findBestMatchingGrid;
 import static org.geowebcache.seed.GWCTask.TYPE.TRUNCATE;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
@@ -107,11 +106,9 @@ import org.geowebcache.conveyor.Conveyor;
 import org.geowebcache.conveyor.ConveyorTile;
 import org.geowebcache.diskquota.DiskQuotaConfig;
 import org.geowebcache.diskquota.DiskQuotaMonitor;
-import org.geowebcache.diskquota.QuotaStore;
 import org.geowebcache.diskquota.jdbc.JDBCConfiguration;
 import org.geowebcache.diskquota.storage.LayerQuota;
 import org.geowebcache.diskquota.storage.Quota;
-import org.geowebcache.diskquota.storage.TileSet;
 import org.geowebcache.diskquota.storage.TileSetVisitor;
 import org.geowebcache.filter.parameters.ParameterFilter;
 import org.geowebcache.grid.BoundingBox;
@@ -320,11 +317,13 @@ public class GWC implements DisposableBean, InitializingBean, ApplicationContext
     }
 
     /** @see org.springframework.beans.factory.InitializingBean#afterPropertiesSet() */
+    @Override
     public void afterPropertiesSet() throws Exception {
         GWC.set(this);
     }
 
     /** @see org.springframework.beans.factory.DisposableBean#destroy() */
+    @Override
     public void destroy() throws Exception {
         Catalog catalog = getCatalog();
         if (this.catalogLayerEventListener != null) {
@@ -585,10 +584,8 @@ public class GWC implements DisposableBean, InitializingBean, ApplicationContext
             String formatName,
             Map<String, String> parameters) {
         final int threadCount = 1;
-        int zoomStart;
-        int zoomStop;
-        zoomStart = gridSubset.getZoomStart();
-        zoomStop = gridSubset.getZoomStop();
+        int zoomStart = gridSubset.getZoomStart();
+        int zoomStop = gridSubset.getZoomStop();
         final TYPE taskType = TRUNCATE;
         SeedRequest req =
                 new SeedRequest(
@@ -829,13 +826,12 @@ public class GWC implements DisposableBean, InitializingBean, ApplicationContext
             final List<GridSubset> crsMatchingGridSubsets;
             {
                 CoordinateReferenceSystem crs = request.getCrs();
-                int epsgId;
                 // are we in wms 1.3 land?
                 if (CRS.getAxisOrder(crs) == AxisOrder.NORTH_EAST) {
                     axisFlip = true;
                 }
                 String srs = request.getSRS();
-                epsgId = Integer.parseInt(srs.substring(srs.lastIndexOf(':') + 1));
+                int epsgId = Integer.parseInt(srs.substring(srs.lastIndexOf(':') + 1));
                 SRS srs2 = SRS.getSRS(epsgId);
                 crsMatchingGridSubsets = tileLayer.getGridSubsetsForSRS(srs2);
             }
@@ -882,7 +878,6 @@ public class GWC implements DisposableBean, InitializingBean, ApplicationContext
 
         } catch (Exception e) {
             if (log.isLoggable(Level.FINE)) {
-                e.printStackTrace();
                 log.log(Level.FINE, "Exception caught checking gwc dispatch preconditions", e);
             }
             Throwable rootCause = getRootCause(e);
@@ -894,12 +889,11 @@ public class GWC implements DisposableBean, InitializingBean, ApplicationContext
             return null;
         }
 
-        ConveyorTile tileReq;
         final String gridSetId = gridSubset.getName();
         HttpServletRequest servletReq = null;
         HttpServletResponse servletResp = null;
         String layerName = tileLayer.getName();
-        tileReq =
+        ConveyorTile tileReq =
                 new ConveyorTile(
                         storageBroker,
                         layerName,
@@ -1144,22 +1138,19 @@ public class GWC implements DisposableBean, InitializingBean, ApplicationContext
 
         return Iterables.filter(
                 geoServerTileLayers,
-                new Predicate<GeoServerTileLayer>() {
-                    @Override
-                    public boolean apply(GeoServerTileLayer tileLayer) {
-                        String layerName = tileLayer.getName();
-                        if (-1 == layerName.indexOf(':')) {
-                            return false;
-                        }
-                        LayerInfo layerInfo = catalog.getLayerByName(layerName);
-                        if (layerInfo != null) {
-                            NamespaceInfo layerNamespace = layerInfo.getResource().getNamespace();
-                            if (namespaceFilter.equals(layerNamespace)) {
-                                return true;
-                            }
-                        }
+                tileLayer -> {
+                    String layerName = tileLayer.getName();
+                    if (-1 == layerName.indexOf(':')) {
                         return false;
                     }
+                    LayerInfo layerInfo = catalog.getLayerByName(layerName);
+                    if (layerInfo != null) {
+                        NamespaceInfo layerNamespace = layerInfo.getResource().getNamespace();
+                        if (namespaceFilter.equals(layerNamespace)) {
+                            return true;
+                        }
+                    }
+                    return false;
                 });
     }
 
@@ -1279,21 +1270,18 @@ public class GWC implements DisposableBean, InitializingBean, ApplicationContext
         final Quota quota = new Quota();
 
         TileSetVisitor visitor =
-                new TileSetVisitor() {
-                    @Override
-                    public void visit(final TileSet tileSet, final QuotaStore store) {
-                        if (!gridSetName.equals(tileSet.getGridsetId())) {
-                            return;
-                        }
+                (tileSet, store) -> {
+                    if (!gridSetName.equals(tileSet.getGridsetId())) {
+                        return;
+                    }
 
-                        final String tileSetId = tileSet.getId();
-                        try {
-                            Quota used = store.getUsedQuotaByTileSetId(tileSetId);
-                            quota.add(used);
-                        } catch (InterruptedException e) {
-                            log.fine(e.getMessage());
-                            return;
-                        }
+                    final String tileSetId = tileSet.getId();
+                    try {
+                        Quota used = store.getUsedQuotaByTileSetId(tileSetId);
+                        quota.add(used);
+                    } catch (InterruptedException e) {
+                        log.fine(e.getMessage());
+                        return;
                     }
                 };
         monitor.getQuotaStore().accept(visitor);
@@ -1333,7 +1321,7 @@ public class GWC implements DisposableBean, InitializingBean, ApplicationContext
             Quota usedQuotaByLayerName = monitor.getUsedQuotaByLayerName(layerName);
             return usedQuotaByLayerName;
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            log.log(Level.WARNING, "", e);
         }
         return null;
     }
@@ -2415,7 +2403,7 @@ public class GWC implements DisposableBean, InitializingBean, ApplicationContext
     }
 
     private boolean needsSynchronization() {
-        return GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION
+        return GeoServerEnvironment.allowEnvParametrization()
                 && gsEnvironment != null
                 && gsEnvironment.isStale()
                 && gsEnvironment.getProps() != null

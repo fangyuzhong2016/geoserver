@@ -13,7 +13,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
 import org.apache.wicket.Component;
-import org.apache.wicket.Page;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.form.AjaxFormSubmitBehavior;
 import org.apache.wicket.extensions.ajax.markup.html.modal.ModalWindow;
@@ -218,23 +217,21 @@ public class WCSRequestBuilderPanel extends Panel {
         add(responseWindow);
 
         responseWindow.setPageCreator(
-                new ModalWindow.PageCreator() {
-
-                    public Page createPage() {
-                        DemoRequest request = new DemoRequest(null);
-                        HttpServletRequest http =
-                                GeoServerApplication.get().servletRequest(getRequest());
-                        String url =
-                                ResponseUtils.buildURL(
-                                        ResponseUtils.baseURL(http),
-                                        "ows",
-                                        Collections.singletonMap("strict", "true"),
-                                        URLType.SERVICE);
-                        request.setRequestUrl(url);
-                        request.setRequestBody((String) responseWindow.getDefaultModelObject());
-                        return new DemoRequestResponse(new Model<>(request));
-                    }
-                });
+                (ModalWindow.PageCreator)
+                        () -> {
+                            DemoRequest request = new DemoRequest(null);
+                            HttpServletRequest http =
+                                    GeoServerApplication.get().servletRequest(getRequest());
+                            String url =
+                                    ResponseUtils.buildURL(
+                                            ResponseUtils.baseURL(http),
+                                            "ows",
+                                            Collections.singletonMap("strict", "true"),
+                                            URLType.SERVICE);
+                            request.setRequestUrl(url);
+                            request.setRequestBody((String) responseWindow.getDefaultModelObject());
+                            return new DemoRequestResponse(new Model<>(request));
+                        });
 
         // the describe coverage link
         describeLink =
@@ -457,12 +454,14 @@ public class WCSRequestBuilderPanel extends Panel {
 
     class TargetLayoutRenderer extends ChoiceRenderer<TargetLayout> {
 
+        @Override
         public Object getDisplayValue(TargetLayout object) {
             final String name = object.name();
             return new StringResourceModel("tl." + name, WCSRequestBuilderPanel.this, null)
                     .getString();
         }
 
+        @Override
         public String getIdValue(TargetLayout object, int index) {
             return object.name();
         }

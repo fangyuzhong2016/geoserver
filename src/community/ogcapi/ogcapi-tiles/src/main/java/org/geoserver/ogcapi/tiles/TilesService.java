@@ -37,8 +37,12 @@ import org.geoserver.ogcapi.ConformanceDocument;
 import org.geoserver.ogcapi.HTMLResponseBody;
 import org.geoserver.ogcapi.InvalidParameterValueException;
 import org.geoserver.ogcapi.OpenAPIMessageConverter;
-import org.geoserver.ogcapi.QueryablesDocument;
+import org.geoserver.ogcapi.Queryables;
+import org.geoserver.ogcapi.QueryablesBuilder;
 import org.geoserver.ogcapi.ResourceNotFoundException;
+import org.geoserver.ogcapi.StyleDocument;
+import org.geoserver.ows.URLMangler;
+import org.geoserver.ows.util.ResponseUtils;
 import org.geoserver.wms.WMS;
 import org.geotools.filter.text.ecql.ECQL;
 import org.geotools.util.logging.Logging;
@@ -51,6 +55,7 @@ import org.geowebcache.grid.GridSubset;
 import org.geowebcache.io.ByteArrayResource;
 import org.geowebcache.io.Resource;
 import org.geowebcache.layer.TileLayer;
+import org.geowebcache.layer.meta.TileJSON;
 import org.geowebcache.mime.MimeType;
 import org.geowebcache.storage.StorageBroker;
 import org.geowebcache.storage.TileObject;
@@ -83,6 +88,8 @@ public class TilesService {
     public static final String CC_MULTITILES =
             "http://www.opengis.net/spec/ogcapi-tiles-1/1.0/conf/multitiles";
     public static final String CC_INFO = "http://www.opengis.net/spec/ogcapi-tiles-1/1.0/conf/info";
+
+    private static final String DISPLAY_NAME = "OGC API Tiles";
 
     private final GeoServer geoServer;
     private final GWC gwc;
@@ -128,12 +135,13 @@ public class TilesService {
     )
     @ResponseBody
     @HTMLResponseBody(templateName = "api.ftl", fileName = "api.html")
-    public OpenAPI api() {
+    public OpenAPI api() throws IOException {
         return new TilesAPIBuilder(gwc).build(getService());
     }
 
     @GetMapping(path = "conformance", name = "getConformanceDeclaration")
     @ResponseBody
+    @HTMLResponseBody(templateName = "conformance.ftl", fileName = "conformance.html")
     public ConformanceDocument conformance() {
         List<String> classes =
                 Arrays.asList(
@@ -142,7 +150,7 @@ public class TilesService {
                         CC_TILESET,
                         CC_MULTITILES,
                         CC_INFO);
-        return new ConformanceDocument(classes);
+        return new ConformanceDocument(DISPLAY_NAME, classes);
     }
 
     @GetMapping(path = "tileMatrixSets", name = "getTileMatrixSets")
@@ -478,7 +486,7 @@ public class TilesService {
         if (isStyleGroup(group)) {
             return group.getStyles().get(0).getName();
         } else {
-            return TiledCollectionDocument.DEFAULT_STYLE_NAME;
+            return StyleDocument.DEFAULT_STYLE_NAME;
         }
     }
 
@@ -612,7 +620,7 @@ public class TilesService {
     @GetMapping(path = "collections/{collectionId}/queryables", name = "getQueryables")
     @ResponseBody
     @HTMLResponseBody(templateName = "queryables.ftl", fileName = "queryables.html")
-    public QueryablesDocument queryables(@PathVariable(name = "collectionId") String collectionId)
+    public Queryables queryables(@PathVariable(name = "collectionId") String collectionId)
             throws IOException {
         TileLayer tileLayer = getTileLayer(collectionId);
         if (!supportsFiltering(tileLayer)) {
@@ -622,10 +630,19 @@ public class TilesService {
                             + "' cannot be filtered, no queryables available");
         }
 
-        return new QueryablesDocument(
+        FeatureTypeInfo ft =
                 (FeatureTypeInfo)
                         ((LayerInfo) ((GeoServerTileLayer) tileLayer).getPublishedInfo())
-                                .getResource());
+                                .getResource();
+        String id =
+                ResponseUtils.buildURL(
+                        APIRequestInfo.get().getBaseURL(),
+                        "ogc/tiels/collections/"
+                                + ResponseUtils.urlEncode(collectionId)
+                                + "/queryables",
+                        null,
+                        URLMangler.URLType.RESOURCE);
+        return new QueryablesBuilder(id).forType(ft).build();
     }
 
     /** Utility method to check if a given tile layer supports filtering */

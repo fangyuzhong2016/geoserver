@@ -159,6 +159,7 @@ public class ResourceConfigurationPageTest extends GeoServerWicketTestSupport {
         // Apply the new feature to the page
         page.add(
                 new AjaxEventBehavior("ondblclick") {
+                    @Override
                     public void onEvent(AjaxRequestTarget target) {
                         page.updateResource(info, target);
                     }
@@ -377,6 +378,7 @@ public class ResourceConfigurationPageTest extends GeoServerWicketTestSupport {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     public void testWFSDataStoreResource() throws IOException {
         // MOCKING WFS DataStore and Mock Remote Response
         String baseURL = TestHttpClientProvider.MOCKSERVER;

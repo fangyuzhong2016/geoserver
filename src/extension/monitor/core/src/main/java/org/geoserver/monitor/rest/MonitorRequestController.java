@@ -15,7 +15,6 @@ import org.geoserver.monitor.Query;
 import org.geoserver.monitor.Query.Comparison;
 import org.geoserver.monitor.Query.SortOrder;
 import org.geoserver.monitor.RequestData;
-import org.geoserver.monitor.RequestDataVisitor;
 import org.geoserver.ows.util.OwsUtils;
 import org.geoserver.rest.ResourceNotFoundException;
 import org.geoserver.rest.RestBaseController;
@@ -104,13 +103,7 @@ public class MonitorRequestController extends RestBaseController {
         } else {
             final List<RequestData> requests = new ArrayList<>();
             BaseMonitorConverter.handleRequests(
-                    object,
-                    new RequestDataVisitor() {
-                        public void visit(RequestData data, Object... aggregates) {
-                            requests.add(data);
-                        }
-                    },
-                    monitor);
+                    object, (data, aggregates) -> requests.add(data), monitor);
             return wrapList(requests, RequestData.class);
         }
     }
@@ -120,6 +113,7 @@ public class MonitorRequestController extends RestBaseController {
      *
      * @param o The object being serialized.
      */
+    @Override
     protected String getTemplateName(Object o) {
         if (o instanceof RequestData) {
             return "request.html";

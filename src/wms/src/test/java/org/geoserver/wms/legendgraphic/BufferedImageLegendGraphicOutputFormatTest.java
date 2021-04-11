@@ -6,6 +6,7 @@
 package org.geoserver.wms.legendgraphic;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -22,6 +23,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import javax.media.jai.PlanarImage;
+import javax.media.jai.iterator.RandomIter;
+import javax.media.jai.iterator.RandomIterFactory;
 import org.geoserver.catalog.Catalog;
 import org.geoserver.catalog.CoverageInfo;
 import org.geoserver.catalog.FeatureTypeInfo;
@@ -54,7 +57,6 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.GeometryFactory;
 import org.opengis.coverage.grid.GridCoverage;
 import org.opengis.feature.type.AttributeType;
 import org.opengis.feature.type.FeatureType;
@@ -143,8 +145,8 @@ public class BufferedImageLegendGraphicOutputFormatTest
 
         GridCoverage coverage = cInfo.getGridCoverage(null, null);
         try {
-            SimpleFeatureCollection feature;
-            feature = FeatureUtilities.wrapGridCoverage((GridCoverage2D) coverage);
+            SimpleFeatureCollection feature =
+                    FeatureUtilities.wrapGridCoverage((GridCoverage2D) coverage);
             req.setLayer(feature.getSchema());
             req.setStyle(multipleRulesStyle);
             req.setLegendOptions(new HashMap());
@@ -201,6 +203,7 @@ public class BufferedImageLegendGraphicOutputFormatTest
         // was the legend painted?
         assertNotBlank("testRainfall", image, LegendUtils.DEFAULT_BG_COLOR);
     }
+
     /** Tests that the legend graphic is produced for multiple layers */
     @org.junit.Test
     public void testMultipleLayers() throws Exception {
@@ -218,6 +221,12 @@ public class BufferedImageLegendGraphicOutputFormatTest
                                 MockData.ROAD_SEGMENTS.getLocalPart());
         req.setLayer(ftInfo.getFeatureType());
         req.setStyle(getCatalog().getStyleByName(MockData.ROAD_SEGMENTS.getLocalPart()).getStyle());
+
+        // force antialiasing
+        // note - Mac M1 (ARM mode) does not allow non-antialiased text drawing, so we force to "on"
+        // for consistency
+        // note - Mac M1 (X64 mode) supports non-antialiased text
+        req.setLegendOptions(Collections.singletonMap("fontAntiAliasing", "on"));
 
         this.legendProducer.buildLegendGraphic(req);
 
@@ -238,12 +247,11 @@ public class BufferedImageLegendGraphicOutputFormatTest
 
         // was the legend painted?
         assertNotBlank("testMultipleLayers", image, LegendUtils.DEFAULT_BG_COLOR);
-        // with 2 layers we should have a legend at least 2 times taller (title + 2 layers)
 
+        // with 2 layers we should have a legend at least 2 times taller (title + 2 layers)
         assertEquals(2 * (height + titleHeight), image.getHeight());
 
-        // first title
-        assertPixel(image, 1, titleHeight / 2, new Color(0, 0, 0));
+        // these checks test the line style in the image (i.e. a small colour line for the layer)
 
         // first layer
         assertPixel(image, 10, 10 + titleHeight, new Color(192, 160, 0));
@@ -252,15 +260,58 @@ public class BufferedImageLegendGraphicOutputFormatTest
 
         assertPixel(image, 10, 50 + titleHeight, new Color(224, 64, 0));
 
-        // second title
-        assertPixel(image, 1, 60 + titleHeight + titleHeight / 2, new Color(0, 0, 0));
-
         // same colors for the second layer
         assertPixel(image, 10, 70 + titleHeight * 2, new Color(192, 160, 0));
 
         assertPixel(image, 10, 90 + titleHeight * 2, new Color(0, 0, 0));
 
         assertPixel(image, 10, 110 + titleHeight * 2, new Color(224, 64, 0));
+
+        // 128 * 3 = search for pixels are at least half black  (3 = number of components - RGB)
+        assertManyPixelsOfColor(image, Color.BLACK, 128 * 3, true, 1500);
+    }
+
+    /**
+     * Looks through the image and counts the number of pixels that are approximately the given
+     * color. This must be greater than minNumber.
+     *
+     * @param image image to look through
+     * @param color test color
+     * @param tolerance how close the pixel's test color needs to be to be a match (0=exact match)
+     * @paaram onlyGray Filter all colour pixels leaving only gray pixels to be compared.
+     * @param minNumber how many pixels in the image must be the given color
+     */
+    protected void assertManyPixelsOfColor(
+            BufferedImage image, Color color, int tolerance, boolean onlyGrey, int minNumber) {
+        int[] components = new int[3];
+
+        int testRed = color.getRed();
+        int testGreen = color.getGreen();
+        int testBlue = color.getBlue();
+
+        final int width = image.getWidth();
+        final int height = image.getHeight();
+
+        int numberPixelsMatched = 0; // accumulator
+
+        RandomIter it = RandomIterFactory.create(image, null);
+        for (int r = 0; r < height; r++) {
+            for (int c = 0; c < width; c++) {
+                it.getPixel(c, r, components);
+
+                // the pixel we are looking at is grey (i.e. [100,100,100])
+                boolean isGrey =
+                        (components[0] == components[1]) && (components[1] == components[2]);
+                if (onlyGrey && !isGrey) continue;
+
+                int diff =
+                        Math.abs(testRed - components[0])
+                                + Math.abs(testGreen - components[1])
+                                + Math.abs(testBlue - components[2]);
+                if (diff <= tolerance) numberPixelsMatched++;
+            }
+        }
+        assertTrue(numberPixelsMatched >= minNumber);
     }
 
     /** Tests that with forceTitles option off no title is rendered */
@@ -277,7 +328,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
                 cat.getFeatureTypeByName(
                         MockData.ROAD_SEGMENTS.getNamespaceURI(),
                         MockData.ROAD_SEGMENTS.getLocalPart());
-        List<FeatureType> layers = new ArrayList<>();
         req.setLayer(ftInfo.getFeatureType());
 
         req.setStyle(cat.getStyleByName(MockData.ROAD_SEGMENTS.getLocalPart()).getStyle());
@@ -383,8 +433,8 @@ public class BufferedImageLegendGraphicOutputFormatTest
 
         GridCoverage coverage = cInfo.getGridCoverage(null, null);
         try {
-            SimpleFeatureCollection feature;
-            feature = FeatureUtilities.wrapGridCoverage((GridCoverage2D) coverage);
+            SimpleFeatureCollection feature =
+                    FeatureUtilities.wrapGridCoverage((GridCoverage2D) coverage);
             layers.add(feature.getSchema());
 
             layers.forEach(ft -> req.getLegends().add(new LegendRequest(ft)));
@@ -443,8 +493,8 @@ public class BufferedImageLegendGraphicOutputFormatTest
 
         GridCoverage coverage = cInfo.getGridCoverage(null, null);
         try {
-            SimpleFeatureCollection feature;
-            feature = FeatureUtilities.wrapGridCoverage((GridCoverage2D) coverage);
+            SimpleFeatureCollection feature =
+                    FeatureUtilities.wrapGridCoverage((GridCoverage2D) coverage);
             layers.add(feature.getSchema());
 
             layers.forEach(ft -> req.getLegends().add(new LegendRequest(ft)));
@@ -537,8 +587,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
         builder.setDefaultGeometry("GEOMETRY");
         CoordinateReferenceSystem crs = CRS.decode("EPSG:4326");
         builder.setCRS(crs);
-
-        GeometryFactory geometryFactory = new GeometryFactory();
 
         AttributeType at =
                 new AttributeTypeImpl(
@@ -645,7 +693,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
     @org.junit.Test
     public void testProportionalSymbolSize() throws Exception {
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
 
         FeatureTypeInfo ftInfo =
                 getCatalog()
@@ -687,7 +734,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
     @org.junit.Test
     public void testProportionalSymbolThickBorder() throws Exception {
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
 
         FeatureTypeInfo ftInfo =
                 getCatalog()
@@ -718,7 +764,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
     @org.junit.Test
     public void testProportionalSymbolsLine() throws Exception {
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
 
         FeatureTypeInfo ftInfo =
                 getCatalog()
@@ -748,7 +793,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
     @org.junit.Test
     public void testProportionalSymbolSizeUOM() throws Exception {
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
 
         FeatureTypeInfo ftInfo =
                 getCatalog()
@@ -793,7 +837,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
     @org.junit.Test
     public void testProportionalSymbolSizePartialUOM() throws Exception {
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
 
         req.setScale(RendererUtilities.calculatePixelsPerMeterRatio(10, Collections.emptyMap()));
 
@@ -825,7 +868,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
     @org.junit.Test
     public void testMinSymbolSize() throws Exception {
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
 
         FeatureTypeInfo ftInfo =
                 getCatalog()
@@ -859,7 +901,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
     @org.junit.Test
     public void testInternationalizedLabels() throws Exception {
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
 
         Map<String, String> options = new HashMap<>();
         options.put("forceLabels", "on");
@@ -881,14 +922,14 @@ public class BufferedImageLegendGraphicOutputFormatTest
         image = this.legendProducer.buildLegendGraphic(req);
         // test that using localized labels we get a different label than when not using it
         int itWidth = image.getWidth();
-        assertTrue(itWidth != noLocalizedWidth);
+        assertNotEquals(itWidth, noLocalizedWidth);
         // ImageIO.write(image, "PNG", new File("/tmp/it.png"));
         req.setLocale(Locale.ENGLISH);
         image = this.legendProducer.buildLegendGraphic(req);
         // test that using localized labels we get a different label than when not using it
         int enWidth = image.getWidth();
-        assertTrue(enWidth != noLocalizedWidth);
-        assertTrue(enWidth != itWidth);
+        assertNotEquals(enWidth, noLocalizedWidth);
+        assertNotEquals(enWidth, itWidth);
         // ImageIO.write(image, "PNG", new File("/tmp/en.png"));
     }
 
@@ -902,7 +943,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
         Style transformStyle = readSLD("RenderingTransformRasterVector.sld");
 
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
         CoverageInfo cInfo =
                 getCatalog()
                         .getCoverageByName(
@@ -912,8 +952,8 @@ public class BufferedImageLegendGraphicOutputFormatTest
 
         GridCoverage coverage = cInfo.getGridCoverage(null, null);
         try {
-            SimpleFeatureCollection feature;
-            feature = FeatureUtilities.wrapGridCoverage((GridCoverage2D) coverage);
+            SimpleFeatureCollection feature =
+                    FeatureUtilities.wrapGridCoverage((GridCoverage2D) coverage);
             req.setLayer(feature.getSchema());
             req.setStyle(transformStyle);
             req.setLegendOptions(new HashMap());
@@ -980,14 +1020,13 @@ public class BufferedImageLegendGraphicOutputFormatTest
         assertEquals(0.5, opacity, 0.0);
 
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
         CoverageInfo cInfo = getCatalog().getCoverageByName("world");
         assertNotNull(cInfo);
 
         GridCoverage coverage = cInfo.getGridCoverage(null, null);
         try {
-            SimpleFeatureCollection feature;
-            feature = FeatureUtilities.wrapGridCoverage((GridCoverage2D) coverage);
+            SimpleFeatureCollection feature =
+                    FeatureUtilities.wrapGridCoverage((GridCoverage2D) coverage);
             req.setLayer(feature.getSchema());
             req.setStyle(style);
             req.setLegendOptions(new HashMap());
@@ -1039,7 +1078,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
         Style transformStyle = readSLD("RenderingTransformVectorRaster.sld");
 
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
         FeatureTypeInfo ftInfo =
                 getCatalog()
                         .getFeatureTypeByName(
@@ -1073,7 +1111,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
         assertNotNull(externalGraphicStyle);
 
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
         CoverageInfo cInfo = getCatalog().getCoverageByName("world");
         assertNotNull(cInfo);
 
@@ -1110,7 +1147,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
     @org.junit.Test
     public void testLabelMargin() throws Exception {
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
 
         FeatureTypeInfo ftInfo =
                 getCatalog()
@@ -1165,14 +1201,13 @@ public class BufferedImageLegendGraphicOutputFormatTest
         assertEquals(3, symbolizer.getColorMap().getColorMapEntries().length);
 
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
         CoverageInfo cInfo = getCatalog().getCoverageByName("world");
         assertNotNull(cInfo);
 
         GridCoverage coverage = cInfo.getGridCoverage(null, null);
         try {
-            SimpleFeatureCollection feature;
-            feature = FeatureUtilities.wrapGridCoverage((GridCoverage2D) coverage);
+            SimpleFeatureCollection feature =
+                    FeatureUtilities.wrapGridCoverage((GridCoverage2D) coverage);
             req.setLayer(feature.getSchema());
             req.setStyle(style);
             Map<String, String> legendOptions = new HashMap<>();
@@ -1201,12 +1236,64 @@ public class BufferedImageLegendGraphicOutputFormatTest
             }
         }
     }
+    /** Tests wrapLegend legend option - GEOS-9919 */
+    @org.junit.Test
+    public void testWrapLongNames() throws Exception {
+        Style style = readSLD("ColorMapWithLongLabels.sld");
+        assertNotNull(style.featureTypeStyles());
+        assertEquals(1, style.featureTypeStyles().size());
+        FeatureTypeStyle fts = style.featureTypeStyles().get(0);
+        assertNotNull(fts.rules());
+        assertEquals(1, fts.rules().size());
+        Rule rule = fts.rules().get(0);
+        assertNotNull(rule.symbolizers());
+        assertEquals(1, rule.symbolizers().size());
+        assertTrue(rule.symbolizers().get(0) instanceof RasterSymbolizer);
+        RasterSymbolizer symbolizer = (RasterSymbolizer) rule.symbolizers().get(0);
+        assertNotNull(symbolizer.getColorMap());
+        assertEquals(3, symbolizer.getColorMap().getColorMapEntries().length);
 
+        GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
+        CoverageInfo cInfo = getCatalog().getCoverageByName("world");
+        assertNotNull(cInfo);
+
+        GridCoverage coverage = cInfo.getGridCoverage(null, null);
+        try {
+            SimpleFeatureCollection feature;
+            feature = FeatureUtilities.wrapGridCoverage((GridCoverage2D) coverage);
+            req.setLayer(feature.getSchema());
+            req.setStyle(style);
+            Map<String, String> legendOptions = new HashMap<>();
+            legendOptions.put("wrap", "true");
+            req.setLegendOptions(legendOptions);
+
+            final int HEIGHT_HINT = 30;
+            req.setHeight(HEIGHT_HINT);
+
+            // use default values for the rest of parameters
+            this.legendProducer.buildLegendGraphic(req);
+
+            BufferedImage image = this.legendProducer.buildLegendGraphic(req);
+            int absoluteWidth = image.getWidth();
+            legendOptions.put("wrap", "false");
+            req.setLegendOptions(legendOptions);
+            image = this.legendProducer.buildLegendGraphic(req);
+
+            assertTrue("Title didn't wrap", image.getWidth() > absoluteWidth);
+        } finally {
+            RenderedImage ri = coverage.getRenderedImage();
+            if (coverage instanceof GridCoverage2D) {
+                ((GridCoverage2D) coverage).dispose(true);
+            }
+            if (ri instanceof PlanarImage) {
+                ImageUtilities.disposePlanarImageChain((PlanarImage) ri);
+            }
+        }
+    }
     /** Tests that symbols relative sizes are proportional. */
     @org.junit.Test
     public void testThickPolygonBorder() throws Exception {
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
         req.setWidth(20);
         req.setHeight(20);
 
@@ -1238,7 +1325,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
     @org.junit.Test
     public void testThickPolygonAsymmetricSymbol() throws Exception {
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
         req.setWidth(40);
         req.setHeight(20);
 
@@ -1270,7 +1356,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
     @org.junit.Test
     public void testLargeCirclePlacement() throws Exception {
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
         req.setWidth(48);
         req.setHeight(25);
 
@@ -1306,7 +1391,6 @@ public class BufferedImageLegendGraphicOutputFormatTest
     @org.junit.Test
     public void testSimpleLine() throws Exception {
         GetLegendGraphicRequest req = new GetLegendGraphicRequest(null);
-        ;
         req.setWidth(20);
         req.setHeight(20);
 

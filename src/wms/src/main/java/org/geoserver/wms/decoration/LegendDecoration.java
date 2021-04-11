@@ -69,6 +69,7 @@ public class LegendDecoration extends AbstractDispatcherCallback implements MapD
         this.legends.remove();
     }
 
+    @Override
     public void loadOptions(Map<String, String> options) {
         this.options = new HashMap<>(options);
         String layers = this.options.remove("layers");
@@ -98,6 +99,7 @@ public class LegendDecoration extends AbstractDispatcherCallback implements MapD
         }
     }
 
+    @Override
     public Dimension findOptimalSize(Graphics2D g2d, WMSMapContent mapContext) {
         double dpi = RendererUtilities.getDpi(mapContext.getRequest().getFormatOptions());
         double standardDpi = RendererUtilities.getDpi(Collections.emptyMap());
@@ -145,6 +147,7 @@ public class LegendDecoration extends AbstractDispatcherCallback implements MapD
         return new Dimension(width, height);
     }
 
+    @Override
     public void paint(Graphics2D g2d, Rectangle paintArea, WMSMapContent mapContext)
             throws Exception {
         // check if LayerLegends have been computed in the above method; if not
@@ -260,15 +263,12 @@ public class LegendDecoration extends AbstractDispatcherCallback implements MapD
         StyleInfo defaultStyle = info.getDefaultStyle();
 
         Predicate<StyleInfo> predicate =
-                new Predicate<StyleInfo>() {
-                    @Override
-                    public boolean test(StyleInfo s) {
-                        try {
-                            return s.getName().equals(layer.getStyle().getName())
-                                    && s.getStyle() != null;
-                        } catch (IOException e) {
-                            return false;
-                        }
+                s -> {
+                    try {
+                        return s.getName().equals(layer.getStyle().getName())
+                                && s.getStyle() != null;
+                    } catch (IOException e) {
+                        return false;
                     }
                 };
         StyleInfo sInfo =

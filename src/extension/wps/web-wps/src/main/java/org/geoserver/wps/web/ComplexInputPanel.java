@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.transform.TransformerException;
-import org.apache.wicket.Page;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.form.AjaxFormComponentUpdatingBehavior;
 import org.apache.wicket.ajax.markup.html.AjaxLink;
@@ -72,14 +71,10 @@ public class ComplexInputPanel extends Panel {
         subprocesswindow.setInitialHeight(500);
         add(subprocesswindow);
         subprocesswindow.setPageCreator(
-                new ModalWindow.PageCreator() {
-
-                    public Page createPage() {
-                        return new SubProcessBuilder(
+                () ->
+                        new SubProcessBuilder(
                                 (ExecuteRequest) subprocesswindow.getDefaultModelObject(),
-                                subprocesswindow);
-                    }
-                });
+                                subprocesswindow));
 
         updateEditor();
 
@@ -237,15 +232,13 @@ public class ComplexInputPanel extends Panel {
             f.add(xml);
 
             subprocesswindow.setWindowClosedCallback(
-                    new ModalWindow.WindowClosedCallback() {
+                    (ModalWindow.WindowClosedCallback)
+                            target -> {
+                                // turn the GUI request into an actual WPS request
+                                xml.setModelObject(getExecuteXML());
 
-                        public void onClose(AjaxRequestTarget target) {
-                            // turn the GUI request into an actual WPS request
-                            xml.setModelObject(getExecuteXML());
-
-                            target.add(xml);
-                        }
-                    });
+                                target.add(xml);
+                            });
 
             add(f);
         } else {

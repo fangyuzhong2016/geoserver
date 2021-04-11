@@ -50,18 +50,21 @@ public class DeleteElementHandler extends AbstractTransactionElementHandler {
         super(gs);
     }
 
-    public Class getElementClass() {
+    @Override
+    public Class<Delete> getElementClass() {
         return Delete.class;
     }
 
     /**
      * @see org.geoserver.wfs.TransactionElementHandler#getTypeNames(org.eclipse.emf.ecore.EObject)
      */
+    @Override
     public QName[] getTypeNames(TransactionRequest request, TransactionElement element)
             throws WFSTransactionException {
         return new QName[] {element.getTypeName()};
     }
 
+    @Override
     public void checkValidity(TransactionElement delete, Map featureTypeInfos)
             throws WFSTransactionException {
         if (!getInfo().getServiceLevel().getOps().contains(WFSInfo.Operation.TRANSACTION_DELETE)) {
@@ -76,6 +79,7 @@ public class DeleteElementHandler extends AbstractTransactionElementHandler {
         }
     }
 
+    @Override
     public void execute(
             TransactionElement delete,
             TransactionRequest request,
@@ -129,8 +133,7 @@ public class DeleteElementHandler extends AbstractTransactionElementHandler {
             if ((request.getLockId() != null)
                     && store instanceof FeatureLocking
                     && (request.isReleaseActionSome())) {
-                SimpleFeatureLocking locking;
-                locking = (SimpleFeatureLocking) store;
+                SimpleFeatureLocking locking = (SimpleFeatureLocking) store;
 
                 // TODO: Revisit Lock/Delete interaction in gt2
                 // This a bit better and what should be done, we
@@ -145,8 +148,8 @@ public class DeleteElementHandler extends AbstractTransactionElementHandler {
                 // would be extra work when doing release mode ALL.
                 //
                 DataStore data = (DataStore) store.getDataStore();
-                FeatureWriter<SimpleFeatureType, SimpleFeature> writer;
-                writer = data.getFeatureWriter(typeName, filter, store.getTransaction());
+                FeatureWriter<SimpleFeatureType, SimpleFeature> writer =
+                        data.getFeatureWriter(typeName, filter, store.getTransaction());
 
                 try {
                     while (writer.hasNext()) {

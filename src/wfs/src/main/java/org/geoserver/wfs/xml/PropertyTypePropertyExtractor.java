@@ -35,10 +35,12 @@ public class PropertyTypePropertyExtractor implements PropertyExtractor {
         this.index = index;
     }
 
+    @Override
     public boolean canHandle(Object object) {
         return object instanceof PropertyType;
     }
 
+    @Override
     public List<Object[]> properties(Object object, XSDElementDeclaration element) {
         PropertyType property = (PropertyType) object;
 
@@ -72,11 +74,10 @@ public class PropertyTypePropertyExtractor implements PropertyExtractor {
             properties.add(new Object[] {particle, property.getValue()});
         } else {
             // coudl not determine new type, just fall back to xs:anyType
-            Object[] p =
-                    new Object[] {
-                        Schemas.getChildElementParticle(element.getType(), "Value", false),
-                        property.getValue()
-                    };
+            Object[] p = {
+                Schemas.getChildElementParticle(element.getType(), "Value", false),
+                property.getValue()
+            };
             properties.add(p);
         }
 
@@ -84,7 +85,7 @@ public class PropertyTypePropertyExtractor implements PropertyExtractor {
     }
 
     private QName guessValueType(Object value) {
-        Class clazz = value.getClass();
+        Class<?> clazz = value.getClass();
         List profiles = Arrays.asList(new Object[] {new XSProfile(), new GML3Profile()});
 
         for (Object o : profiles) {

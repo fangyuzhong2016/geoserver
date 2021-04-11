@@ -5,7 +5,9 @@
  */
 package org.vfny.geoserver.util;
 
-import static org.easymock.EasyMock.*;
+import static org.easymock.EasyMock.createNiceMock;
+import static org.easymock.EasyMock.expect;
+import static org.easymock.EasyMock.replay;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Collections;
@@ -60,6 +62,7 @@ public class URLProxifyingTest {
         expect(request.getHttpRequest())
                 .andReturn(
                         new HttpServletRequestWrapper(new MockHttpServletRequest()) {
+                            @Override
                             public String getHeader(String name) {
                                 return headers.get(name);
                             }

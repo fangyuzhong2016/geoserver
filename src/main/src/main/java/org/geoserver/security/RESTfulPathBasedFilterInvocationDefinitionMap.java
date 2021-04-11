@@ -35,7 +35,8 @@ public class RESTfulPathBasedFilterInvocationDefinitionMap
 
     // ~ Methods
     // ========================================================================================================
-    public boolean supports(Class clazz) {
+    @Override
+    public boolean supports(Class<?> clazz) {
         return FilterInvocation.class.isAssignableFrom(clazz);
     }
 
@@ -59,6 +60,7 @@ public class RESTfulPathBasedFilterInvocationDefinitionMap
                 "addSecureUrl(String, Collection<ConfigAttribute> ) is INVALID for RESTfulDefinitionSource");
     }
 
+    @Override
     public Collection<ConfigAttribute> getAllConfigAttributes() {
         Set<ConfigAttribute> set = new HashSet<>();
 
@@ -83,6 +85,7 @@ public class RESTfulPathBasedFilterInvocationDefinitionMap
         this.convertUrlToLowercaseBeforeComparison = convertUrlToLowercaseBeforeComparison;
     }
 
+    @Override
     public Collection<ConfigAttribute> getAttributes(Object object)
             throws IllegalArgumentException {
         if ((object == null) || !this.supports(object.getClass())) {

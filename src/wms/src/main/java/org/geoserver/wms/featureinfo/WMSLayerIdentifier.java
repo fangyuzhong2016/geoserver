@@ -57,6 +57,7 @@ public class WMSLayerIdentifier implements LayerIdentifier<SimpleFeatureCollecti
         this.wms = wms;
     }
 
+    @Override
     public List<FeatureCollection> identify(FeatureInfoRequestParameters params, int maxFeatures)
             throws IOException {
         final int x = params.getX();
@@ -79,8 +80,8 @@ public class WMSLayerIdentifier implements LayerIdentifier<SimpleFeatureCollecti
             return null;
         }
 
-        List<String> infoFormats;
-        infoFormats = wms.getCapabilities().getRequest().getGetFeatureInfo().getFormats();
+        List<String> infoFormats =
+                wms.getCapabilities().getRequest().getGetFeatureInfo().getFormats();
         if (!infoFormats.contains("application/vnd.ogc.gml")) {
             return null;
         }
@@ -144,6 +145,7 @@ public class WMSLayerIdentifier implements LayerIdentifier<SimpleFeatureCollecti
         return results;
     }
 
+    @Override
     public boolean canHandle(MapLayerInfo layer) {
         return layer.getType() == MapLayerInfo.TYPE_WMS;
     }
@@ -189,6 +191,7 @@ public class WMSLayerIdentifier implements LayerIdentifier<SimpleFeatureCollecti
         return wms;
     }
 
+    @Override
     public SimpleFeatureCollection handleClipParam(
             FeatureInfoRequestParameters params, SimpleFeatureCollection fc) {
         Geometry clipGeometry = params.getGetMapRequest().getClip();

@@ -15,6 +15,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.geoserver.catalog.DimensionInfo;
 import org.geoserver.catalog.FeatureTypeInfo;
 import org.geoserver.config.GeoServer;
@@ -47,7 +48,10 @@ public class DGGSFeatureHTMLMessageConverter extends GetFeatureHTMLMessageConver
 
     @Override
     protected boolean canWrite(MediaType mediaType) {
-        return super.canWrite(mediaType);
+        return Optional.of(APIRequestInfo.get())
+                        .filter(r -> r.getRequestPath().startsWith("/ogc/dggs"))
+                        .isPresent()
+                && super.canWrite(mediaType);
     }
 
     @Override
@@ -55,6 +59,7 @@ public class DGGSFeatureHTMLMessageConverter extends GetFeatureHTMLMessageConver
         return Ordered.HIGHEST_PRECEDENCE;
     }
 
+    @Override
     protected Template getContentTemplate(FeatureTypeInfo typeInfo) throws IOException {
         return templateSupport.getTemplate(
                 typeInfo, "zones-content.ftl", DGGSFeatureHTMLMessageConverter.class);
@@ -66,11 +71,13 @@ public class DGGSFeatureHTMLMessageConverter extends GetFeatureHTMLMessageConver
                 typeInfo, "getfeature-empty.ftl", GetFeatureHTMLMessageConverter.class);
     }
 
+    @Override
     protected Template getComplexContentTemplate(FeatureTypeInfo typeInfo) throws IOException {
         return templateSupport.getTemplate(
                 typeInfo, "getfeature-complex-content.ftl", GetFeatureHTMLMessageConverter.class);
     }
 
+    @Override
     protected Template getFooterTemplate(FeatureTypeInfo referenceFeatureType) throws IOException {
         return templateSupport.getTemplate(
                 referenceFeatureType,
@@ -78,6 +85,7 @@ public class DGGSFeatureHTMLMessageConverter extends GetFeatureHTMLMessageConver
                 GetFeatureHTMLMessageConverter.class);
     }
 
+    @Override
     protected Template getHeaderTemplate(FeatureTypeInfo referenceFeatureType) throws IOException {
         return templateSupport.getTemplate(
                 referenceFeatureType,
@@ -85,6 +93,7 @@ public class DGGSFeatureHTMLMessageConverter extends GetFeatureHTMLMessageConver
                 GetFeatureHTMLMessageConverter.class);
     }
 
+    @Override
     protected void addLinkFunctions(String baseURL, Map<String, Object> model) {
         super.addLinkFunctions(baseURL, model);
         model.put("zoneLink", (TemplateMethodModelEx) this::getZoneLink);

@@ -816,14 +816,11 @@ public class GetFeature {
                 Enhancer enhancer = new Enhancer();
                 enhancer.setSuperclass(BigInteger.class);
                 enhancer.setCallback(
-                        new LazyLoader() {
-
-                            @Override
-                            public Object loadObject() throws Exception {
-                                long totalCount = getTotalCount(totalCountExecutors);
-                                return BigInteger.valueOf(totalCount);
-                            }
-                        });
+                        (LazyLoader)
+                                () -> {
+                                    long totalCount1 = getTotalCount(totalCountExecutors);
+                                    return BigInteger.valueOf(totalCount1);
+                                });
                 totalCount =
                         (BigInteger)
                                 enhancer.create(new Class[] {String.class}, new Object[] {"0"});
@@ -1569,6 +1566,7 @@ public class GetFeature {
         final FeatureType featureType = meta.getFeatureType();
         ExpressionVisitor visitor =
                 new AbstractExpressionVisitor() {
+                    @Override
                     public Object visit(PropertyName name, Object data) {
                         // case of multiple geometries being returned
                         if (name.evaluate(featureType) == null && !isGmlBoundedBy(name)) {
@@ -1591,6 +1589,7 @@ public class GetFeature {
         AbstractFilterVisitor fvisitor =
                 new AbstractFilterVisitor() {
 
+                    @Override
                     protected Object visit(BinarySpatialOperator filter, Object data) {
                         PropertyName name = null;
                         if (filter.getExpression1() instanceof PropertyName) {
@@ -1764,6 +1763,7 @@ public class GetFeature {
             this.request = request;
         }
 
+        @Override
         public Object visit(BBOX filter, Object data) {
             ReferencedEnvelope ex2Envelope =
                     filter.getExpression2().evaluate(null, ReferencedEnvelope.class);

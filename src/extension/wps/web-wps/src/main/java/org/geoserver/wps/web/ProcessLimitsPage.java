@@ -211,7 +211,7 @@ public class ProcessLimitsPage extends GeoServerSecuredPage {
                     validators != null ? validators.get(name) : null;
 
             // add the existing validators and collect their types
-            Set<Class> validatorTypes = new HashSet<>();
+            Set<Class<?>> validatorTypes = new HashSet<>();
             if (paramValidators != null) {
                 for (WPSInputValidator validator : paramValidators) {
                     validatorTypes.add(validator.getClass());
@@ -249,6 +249,7 @@ public class ProcessLimitsPage extends GeoServerSecuredPage {
                 || PRIMITIVE_NUMBERS.contains(param.getType());
     }
 
+    @Override
     protected String getTitle() {
         return new ParamResourceModel("title", this, process.getName().getURI()).getString();
     }

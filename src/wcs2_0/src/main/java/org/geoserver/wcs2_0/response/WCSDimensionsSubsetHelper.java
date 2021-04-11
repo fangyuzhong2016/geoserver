@@ -15,6 +15,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -65,6 +66,7 @@ import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory2;
 import org.opengis.filter.expression.Literal;
 import org.opengis.filter.expression.PropertyName;
+import org.opengis.filter.sort.SortBy;
 import org.opengis.geometry.MismatchedDimensionException;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
@@ -359,7 +361,11 @@ public class WCSDimensionsSubsetHelper {
                                 reader.getOriginalGridToWorld(PixelInCell.CELL_CENTER));
                 final double scale =
                         axisIndex == 0 ? affineTransform.getScaleX() : -affineTransform.getScaleY();
-                subsettingEnvelope.setRange(axisIndex, slicePoint, slicePoint + scale);
+
+                // Center the tiny rectangle across the slicePoint
+                double min = slicePoint - (scale * 0.5);
+                double max = min + scale;
+                subsettingEnvelope.setRange(axisIndex, min, max);
 
                 // slice point outside coverage
                 if (sourceEnvelopeInSubsettingCRS.getMinimum(axisIndex) > slicePoint
@@ -922,7 +928,7 @@ public class WCSDimensionsSubsetHelper {
             throws MismatchedDimensionException, UnsupportedOperationException, IOException,
                     TransformException, FactoryException {
         List<GridCoverageRequest> list = splitRequest();
-        Set<GridCoverageRequest> set = new HashSet<>();
+        Set<GridCoverageRequest> set = new LinkedHashSet<>();
         for (GridCoverageRequest request : list) {
             set.add(request);
         }
@@ -1004,7 +1010,7 @@ public class WCSDimensionsSubsetHelper {
                 Object value = feature.getAttribute(startAttribute);
                 if (endAttribute != null) {
                     Object endValue = feature.getAttribute(endAttribute);
-                    Class objectClass = endValue.getClass();
+                    Class<?> objectClass = endValue.getClass();
                     String classDataType = objectClass.toString();
                     if (classDataType.endsWith("Timestamp")) {
                         value =
@@ -1027,8 +1033,10 @@ public class WCSDimensionsSubsetHelper {
         subRequest.setDimensionsSubset(dimensionsSubset);
     }
 
-    @SuppressWarnings("unchecked") // used when the range class is not known at compile time
-    private NumberRange newGenericNumberRange(Class numberClass, Number start, Number end) {
+    // used when the range class is not known at compile time
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private NumberRange<? extends Number> newGenericNumberRange(
+            Class<?> numberClass, Number start, Number end) {
         return new NumberRange(numberClass, start, end);
     }
 
@@ -1047,16 +1055,20 @@ public class WCSDimensionsSubsetHelper {
         // spatial subset
         Filter filter = filterSpatial(gcr, reader, source);
 
+        List<SortBy> sortByList = new ArrayList<>();
         // temporal subset
-        filter = filterTime(filter, gcr, coverageName, reader);
+        filter = filterTime(filter, gcr, coverageName, reader, sortByList);
 
         // elevation subset
-        filter = filterElevation(filter, gcr, coverageName, reader);
+        filter = filterElevation(filter, gcr, coverageName, reader, sortByList);
 
         // dimensionsSubset
-        filter = filterDimensions(filter, gcr, coverageName, reader);
+        filter = filterDimensions(filter, gcr, coverageName, reader, sortByList);
 
         Query query = new Query(null, filter);
+        if (!sortByList.isEmpty()) {
+            query.setSortBy(sortByList.stream().toArray(SortBy[]::new));
+        }
         return query;
     }
 
@@ -1089,7 +1101,8 @@ public class WCSDimensionsSubsetHelper {
             Filter filter,
             GridCoverageRequest gcr,
             String coverageName,
-            StructuredGridCoverage2DReader reader) {
+            StructuredGridCoverage2DReader reader,
+            List<SortBy> sortByList) {
         NumberRange elevationRange = gcr.getElevationSubset();
         String startElevation = null;
         String endElevation = null;
@@ -1106,7 +1119,8 @@ public class WCSDimensionsSubsetHelper {
                             endElevation,
                             elevationRange.getMinValue(),
                             elevationRange.getMaxValue(),
-                            filter);
+                            filter,
+                            sortByList);
         }
         return elevationFilter;
     }
@@ -1119,7 +1133,8 @@ public class WCSDimensionsSubsetHelper {
             Filter filter,
             GridCoverageRequest gcr,
             String coverageName,
-            StructuredGridCoverage2DReader reader) {
+            StructuredGridCoverage2DReader reader,
+            List<SortBy> sortByList) {
         DateRange timeRange = gcr.getTemporalSubset();
         DimensionDescriptor timeDescriptor = null;
         String startTime = null;
@@ -1136,7 +1151,8 @@ public class WCSDimensionsSubsetHelper {
                             endTime,
                             timeRange.getMinValue(),
                             timeRange.getMaxValue(),
-                            filter);
+                            filter,
+                            sortByList);
         }
         return timeFilter;
     }
@@ -1145,7 +1161,8 @@ public class WCSDimensionsSubsetHelper {
             Filter filter,
             GridCoverageRequest gcr,
             String coverageName,
-            StructuredGridCoverage2DReader reader) {
+            StructuredGridCoverage2DReader reader,
+            List<SortBy> sortByList) {
         Map<String, List<Object>> subset = gcr.getDimensionsSubset();
         Filter dimensionsFilter = filter;
         if (subset != null && !subset.isEmpty()) {
@@ -1166,7 +1183,11 @@ public class WCSDimensionsSubsetHelper {
                     final String endAttrib = dimensionDescriptor.getEndAttribute();
                     dimensionsFilter =
                             filterDimension(
-                                    startAttrib, endAttrib, dimensionValues, dimensionsFilter);
+                                    startAttrib,
+                                    endAttrib,
+                                    dimensionValues,
+                                    dimensionsFilter,
+                                    sortByList);
 
                 } else {
                     if (LOGGER.isLoggable(Level.WARNING)) {
@@ -1187,7 +1208,8 @@ public class WCSDimensionsSubsetHelper {
             String startAttribute,
             String endAttribute,
             List<Object> dimensionValues,
-            Filter filter) {
+            Filter filter,
+            List<SortBy> sortByList) {
         Filter localFilter = null;
 
         if (dimensionValues != null && !dimensionValues.isEmpty()) {
@@ -1222,6 +1244,7 @@ public class WCSDimensionsSubsetHelper {
                 Filter f2 = ff.greaterOrEqual(ff.property(endAttribute), ff.literal(min));
                 localFilter = ff.and(Arrays.asList(f1, f2));
             }
+            sortByList.add(ff.sort(startAttribute, SortBy.NATURAL_ORDER.getSortOrder()));
             if (filter == null) {
                 filter = localFilter;
             } else {
@@ -1237,7 +1260,8 @@ public class WCSDimensionsSubsetHelper {
             String endAttribute,
             Comparable minValue,
             Comparable maxValue,
-            Filter filter) {
+            Filter filter,
+            List<SortBy> sortByList) {
         Filter localFilter = null;
         if (endAttribute == null) {
             // single value time
@@ -1252,6 +1276,8 @@ public class WCSDimensionsSubsetHelper {
             Filter f2 = ff.greaterOrEqual(ff.property(endAttribute), ff.literal(minValue));
             localFilter = ff.and(Arrays.asList(f1, f2));
         }
+        sortByList.add(ff.sort(startAttribute, SortBy.NATURAL_ORDER.getSortOrder()));
+
         if (filter == null) {
             filter = localFilter;
         } else {

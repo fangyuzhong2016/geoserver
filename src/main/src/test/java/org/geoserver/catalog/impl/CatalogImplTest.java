@@ -778,8 +778,6 @@ public class CatalogImplTest extends GeoServerSystemTestSupport {
 
         assertEquals(1, catalog.getDataStores().size());
 
-        DataStoreInfo retrieved = catalog.getDataStore(ds.getId());
-
         DataStoreInfo ds2 = catalog.getFactory().createDataStore();
         try {
             catalog.add(ds2);
@@ -1984,13 +1982,7 @@ public class CatalogImplTest extends GeoServerSystemTestSupport {
         assertEquals(2, styles.size());
 
         // test immutability
-        Comparator<StyleInfo> comparator =
-                new Comparator<StyleInfo>() {
-
-                    public int compare(StyleInfo o1, StyleInfo o2) {
-                        return o1.getName().compareTo(o2.getName());
-                    }
-                };
+        Comparator<StyleInfo> comparator = (o1, o2) -> o1.getName().compareTo(o2.getName());
         try {
             Collections.sort(styles, comparator);
             fail("Expected runtime exception, immutable collection");
@@ -2035,8 +2027,6 @@ public class CatalogImplTest extends GeoServerSystemTestSupport {
         assertTrue(catalog.getStores(WMSStoreInfo.class).isEmpty());
         addWMSStore();
         assertEquals(1, catalog.getStores(WMSStoreInfo.class).size());
-
-        WMSStoreInfo retrieved = catalog.getStore(wms.getId(), WMSStoreInfo.class);
 
         WMSStoreInfo wms2 = catalog.getFactory().createWebMapServer();
         wms2.setName("wms2Name");
@@ -2566,22 +2556,27 @@ public class CatalogImplTest extends GeoServerSystemTestSupport {
         public List<CatalogPostModifyEvent> postModified = new CopyOnWriteArrayList<>();
         public List<CatalogRemoveEvent> removed = new CopyOnWriteArrayList<>();
 
+        @Override
         public void handleAddEvent(CatalogAddEvent event) {
             added.add(event);
         }
 
+        @Override
         public void handleModifyEvent(CatalogModifyEvent event) {
             modified.add(event);
         }
 
+        @Override
         public void handlePostModifyEvent(CatalogPostModifyEvent event) {
             postModified.add(event);
         }
 
+        @Override
         public void handleRemoveEvent(CatalogRemoveEvent event) {
             removed.add(event);
         }
 
+        @Override
         public void reloaded() {}
     }
 
@@ -2589,6 +2584,7 @@ public class CatalogImplTest extends GeoServerSystemTestSupport {
 
         public boolean throwCatalogException;
 
+        @Override
         public void handleAddEvent(CatalogAddEvent event) throws CatalogException {
             if (throwCatalogException) {
                 throw new CatalogException();
@@ -2597,12 +2593,16 @@ public class CatalogImplTest extends GeoServerSystemTestSupport {
             }
         }
 
+        @Override
         public void handleModifyEvent(CatalogModifyEvent event) throws CatalogException {}
 
+        @Override
         public void handlePostModifyEvent(CatalogPostModifyEvent event) throws CatalogException {}
 
+        @Override
         public void handleRemoveEvent(CatalogRemoveEvent event) throws CatalogException {}
 
+        @Override
         public void reloaded() {}
     }
 
@@ -2615,6 +2615,7 @@ public class CatalogImplTest extends GeoServerSystemTestSupport {
             this.idx = idx;
         }
 
+        @Override
         protected void runInternal() throws Exception {
             CatalogFactory factory = catalog.getFactory();
             for (int i = 0; i < GET_LAYER_BY_ID_WITH_CONCURRENT_ADD_TEST_COUNT; i++) {
@@ -2742,11 +2743,10 @@ public class CatalogImplTest extends GeoServerSystemTestSupport {
         ft3 = catalog.getFeatureType(ft3.getId());
 
         Filter filter = acceptAll();
-        Set<? extends CatalogInfo> expected;
-        Set<? extends CatalogInfo> actual;
 
-        expected = Sets.newHashSet(ft1, ft2, ft3);
-        actual = Sets.newHashSet(catalog.list(FeatureTypeInfo.class, filter));
+        Set<? extends CatalogInfo> expected = Sets.newHashSet(ft1, ft2, ft3);
+        Set<? extends CatalogInfo> actual =
+                Sets.newHashSet(catalog.list(FeatureTypeInfo.class, filter));
         assertEquals(3, actual.size());
         assertEquals(expected, actual);
 
@@ -2768,9 +2768,9 @@ public class CatalogImplTest extends GeoServerSystemTestSupport {
         catalog.add(s5 = newStyle("s5", "s5Filename"));
         catalog.add(s6 = newStyle("s6", "s6Filename"));
 
-        LayerInfo l1, l2, l3;
+        LayerInfo l1, l3;
         catalog.add(l1 = newLayer(ft1, s1));
-        catalog.add(l2 = newLayer(ft2, s2, s3, s4));
+        catalog.add(newLayer(ft2, s2, s3, s4));
         catalog.add(l3 = newLayer(ft3, s3, s5, s6));
 
         filter = contains("styles.name", "s6");
@@ -2841,14 +2841,11 @@ public class CatalogImplTest extends GeoServerSystemTestSupport {
         ft3.setDescription("FT3");
         catalog.save(ft3);
 
-        Filter filter = acceptAll();
-        Set<? extends CatalogInfo> expected;
-        Set<? extends CatalogInfo> actual;
-
         // opposite equality
-        filter = factory.equal(factory.literal(ft1.getId()), factory.property("id"), true);
-        expected = Sets.newHashSet(ft1);
-        actual = Sets.newHashSet(catalog.list(ResourceInfo.class, filter));
+        Filter filter = factory.equal(factory.literal(ft1.getId()), factory.property("id"), true);
+        Set<? extends CatalogInfo> expected = Sets.newHashSet(ft1);
+        Set<? extends CatalogInfo> actual =
+                Sets.newHashSet(catalog.list(ResourceInfo.class, filter));
         assertEquals(expected, actual);
 
         // match case
@@ -3069,13 +3066,9 @@ public class CatalogImplTest extends GeoServerSystemTestSupport {
 
         assertEquals(3, catalog.getLayers().size());
 
-        Filter filter;
-        SortBy sortOrder;
-        List<LayerInfo> expected;
-
-        filter = acceptAll();
-        sortOrder = asc("resource.name");
-        expected = Lists.newArrayList(l1, l2, l3);
+        Filter filter = acceptAll();
+        SortBy sortOrder = asc("resource.name");
+        List<LayerInfo> expected = Lists.newArrayList(l1, l2, l3);
 
         testOrderBy(LayerInfo.class, filter, null, null, sortOrder, expected);
 
@@ -3265,14 +3258,13 @@ public class CatalogImplTest extends GeoServerSystemTestSupport {
         assertEquals(newHashSet(lproxy), asSet(catalog.list(LayerInfo.class, filter)));
     }
 
+    @SuppressWarnings("PMD.UseTryWithResources")
     private <T> Set<T> asSet(CloseableIterator<T> list) {
-        ImmutableSet<T> set;
         try {
-            set = ImmutableSet.copyOf(list);
+            return ImmutableSet.copyOf(list);
         } finally {
             list.close();
         }
-        return set;
     }
 
     protected LayerInfo newLayer(
@@ -3356,6 +3348,7 @@ public class CatalogImplTest extends GeoServerSystemTestSupport {
     }
 
     @Test
+    @SuppressWarnings("PMD.UseAssertEqualsInsteadOfAssertTrue")
     public void testChangeLayerGroupOrder() {
         addLayerGroup();
 

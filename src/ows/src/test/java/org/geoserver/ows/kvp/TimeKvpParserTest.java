@@ -236,7 +236,6 @@ public class TimeKvpParserTest {
     public void testInvalidDualDuration() throws ParseException {
         TimeKvpParser timeKvpParser = new TimeKvpParser("TIME");
 
-        boolean exception = false;
         try {
             timeKvpParser.parse(CONTINUOUS_PERIOD_INVALID_DURATION);
             // Verify that an exception was encountered for the invalid duration
@@ -251,11 +250,9 @@ public class TimeKvpParserTest {
     public void testContinuousRelativeInterval() throws ParseException {
         final int millisInDay = (int) TimeParser.MILLIS_IN_DAY;
         TimeKvpParser timeKvpParser = new TimeKvpParser("TIME");
-        Calendar back;
         Calendar now;
         Calendar check;
         List<Collection> l;
-        DateRange range;
 
         do {
             now = Calendar.getInstance();
@@ -264,11 +261,11 @@ public class TimeKvpParserTest {
             now.set(Calendar.MILLISECOND, 0);
             check.set(Calendar.MILLISECOND, 0);
         } while (!now.equals(check));
-        back = (Calendar) now.clone();
+        Calendar back = (Calendar) now.clone();
         back.add(Calendar.HOUR, -2);
         Assert.assertFalse(l.isEmpty());
         Assert.assertTrue(l.get(0) instanceof DateRange);
-        range = (DateRange) l.get(0);
+        DateRange range = (DateRange) l.get(0);
         Assert.assertEquals(back.getTime(), range.getMinValue());
         Assert.assertEquals(now.getTime(), range.getMaxValue());
 

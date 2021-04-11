@@ -49,14 +49,17 @@ import org.geoserver.catalog.DimensionPresentation;
 import org.geoserver.catalog.LayerInfo;
 import org.geoserver.catalog.util.ReaderDimensionsAccessor;
 import org.geoserver.data.util.CoverageUtils;
+import org.geoserver.platform.GeoServerExtensions;
 import org.geoserver.platform.ServiceException;
 import org.geoserver.wcs.CoverageCleanerCallback;
 import org.geoserver.wcs.WCSInfo;
+import org.geoserver.wcs.responses.CoverageResponseDelegate;
 import org.geoserver.wcs2_0.exception.WCS20Exception;
 import org.geoserver.wcs2_0.exception.WCS20Exception.WCS20ExceptionCode;
 import org.geoserver.wcs2_0.response.DimensionBean;
 import org.geoserver.wcs2_0.response.GranuleStackImpl;
 import org.geoserver.wcs2_0.response.MIMETypeMapper;
+import org.geoserver.wcs2_0.response.MultidimensionalCoverageResponse;
 import org.geoserver.wcs2_0.response.WCSDimensionsHelper;
 import org.geoserver.wcs2_0.response.WCSDimensionsSubsetHelper;
 import org.geoserver.wcs2_0.util.EnvelopeAxesLabelsMapper;
@@ -135,10 +138,17 @@ public class GetCoverage {
     private static final CoverageProcessor processor = CoverageProcessor.getInstance(HINTS);
 
     static {
-        // TODO: This one should be pluggable through Extensions
+        List<CoverageResponseDelegate> delegates =
+                GeoServerExtensions.extensions(CoverageResponseDelegate.class);
         mdFormats = new HashSet<>();
-        mdFormats.add("application/x-netcdf");
-        mdFormats.add("application/x-netcdf4");
+        for (CoverageResponseDelegate delegate : delegates) {
+            if (delegate instanceof MultidimensionalCoverageResponse) {
+                List<String> formats = delegate.getOutputFormats();
+                for (String format : formats) {
+                    mdFormats.add(delegate.getMimeType(format));
+                }
+            }
+        }
     }
 
     /** Logger. */
@@ -391,8 +401,7 @@ public class GetCoverage {
             ImageSizeRecorder incrementalInputSize,
             final GridCoverageFactory coverageFactory)
             throws Exception {
-        List<GridCoverage2D> coverages = null;
-        double[] preAppliedScale = new double[] {Double.NaN, Double.NaN};
+        double[] preAppliedScale = {Double.NaN, Double.NaN};
         //
         // we setup the params to force the usage of imageread and to make it use
         // the right overview and so on
@@ -400,7 +409,7 @@ public class GetCoverage {
         // we specify to work in streaming fashion
         // TODO elevation
         ScalingType scaling = extractScaling(extensions);
-        coverages =
+        List<GridCoverage2D> coverages =
                 readCoverage(
                         helper,
                         gridCoverageRequest,
@@ -807,7 +816,7 @@ public class GetCoverage {
                         .getParameterValues()
                         .parameter(AbstractProvider.CENTRAL_MERIDIAN.getName().getCode())
                         .doubleValue();
-        double[] src = new double[] {centralMeridian, 0, 180 + centralMeridian, 0};
+        double[] src = {centralMeridian, 0, 180 + centralMeridian, 0};
         double[] dst = new double[4];
         MathTransform mt = CRS.findMathTransform(DefaultGeographicCRS.WGS84, crs);
         mt.transform(src, 0, dst, 0, 2);
@@ -1257,7 +1266,6 @@ public class GetCoverage {
             }
         }
 
-        GridCoverage2D coverage = null;
         //
         // kk, now build a good GG to read the smallest available area for the following operations
         //
@@ -1320,7 +1328,7 @@ public class GetCoverage {
         if (request.getOverviewPolicy() != null) {
             readHints.add(new Hints(Hints.OVERVIEW_POLICY, request.getOverviewPolicy()));
         }
-        coverage =
+        GridCoverage2D coverage =
                 RequestUtils.readBestCoverage(
                         reader,
                         readParameters,
@@ -1809,7 +1817,7 @@ public class GetCoverage {
         }
         // houston we got a list of dimensions
         // create a list of indexes to select
-        final int indexes[] = new int[returnValue.size()];
+        final int[] indexes = new int[returnValue.size()];
         int i = 0;
         for (String bandName : returnValue) {
             indexes[i++] =
@@ -1914,7 +1922,7 @@ public class GetCoverage {
             GridCoverage2D coverage,
             ScalingType scaling,
             Interpolation spatialInterpolation,
-            double preAppliedScale[],
+            double[] preAppliedScale,
             Hints hints) {
         // checks
         Utilities.ensureNonNull("interpolation", spatialInterpolation);
@@ -1955,7 +1963,7 @@ public class GetCoverage {
         // Before doing the scaling, check if some preScaling as been applied
         // This may occur when dealing with overviews
         if (!Double.isNaN(preAppliedScale[0]) && !Double.isNaN(preAppliedScale[1])) {
-            final Double[] scale = new Double[] {preAppliedScale[0], preAppliedScale[1]};
+            final Double[] scale = {preAppliedScale[0], preAppliedScale[1]};
             hints.add(new Hints(GetCoverage.PRE_APPLIED_SCALE, scale));
         }
         return scalingPolicy.scale(coverage, scaling, spatialInterpolation, hints, wcs);

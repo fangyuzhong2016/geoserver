@@ -59,6 +59,7 @@ public class InsertElementHandler extends AbstractTransactionElementHandler {
         this.filterFactory = filterFactory;
     }
 
+    @Override
     public void checkValidity(
             TransactionElement element, Map<QName, FeatureTypeInfo> featureTypeInfos)
             throws WFSTransactionException {
@@ -67,6 +68,7 @@ public class InsertElementHandler extends AbstractTransactionElementHandler {
         }
     }
 
+    @Override
     @SuppressWarnings("unchecked")
     public void execute(
             TransactionElement element,
@@ -131,8 +133,8 @@ public class InsertElementHandler extends AbstractTransactionElementHandler {
 
                 final QName elementName =
                         new QName(schema.getName().getNamespaceURI(), schema.getTypeName());
-                SimpleFeatureStore store;
-                store = DataUtilities.simple((FeatureStore) featureStores.get(elementName));
+                SimpleFeatureStore store =
+                        DataUtilities.simple((FeatureStore) featureStores.get(elementName));
 
                 if (store == null) {
                     throw new WFSException(
@@ -262,10 +264,12 @@ public class InsertElementHandler extends AbstractTransactionElementHandler {
         }
     }
 
-    public Class getElementClass() {
+    @Override
+    public Class<Insert> getElementClass() {
         return Insert.class;
     }
 
+    @Override
     public QName[] getTypeNames(TransactionRequest request, TransactionElement element)
             throws WFSTransactionException {
         Insert insert = (Insert) element;

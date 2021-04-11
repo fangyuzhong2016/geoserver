@@ -42,6 +42,7 @@ public class SectionsTypeBinding extends AbstractComplexBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return OWS.SECTIONSTYPE;
     }
@@ -53,7 +54,8 @@ public class SectionsTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
-    public Class getType() {
+    @Override
+    public Class<SectionsType> getType() {
         return SectionsType.class;
     }
 
@@ -64,6 +66,7 @@ public class SectionsTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         SectionsType sections = owsfactory.createSectionsType();
         @SuppressWarnings("unchecked")

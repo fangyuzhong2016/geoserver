@@ -309,15 +309,17 @@ public class GetCoverageReaderTest extends WCSTestSupport {
         this.testRangeSubset("nearest");
     }
 
+    @Override
     protected Map<String, Object> parseKvp(Map<String, Object> raw) throws Exception {
         // parse like the dispatcher but make sure we don't change the original map
         Map<String, Object> input = new HashMap<>(raw);
         List<Throwable> errors = KvpUtils.parse(input);
-        if (errors != null && errors.size() > 0) throw (Exception) errors.get(0);
+        if (errors != null && !errors.isEmpty()) throw (Exception) errors.get(0);
 
         return caseInsensitiveKvp(input);
     }
 
+    @Override
     protected <V> Map<String, V> caseInsensitiveKvp(Map<String, V> input) {
         // make it case insensitive like the servlet+dispatcher maps
         Map<String, V> result = new HashMap<>();

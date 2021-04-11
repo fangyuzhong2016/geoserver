@@ -44,6 +44,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import javax.media.jai.RenderedOp;
@@ -85,6 +87,7 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.styling.Style;
+import org.geotools.util.logging.Logging;
 import org.geowebcache.GeoWebCacheException;
 import org.geowebcache.config.DefaultGridsets;
 import org.geowebcache.config.XMLGridSubset;
@@ -113,6 +116,8 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 public class GeoServerTileLayerTest {
+
+    static final Logger LOGGER = Logging.getLogger(GeoServerTileLayerTest.class);
 
     private LayerInfoImpl layerInfo;
 
@@ -357,11 +362,9 @@ public class GeoServerTileLayerTest {
         ParameterFilter stylesParamFilter = layerInfoTileLayer.getParameterFilters().get(0);
         List<String> legalValues = stylesParamFilter.getLegalValues();
 
-        Map<String, String> requestParams;
-        Map<String, String> modifiedParams;
-
-        requestParams = Collections.singletonMap("sTyLeS", "");
-        modifiedParams = layerInfoTileLayer.getModifiableParameters(requestParams, "UTF-8");
+        Map<String, String> requestParams = Collections.singletonMap("sTyLeS", "");
+        Map<String, String> modifiedParams =
+                layerInfoTileLayer.getModifiableParameters(requestParams, "UTF-8");
         assertEquals(0, modifiedParams.size());
 
         for (String legalStyle : legalValues) {
@@ -522,7 +525,7 @@ public class GeoServerTileLayerTest {
         BoundingBox expected = gridSetBroker.getWorldEpsg3857().getOriginalExtent();
         // don't use equals(), it uses an equality threshold we want to avoid here
         double threshold = 1E-16;
-        assertTrue(
+        assertTrue( // NOPMD
                 "Expected " + expected + ", got " + gridSubsetExtent,
                 expected.equals(gridSubsetExtent, threshold));
     }
@@ -921,7 +924,7 @@ public class GeoServerTileLayerTest {
         try {
             verify((ImageInputStream) imageInputStream, times(1)).close();
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.WARNING, "", e);
         }
     }
 

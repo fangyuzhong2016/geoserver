@@ -53,7 +53,7 @@ public class GeoServerExtensions implements ApplicationContextAware, Application
      * needed. We cache names instead of beans because doing the latter we would break the
      * "singleton=false" directive of some beans
      */
-    static SoftValueHashMap<Class, String[]> extensionsCache = new SoftValueHashMap<>(40);
+    static SoftValueHashMap<Class<?>, String[]> extensionsCache = new SoftValueHashMap<>(40);
 
     static ConcurrentHashMap<String, Object> singletonBeanCache = new ConcurrentHashMap<>();
 
@@ -70,7 +70,7 @@ public class GeoServerExtensions implements ApplicationContextAware, Application
     static ConcurrentHashMap<String, File> fileCache = new ConcurrentHashMap<>();
 
     /** SPI lookups are very expensive, we need to cache them */
-    static SoftValueHashMap<Class, List<?>> spiCache = new SoftValueHashMap<>(40);
+    static SoftValueHashMap<Class<?>, List<?>> spiCache = new SoftValueHashMap<>(40);
 
     /**
      * Flag to identify use of spring context via {@link #setApplicationContext(ApplicationContext)}
@@ -90,6 +90,7 @@ public class GeoServerExtensions implements ApplicationContextAware, Application
      *
      * @param context ApplicationContext used to lookup extensions
      */
+    @Override
     @SuppressFBWarnings("ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD")
     public void setApplicationContext(ApplicationContext context) throws BeansException {
         isSpringContext = true;
@@ -109,8 +110,7 @@ public class GeoServerExtensions implements ApplicationContextAware, Application
     @SuppressWarnings("unchecked")
     public static final <T> List<T> extensions(
             Class<T> extensionPoint, ApplicationContext context) {
-        Collection<String> names;
-        names = extensionNames(extensionPoint, context);
+        Collection<String> names = extensionNames(extensionPoint, context);
 
         // lookup extension filters preventing recursion
         List<ExtensionFilter> filters;
@@ -325,6 +325,7 @@ public class GeoServerExtensions implements ApplicationContextAware, Application
         }
     }
 
+    @Override
     public void onApplicationEvent(ApplicationEvent event) {
         if (event instanceof ContextRefreshedEvent) {
             extensionsCache.clear();

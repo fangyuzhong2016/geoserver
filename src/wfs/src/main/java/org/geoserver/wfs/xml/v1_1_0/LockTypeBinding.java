@@ -76,6 +76,7 @@ public class LockTypeBinding extends AbstractComplexBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return WFS.LOCKTYPE;
     }
@@ -87,7 +88,8 @@ public class LockTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
-    public Class getType() {
+    @Override
+    public Class<LockType> getType() {
         return LockType.class;
     }
 
@@ -98,6 +100,7 @@ public class LockTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         LockType lock = wfsfactory.createLockType();
 

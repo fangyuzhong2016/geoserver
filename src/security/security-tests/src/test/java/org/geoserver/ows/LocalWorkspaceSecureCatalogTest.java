@@ -37,6 +37,7 @@ public class LocalWorkspaceSecureCatalogTest extends AbstractAuthorizationTest {
     @Rule
     public PropertyRule inheritance = PropertyRule.system("GEOSERVER_GLOBAL_LAYER_GROUP_INHERIT");
 
+    @Override
     @Before
     public void setUp() throws Exception {
         LocalWorkspaceCatalogFilter.groupInherit = null;
@@ -151,25 +152,28 @@ public class LocalWorkspaceSecureCatalogTest extends AbstractAuthorizationTest {
         GeoServerExtensionsHelper.singleton("secureCatalog", sc, SecureCatalogImpl.class);
 
         // Get the iterator on the styles
-        CloseableIterator<StyleInfo> styles = sc.list(StyleInfo.class, Filter.INCLUDE);
-        int size = Iterators.size(styles);
-        assertEquals(2, size);
+        try (CloseableIterator<StyleInfo> styles = sc.list(StyleInfo.class, Filter.INCLUDE)) {
+            int size = Iterators.size(styles);
+            assertEquals(2, size);
+        }
 
         // Setting the workspace "topp" and repeating the test
         WorkspaceInfo ws = sc.getWorkspaceByName("topp");
         LocalWorkspace.set(ws);
 
-        styles = sc.list(StyleInfo.class, Filter.INCLUDE);
-        size = Iterators.size(styles);
-        assertEquals(2, size);
+        try (CloseableIterator<StyleInfo> styles = sc.list(StyleInfo.class, Filter.INCLUDE)) {
+            int size = Iterators.size(styles);
+            assertEquals(2, size);
+        }
         LocalWorkspace.remove();
 
         // Setting the workspace "nurc" and repeating the test
         ws = sc.getWorkspaceByName("nurc");
         LocalWorkspace.set(ws);
-        styles = sc.list(StyleInfo.class, Filter.INCLUDE);
-        size = Iterators.size(styles);
-        assertEquals(1, size);
+        try (CloseableIterator<StyleInfo> styles = sc.list(StyleInfo.class, Filter.INCLUDE)) {
+            int size = Iterators.size(styles);
+            assertEquals(1, size);
+        }
     }
 
     @After

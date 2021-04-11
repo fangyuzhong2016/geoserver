@@ -290,19 +290,8 @@ public class AuthenticationCacheFilterTest extends AbstractAuthenticationProvide
         request.setMethod("GET");
         response = new MockHttpServletResponse();
         chain = new MockFilterChain();
-        request.setUserPrincipal(
-                new Principal() {
-                    @Override
-                    public String getName() {
-                        return testUserName;
-                    }
-                });
-        if (true) {
-            request.addUserRole(derivedRole);
-        }
-        if (false) {
-            request.addUserRole(rootRole);
-        }
+        request.setUserPrincipal(() -> testUserName);
+        request.addUserRole(derivedRole);
         getProxy().doFilter(request, response, chain);
 
         assertEquals(HttpServletResponse.SC_OK, response.getStatus());
@@ -319,13 +308,7 @@ public class AuthenticationCacheFilterTest extends AbstractAuthenticationProvide
         request.setMethod("GET");
         response = new MockHttpServletResponse();
         chain = new MockFilterChain();
-        request.setUserPrincipal(
-                new Principal() {
-                    @Override
-                    public String getName() {
-                        return GeoServerUser.ROOT_USERNAME;
-                    }
-                });
+        request.setUserPrincipal(() -> GeoServerUser.ROOT_USERNAME);
         getProxy().doFilter(request, response, chain);
 
         assertEquals(HttpServletResponse.SC_OK, response.getStatus());
@@ -342,19 +325,8 @@ public class AuthenticationCacheFilterTest extends AbstractAuthenticationProvide
         request.setMethod("GET");
         response = new MockHttpServletResponse();
         chain = new MockFilterChain();
-        request.setUserPrincipal(
-                new Principal() {
-                    @Override
-                    public String getName() {
-                        return testUserName;
-                    }
-                });
-        if (true) {
-            request.addUserRole(derivedRole);
-        }
-        if (false) {
-            request.addUserRole(rootRole);
-        }
+        request.setUserPrincipal(() -> testUserName);
+        request.addUserRole(derivedRole);
         getProxy().doFilter(request, response, chain);
 
         assertEquals(HttpServletResponse.SC_OK, response.getStatus());
@@ -391,7 +363,6 @@ public class AuthenticationCacheFilterTest extends AbstractAuthenticationProvide
         config.setUserGroupServiceName("ug1");
         config.setPrincipalHeaderAttribute("principal");
         config.setRolesHeaderAttribute("roles");
-        ;
         getSecurityManager().saveFilter(config);
 
         prepareFilterChain(pattern, testFilterName4);

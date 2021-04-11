@@ -62,6 +62,7 @@ public class VectorBasicLayerIdentifier extends AbstractVectorLayerIdentifier {
         this.wms = wms;
     }
 
+    @Override
     public List<FeatureCollection> identify(FeatureInfoRequestParameters params, int maxFeatures)
             throws Exception {
         LOGGER.log(Level.FINER, "Appliying bbox based feature info identifier");
@@ -91,8 +92,8 @@ public class VectorBasicLayerIdentifier extends AbstractVectorLayerIdentifier {
             }
         }
 
-        final FeatureSource<? extends FeatureType, ? extends Feature> featureSource;
-        featureSource = super.handleClipParam(params, layer.getFeatureSource(false, requestedCRS));
+        final FeatureSource<? extends FeatureType, ? extends Feature> featureSource =
+                super.handleClipParam(params, layer.getFeatureSource(false, requestedCRS));
         FeatureType schema = featureSource.getSchema();
 
         Filter getFInfoFilter = null;
@@ -103,7 +104,7 @@ public class VectorBasicLayerIdentifier extends AbstractVectorLayerIdentifier {
             Polygon queryPolygon = JTS.toGeometry(queryEnvelope);
             getFInfoFilter = ff.intersects(ff.property(localName), ff.literal(queryPolygon));
         } catch (IllegalFilterException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.FINE, "", e);
             throw new ServiceException("Internal error : " + e.getMessage(), e);
         }
 
@@ -152,7 +153,6 @@ public class VectorBasicLayerIdentifier extends AbstractVectorLayerIdentifier {
             q.setHints(new Hints(Hints.VIRTUAL_TABLE_PARAMETERS, viewParams));
         }
 
-        FeatureCollection<? extends FeatureType, ? extends Feature> match;
         LOGGER.log(Level.FINE, q.toString());
         // let's see if we need to reproject
         if (!wms.isFeaturesReprojectionDisabled()) {
@@ -160,7 +160,8 @@ public class VectorBasicLayerIdentifier extends AbstractVectorLayerIdentifier {
             // reprojected
             q.setCoordinateSystemReproject(requestedCRS);
         }
-        match = featureSource.getFeatures(q);
+        FeatureCollection<? extends FeatureType, ? extends Feature> match =
+                featureSource.getFeatures(q);
 
         // if we could not include the rules filter into the query, post process in
         // memory

@@ -6,19 +6,30 @@ package org.geoserver.ogcapi.features;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import org.geoserver.catalog.Catalog;
-import org.geoserver.ogcapi.AbstractLandingPageDocument;
+import org.geoserver.ogcapi.AbstractLandingPageDocumentNoConformance;
+import org.geoserver.ogcapi.ConformanceDocument;
+import org.geoserver.ogcapi.FunctionsDocument;
 import org.geoserver.ogcapi.Link;
 import org.geoserver.wfs.WFSInfo;
 
 /** A Features server landing page */
 @JsonPropertyOrder({"title", "description", "links"})
-public class FeaturesLandingPage extends AbstractLandingPageDocument {
+public class FeaturesLandingPage extends AbstractLandingPageDocumentNoConformance {
 
     public FeaturesLandingPage(WFSInfo wfs, Catalog catalog, String featuresBase) {
         super(
                 (wfs.getTitle() == null) ? "Features 1.0 server" : wfs.getTitle(),
                 (wfs.getAbstract() == null) ? "" : wfs.getAbstract(),
                 "ogc/features");
+
+        // conformance
+        addLinksFor(
+                "ogc/features" + "/conformance",
+                ConformanceDocument.class,
+                "Conformance declaration as ",
+                "conformance",
+                null,
+                Link.REL_CONFORMANCE);
 
         // collections
         addLinksFor(
@@ -31,11 +42,11 @@ public class FeaturesLandingPage extends AbstractLandingPageDocument {
 
         // filter capabilities
         addLinksFor(
-                featuresBase + "/filter-capabilities",
-                FilterCapabilitiesDocument.class,
+                featuresBase + "/functions",
+                FunctionsDocument.class,
                 "Filter capabilities as ",
                 "filter-capabilities",
                 null,
-                Link.REL_DATA);
+                FunctionsDocument.REL);
     }
 }

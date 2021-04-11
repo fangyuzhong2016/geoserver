@@ -85,6 +85,7 @@ public abstract class SecuredResourceInfoTest<D extends ResourceInfo, S extends 
      *     retrieved from the source.
      * @return A Thread instance that will repeated call target.setStore(source.getStore());
      */
+    @SuppressWarnings("PMD.AvoidThreadGroup")
     private Thread getRoundTripThread(final S source, final S target) {
         // This is just a simple thread that will loop a bunch of times copying the info onto
         // itself.
@@ -92,12 +93,9 @@ public abstract class SecuredResourceInfoTest<D extends ResourceInfo, S extends 
         // attributes, this will
         // eventually throw a StackOverflowError.
         final Runnable runnable =
-                new Runnable() {
-                    @Override
-                    public void run() {
-                        for (int i = 0; i < getStackOverflowCount(); ++i) {
-                            target.setStore(source.getStore());
-                        }
+                () -> {
+                    for (int i = 0; i < getStackOverflowCount(); ++i) {
+                        target.setStore(source.getStore());
                     }
                 };
         // use a very small stack size so the stack overflow happens quickly if it's going to
@@ -154,12 +152,9 @@ public abstract class SecuredResourceInfoTest<D extends ResourceInfo, S extends 
         // catch Errors
         final StringWriter sw = new StringWriter();
         roundTripThread.setUncaughtExceptionHandler(
-                new Thread.UncaughtExceptionHandler() {
-                    @Override
-                    public void uncaughtException(Thread t, Throwable e) {
-                        // print the stack to the StringWriter
-                        e.printStackTrace(new PrintWriter(sw, true));
-                    }
+                (t, e) -> {
+                    // print the stack to the StringWriter
+                    e.printStackTrace(new PrintWriter(sw, true));
                 });
         // start the thread and wait for it to finish
         roundTripThread.start();

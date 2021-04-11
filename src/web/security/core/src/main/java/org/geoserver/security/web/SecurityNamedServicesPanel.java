@@ -155,7 +155,7 @@ public abstract class SecurityNamedServicesPanel<T extends SecurityNamedServiceC
     }
 
     /** Create a new configuration object. */
-    protected abstract Class getServiceClass();
+    protected abstract Class<?> getServiceClass();
 
     /** Do pre validation before a configuration object is removed. */
     protected abstract void validateRemoveConfig(T config) throws SecurityConfigException;
@@ -266,6 +266,7 @@ public abstract class SecurityNamedServicesPanel<T extends SecurityNamedServiceC
         }
     }
 
+    @Override
     protected void onBeforeRender() {
         tablePanel.clearSelection();
         removeLink.setEnabled(false);

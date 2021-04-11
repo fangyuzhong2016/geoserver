@@ -62,14 +62,17 @@ public class GetCapabilitiesTransformerTest extends WMSTestSupport {
 
     private static final class EmptyExtendedCapabilitiesProvider
             implements ExtendedCapabilitiesProvider {
+        @Override
         public String[] getSchemaLocations(String schemaBaseURL) {
             throw new UnsupportedOperationException();
         }
 
+        @Override
         public void registerNamespaces(NamespaceSupport namespaces) {
             throw new UnsupportedOperationException();
         }
 
+        @Override
         public List<String> getVendorSpecificCapabilitiesRoots(GetCapabilitiesRequest request) {
             return null;
         }
@@ -78,11 +81,13 @@ public class GetCapabilitiesTransformerTest extends WMSTestSupport {
          * @see
          *     org.geoserver.wms.ExtendedCapabilitiesProvider#getVendorSpecificCapabilitiesChildDecls()
          */
+        @Override
         public List<String> getVendorSpecificCapabilitiesChildDecls(
                 GetCapabilitiesRequest request) {
             return null;
         }
 
+        @Override
         public void encode(Translator tx, WMSInfo wms, GetCapabilitiesRequest request)
                 throws IOException {}
 
@@ -98,14 +103,17 @@ public class GetCapabilitiesTransformerTest extends WMSTestSupport {
 
     private static final class TestExtendedCapabilitiesProvider
             implements ExtendedCapabilitiesProvider {
+        @Override
         public String[] getSchemaLocations(String schemaBaseURL) {
             throw new UnsupportedOperationException();
         }
 
+        @Override
         public void registerNamespaces(NamespaceSupport namespaces) {
             throw new UnsupportedOperationException();
         }
 
+        @Override
         public List<String> getVendorSpecificCapabilitiesRoots(GetCapabilitiesRequest request) {
             return Collections.singletonList("TestElement?");
         }
@@ -114,11 +122,13 @@ public class GetCapabilitiesTransformerTest extends WMSTestSupport {
          * @see
          *     org.geoserver.wms.ExtendedCapabilitiesProvider#getVendorSpecificCapabilitiesChildDecls()
          */
+        @Override
         public List<String> getVendorSpecificCapabilitiesChildDecls(
                 GetCapabilitiesRequest request) {
             return Collections.singletonList("<!ELEMENT TestSubElement (#PCDATA) >");
         }
 
+        @Override
         public void encode(Translator tx, WMSInfo wms, GetCapabilitiesRequest request)
                 throws IOException {
             tx.start("TestElement");
@@ -213,8 +223,8 @@ public class GetCapabilitiesTransformerTest extends WMSTestSupport {
 
     @Test
     public void testHeader() throws Exception {
-        GetCapabilitiesTransformer tr;
-        tr = new GetCapabilitiesTransformer(wmsConfig, baseUrl, mapFormats, legendFormats, null);
+        GetCapabilitiesTransformer tr =
+                new GetCapabilitiesTransformer(wmsConfig, baseUrl, mapFormats, legendFormats, null);
         StringWriter writer = new StringWriter();
         tr.transform(req, writer);
         String content = writer.getBuffer().toString();
@@ -229,8 +239,8 @@ public class GetCapabilitiesTransformerTest extends WMSTestSupport {
 
     @Test
     public void testRootElement() throws Exception {
-        GetCapabilitiesTransformer tr;
-        tr = new GetCapabilitiesTransformer(wmsConfig, baseUrl, mapFormats, legendFormats, null);
+        GetCapabilitiesTransformer tr =
+                new GetCapabilitiesTransformer(wmsConfig, baseUrl, mapFormats, legendFormats, null);
 
         Document dom = WMSTestSupport.transform(req, tr);
         Element root = dom.getDocumentElement();
@@ -274,8 +284,8 @@ public class GetCapabilitiesTransformerTest extends WMSTestSupport {
         wmsInfo.setFees("fees");
         wmsInfo.setAccessConstraints("accessConstraints");
 
-        GetCapabilitiesTransformer tr;
-        tr = new GetCapabilitiesTransformer(wmsConfig, baseUrl, mapFormats, legendFormats, null);
+        GetCapabilitiesTransformer tr =
+                new GetCapabilitiesTransformer(wmsConfig, baseUrl, mapFormats, legendFormats, null);
         tr.setIndentation(2);
         Document dom = WMSTestSupport.transform(req, tr);
 
@@ -323,8 +333,8 @@ public class GetCapabilitiesTransformerTest extends WMSTestSupport {
 
     @Test
     public void testCRSList() throws Exception {
-        GetCapabilitiesTransformer tr;
-        tr = new GetCapabilitiesTransformer(wmsConfig, baseUrl, mapFormats, legendFormats, null);
+        GetCapabilitiesTransformer tr =
+                new GetCapabilitiesTransformer(wmsConfig, baseUrl, mapFormats, legendFormats, null);
         tr.setIndentation(2);
         Document dom = WMSTestSupport.transform(req, tr);
         final Set<String> supportedCodes = CRS.getSupportedCodes("EPSG");
@@ -339,8 +349,8 @@ public class GetCapabilitiesTransformerTest extends WMSTestSupport {
         wmsInfo.getSRS().add("EPSG:3246");
         wmsInfo.getSRS().add("EPSG:23030");
 
-        GetCapabilitiesTransformer tr;
-        tr = new GetCapabilitiesTransformer(wmsConfig, baseUrl, mapFormats, legendFormats, null);
+        GetCapabilitiesTransformer tr =
+                new GetCapabilitiesTransformer(wmsConfig, baseUrl, mapFormats, legendFormats, null);
         tr.setIndentation(2);
         Document dom = WMSTestSupport.transform(req, tr);
         NodeList limitedCrsCodes =
@@ -352,8 +362,7 @@ public class GetCapabilitiesTransformerTest extends WMSTestSupport {
     public void testVendorSpecificCapabilities() throws Exception {
         ExtendedCapabilitiesProvider vendorCapsProvider = new TestExtendedCapabilitiesProvider();
 
-        GetCapabilitiesTransformer tr;
-        tr =
+        GetCapabilitiesTransformer tr =
                 new GetCapabilitiesTransformer(
                         wmsConfig,
                         baseUrl,
@@ -369,8 +378,7 @@ public class GetCapabilitiesTransformerTest extends WMSTestSupport {
         ExtendedCapabilitiesProvider emptyCapsProvider = new EmptyExtendedCapabilitiesProvider();
         ExtendedCapabilitiesProvider vendorCapsProvider = new TestExtendedCapabilitiesProvider();
 
-        GetCapabilitiesTransformer tr;
-        tr =
+        GetCapabilitiesTransformer tr =
                 new GetCapabilitiesTransformer(
                         wmsConfig,
                         baseUrl,

@@ -576,8 +576,7 @@ public class ResourcePool {
                             // if we grabbed the factory, check that the factory actually supports
                             // a namespace parameter, if we could not get the factory, assume that
                             // it does
-                            boolean supportsNamespace = true;
-                            supportsNamespace = false;
+                            boolean supportsNamespace = false;
 
                             for (Param p : params) {
                                 if ("namespace".equalsIgnoreCase(p.key)) {
@@ -698,7 +697,7 @@ public class ResourcePool {
             String key = (String) entry.getKey();
             Object value = entry.getValue();
 
-            if (gsEnvironment != null && GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
+            if (gsEnvironment != null && GeoServerEnvironment.allowEnvParametrization()) {
                 value = gsEnvironment.resolveValue(value);
             }
 
@@ -1861,7 +1860,6 @@ public class ResourcePool {
      * @param info The WMTS configuration
      */
     public WebMapTileServer getWebMapTileServer(WMTSStoreInfo info) throws IOException {
-        WMTSStoreInfo expandedStore = clone(info, true);
 
         try {
             EntityResolver entityResolver = getEntityResolver();
@@ -1880,14 +1878,21 @@ public class ResourcePool {
                 synchronized (wmtsCache) {
                     wmts = wmtsCache.get(id);
                     if (wmts == null) {
+                        WMTSStoreInfo expandedStore = clone(info, true);
+
                         HTTPClient client = getHTTPClient(expandedStore);
-                        String capabilitiesURL = expandedStore.getCapabilitiesURL();
-                        URL serverURL = new URL(capabilitiesURL);
-                        wmts = new WebMapTileServer(serverURL, client, null);
+                        URL serverURL = new URL(expandedStore.getCapabilitiesURL());
 
                         if (StringUtils.isNotEmpty(info.getHeaderName())
                                 && StringUtils.isNotEmpty(info.getHeaderValue())) {
-                            wmts.getHeaders().put(info.getHeaderName(), info.getHeaderValue());
+                            wmts =
+                                    new WebMapTileServer(
+                                            serverURL,
+                                            client,
+                                            Collections.singletonMap(
+                                                    info.getHeaderName(), info.getHeaderValue()));
+                        } else {
+                            wmts = new WebMapTileServer(serverURL, client);
                         }
 
                         wmtsCache.put(id, wmts);
@@ -1920,7 +1925,7 @@ public class ResourcePool {
 
         // check for mock bindings. Since we are going to run this code in production as well,
         // guard it so that it only triggers if the MockHttpClientProvider has any active binding
-        if (TestHttpClientProvider.testModeEnabled()
+        if (TestHttpClientProvider.isTestModeEnabled()
                 && capabilitiesURL.startsWith(TestHttpClientProvider.MOCKSERVER)) {
             HTTPClient client = TestHttpClientProvider.get(capabilitiesURL);
             return client;
@@ -1981,9 +1986,7 @@ public class ResourcePool {
             name = info.getNativeName();
         }
 
-        WMTSCapabilities caps = null;
-
-        caps = info.getStore().getWebMapTileServer(null).getCapabilities();
+        WMTSCapabilities caps = info.getStore().getWebMapTileServer(null).getCapabilities();
 
         for (WMTSLayer layer : caps.getLayerList()) {
             if (layer != null && name.equals(layer.getName())) {
@@ -2249,14 +2252,7 @@ public class ResourcePool {
 
         public CatalogResourceCache(int hardReferences) {
             super(hardReferences);
-            super.cleaner =
-                    new ValueCleaner<K, V>() {
-
-                        @Override
-                        public void clean(K key, V object) {
-                            dispose(key, object);
-                        }
-                    };
+            super.cleaner = (ValueCleaner<K, V>) (key, object) -> dispose(key, object);
         }
 
         @Override
@@ -2291,6 +2287,7 @@ public class ResourcePool {
             super(maxSize);
         }
 
+        @Override
         protected void dispose(String key, FeatureType featureType) {
             String id = key.substring(0, key.indexOf(PROJECTION_POLICY_SEPARATOR));
             FeatureTypeInfo info = catalog.getFeatureType(id);
@@ -2326,6 +2323,7 @@ public class ResourcePool {
          * @param id DataStore id, or null if not known
          * @param dataAccess DataAccess to dispose
          */
+        @Override
         protected void dispose(String id, final DataAccess dataAccess) {
             DataStoreInfo info = catalog.getDataStore(id);
             final String name;
@@ -2350,6 +2348,7 @@ public class ResourcePool {
 
     class CoverageReaderCache extends CatalogResourceCache<String, GridCoverageReader> {
 
+        @Override
         protected void dispose(String id, GridCoverageReader reader) {
             CoverageStoreInfo info = catalog.getCoverageStore(id);
             if (info != null) {
@@ -2370,6 +2369,7 @@ public class ResourcePool {
     class CoverageHintReaderCache
             extends CatalogResourceCache<CoverageHintReaderKey, GridCoverageReader> {
 
+        @Override
         protected void dispose(CoverageHintReaderKey key, GridCoverageReader reader) {
             CoverageStoreInfo info = catalog.getCoverageStore(key.id);
             if (info != null) {
@@ -2486,10 +2486,13 @@ public class ResourcePool {
     /** Listens to catalog events clearing cache entires when resources are modified. */
     public class CacheClearingListener extends CatalogVisitorAdapter implements CatalogListener {
 
+        @Override
         public void handleAddEvent(CatalogAddEvent event) {}
 
+        @Override
         public void handleModifyEvent(CatalogModifyEvent event) {}
 
+        @Override
         public void handlePostModifyEvent(CatalogPostModifyEvent event) {
             CatalogInfo source = event.getSource();
             source.accept(this);
@@ -2499,6 +2502,7 @@ public class ResourcePool {
             }
         }
 
+        @Override
         public void handleRemoveEvent(CatalogRemoveEvent event) {
             CatalogInfo source = event.getSource();
             source.accept(this);
@@ -2508,6 +2512,7 @@ public class ResourcePool {
             }
         }
 
+        @Override
         public void reloaded() {}
 
         @Override
@@ -2662,8 +2667,7 @@ public class ResourcePool {
 
     private void flushState(ContentDataStore contentDataStore, String nativeName)
             throws IOException {
-        ContentFeatureSource featureSource;
-        featureSource = contentDataStore.getFeatureSource(nativeName);
+        ContentFeatureSource featureSource = contentDataStore.getFeatureSource(nativeName);
         featureSource.getState().flush();
     }
 
@@ -2701,7 +2705,7 @@ public class ResourcePool {
                         Object value = param.getValue();
 
                         if (gsEnvironment != null
-                                && GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
+                                && GeoServerEnvironment.allowEnvParametrization()) {
                             value = gsEnvironment.resolveValue(value);
                         }
 
@@ -2735,7 +2739,7 @@ public class ResourcePool {
         final GeoServerEnvironment gsEnvironment =
                 GeoServerExtensions.bean(GeoServerEnvironment.class);
 
-        if (gsEnvironment != null && GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
+        if (gsEnvironment != null && GeoServerEnvironment.allowEnvParametrization()) {
             target.setURL((String) gsEnvironment.resolveValue(source.getURL()));
         } else {
             target.setURL(source.getURL());
@@ -2753,7 +2757,7 @@ public class ResourcePool {
                     String key = param.getKey();
                     Object value = param.getValue();
 
-                    if (gsEnvironment != null && GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
+                    if (gsEnvironment != null && GeoServerEnvironment.allowEnvParametrization()) {
                         value = gsEnvironment.resolveValue(value);
                     }
 
@@ -2788,7 +2792,7 @@ public class ResourcePool {
             final GeoServerEnvironment gsEnvironment =
                     GeoServerExtensions.bean(GeoServerEnvironment.class);
 
-            if (gsEnvironment != null && GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
+            if (gsEnvironment != null && GeoServerEnvironment.allowEnvParametrization()) {
                 target.setCapabilitiesURL(
                         (String) gsEnvironment.resolveValue(source.getCapabilitiesURL()));
                 target.setUsername((String) gsEnvironment.resolveValue(source.getUsername()));
@@ -2822,7 +2826,7 @@ public class ResourcePool {
             final GeoServerEnvironment gsEnvironment =
                     GeoServerExtensions.bean(GeoServerEnvironment.class);
 
-            if (gsEnvironment != null && GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
+            if (gsEnvironment != null && GeoServerEnvironment.allowEnvParametrization()) {
                 target.setCapabilitiesURL(
                         (String) gsEnvironment.resolveValue(source.getCapabilitiesURL()));
                 target.setUsername((String) gsEnvironment.resolveValue(source.getUsername()));

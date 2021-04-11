@@ -17,8 +17,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
@@ -69,9 +67,9 @@ public class AuthKeyAuthenticationTest extends AbstractAuthenticationProviderTes
                 @Override
                 public InputStream getResponseStream() throws IOException {
                     if (url.getPath().substring(1).equals(authkey)) {
-                        return new ByteArrayInputStream(new String(response).getBytes());
+                        return new ByteArrayInputStream(response.getBytes());
                     }
-                    return new ByteArrayInputStream(new String("").getBytes());
+                    return new ByteArrayInputStream("".getBytes());
                 }
 
                 @Override
@@ -107,35 +105,15 @@ public class AuthKeyAuthenticationTest extends AbstractAuthenticationProviderTes
     }
 
     @BeforeClass
-    public static void setupClass()
-            throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException,
-                    SecurityException {
-        // Playing with System.Properties and Static boolean fields can raises issues
-        // when running Junit tests via Maven, due to initialization orders.
-        // So let's change the fields via reflections for these tests
-        Field field = GeoServerEnvironment.class.getDeclaredField("ALLOW_ENV_PARAMETRIZATION");
-        field.setAccessible(true);
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
-        modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-        field.set(null, true);
+    public static void setupClass() {
         System.setProperty("ALLOW_ENV_PARAMETRIZATION", "true");
+        GeoServerEnvironment.reloadAllowEnvParametrization();
     }
 
     @AfterClass
-    public static void tearDownClass()
-            throws NoSuchFieldException, SecurityException, IllegalArgumentException,
-                    IllegalAccessException {
-        // Playing with System.Properties and Static boolean fields can raises issues
-        // when running Junit tests via Maven, due to initialization orders.
-        // So let's change the fields via reflections for these tests
-        Field field = GeoServerEnvironment.class.getDeclaredField("ALLOW_ENV_PARAMETRIZATION");
-        field.setAccessible(true);
-        Field modifiersField = Field.class.getDeclaredField("modifiers");
-        modifiersField.setAccessible(true);
-        modifiersField.setInt(field, field.getModifiers() & ~Modifier.FINAL);
-        field.set(null, false);
+    public static void tearDownClass() {
         System.clearProperty("ALLOW_ENV_PARAMETRIZATION");
+        GeoServerEnvironment.reloadAllowEnvParametrization();
     }
 
     @Override
@@ -182,8 +160,6 @@ public class AuthKeyAuthenticationTest extends AbstractAuthenticationProviderTes
         config.setAuthKeyParamName(authKeyUrlParam);
         config.setAuthKeyMapperName("fakeMapper");
 
-        final GeoServerEnvironment gsEnvironment =
-                GeoServerExtensions.bean(GeoServerEnvironment.class);
         System.setProperty("authkey_param1", "value1");
         System.setProperty("authkey_param2", "value2");
         try {
@@ -607,12 +583,7 @@ public class AuthKeyAuthenticationTest extends AbstractAuthenticationProviderTes
         loadPropFile(authKeyFile, props);
         assertEquals(2, props.size());
 
-        String user1KeyA = null,
-                user2KeyA = null,
-                user3KeyA = null,
-                user1KeyB = null,
-                user2KeyB = null,
-                user3KeyB = null;
+        String user1KeyA = null, user2KeyA = null, user3KeyA = null;
 
         for (Entry<Object, Object> entry : props.entrySet()) {
             if ("user1".equals(entry.getValue())) user1KeyA = (String) entry.getKey();
@@ -628,9 +599,9 @@ public class AuthKeyAuthenticationTest extends AbstractAuthenticationProviderTes
         // user property mapper
         assertEquals(2, userpropMapper.synchronize());
         u1 = (GeoServerUser) ugservice.loadUserByUsername("user1");
-        user1KeyB = u1.getProperties().getProperty(userpropMapper.getUserPropertyName());
+        String user1KeyB = u1.getProperties().getProperty(userpropMapper.getUserPropertyName());
         u2 = (GeoServerUser) ugservice.loadUserByUsername("user2");
-        user2KeyB = u2.getProperties().getProperty(userpropMapper.getUserPropertyName());
+        String user2KeyB = u2.getProperties().getProperty(userpropMapper.getUserPropertyName());
 
         assertEquals(u1, userpropMapper.getUser(user1KeyB));
         assertEquals(u2, userpropMapper.getUser(user2KeyB));
@@ -666,7 +637,7 @@ public class AuthKeyAuthenticationTest extends AbstractAuthenticationProviderTes
         assertEquals(
                 user2KeyB, u2.getProperties().getProperty(userpropMapper.getUserPropertyName()));
         u3 = (GeoServerUser) ugservice.loadUserByUsername("user3");
-        user3KeyB = u3.getProperties().getProperty(userpropMapper.getUserPropertyName());
+        String user3KeyB = u3.getProperties().getProperty(userpropMapper.getUserPropertyName());
 
         assertNull(userpropMapper.getUser(user1KeyB));
         assertEquals(u2, userpropMapper.getUser(user2KeyB));

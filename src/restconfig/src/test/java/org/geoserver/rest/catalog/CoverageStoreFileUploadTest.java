@@ -398,7 +398,7 @@ public class CoverageStoreFileUploadTest extends CatalogRESTTestSupport {
             request.setContent(bytes);
             request.addHeader("Content-type", "application/zip");
             // Get The response
-            MockHttpServletResponse response = dispatch(request);
+            dispatch(request);
             // Get the Mosaic Reader
             reader2 =
                     (StructuredGridCoverage2DReader)
@@ -521,7 +521,6 @@ public class CoverageStoreFileUploadTest extends CatalogRESTTestSupport {
 
     private StructuredGridCoverage2DReader uploadGeotiffAndCheck(
             CoverageStoreInfo storeInfo, byte[] bytes, String filename) throws Exception {
-        StructuredGridCoverage2DReader reader2;
         // Create the POST request
         MockHttpServletRequest request =
                 createRequest(
@@ -535,7 +534,7 @@ public class CoverageStoreFileUploadTest extends CatalogRESTTestSupport {
         // Get The response
         assertEquals(202, dispatch(request).getStatus());
         // Get the Mosaic Reader
-        reader2 =
+        StructuredGridCoverage2DReader reader2 =
                 (StructuredGridCoverage2DReader)
                         storeInfo.getGridCoverageReader(null, GeoTools.getDefaultHints());
         // Test if all the TIME DOMAINS are present
@@ -724,23 +723,6 @@ public class CoverageStoreFileUploadTest extends CatalogRESTTestSupport {
     private void setUpBBoxTest(String storeName, String fileName) throws Exception {
         // Upload of the Mosaic via REST
         URL zip = getClass().getResource(fileName);
-        byte[] bytes = getBytes(zip);
-
-        MockHttpServletResponse response =
-                putAsServletResponse(
-                        RestBaseController.ROOT_PATH
-                                + "/workspaces/gs/coveragestores/"
-                                + storeName
-                                + "/file.imagemosaic",
-                        bytes,
-                        "application/zip");
-        assertEquals(201, response.getStatus());
-        assertEquals(MediaType.APPLICATION_XML_VALUE, response.getContentType());
-    }
-
-    private void setUpBBoxCoverageViewTest(String storeName) throws Exception {
-        // Upload of the Mosaic via REST
-        URL zip = getClass().getResource("test_bbox_coverageview.zip");
         byte[] bytes = getBytes(zip);
 
         MockHttpServletResponse response =

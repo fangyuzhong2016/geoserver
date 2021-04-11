@@ -15,7 +15,6 @@ import org.geoserver.util.PropertyRule;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.function.ThrowingRunnable;
 
 public class SecureXStreamTest {
 
@@ -38,11 +37,7 @@ public class SecureXStreamTest {
 
         Assert.assertThrows(
                 ForbiddenClassExceptionEx.class,
-                new ThrowingRunnable() {
-                    public void run() throws Throwable {
-                        xs.fromXML("<" + org.hamcrest.core.AllOf.class.getCanonicalName() + " />");
-                    };
-                });
+                () -> xs.fromXML("<" + org.hamcrest.core.AllOf.class.getCanonicalName() + " />"));
     }
 
     @Test
@@ -65,11 +60,7 @@ public class SecureXStreamTest {
 
         Assert.assertThrows(
                 ForbiddenClassExceptionEx.class,
-                new ThrowingRunnable() {
-                    public void run() throws Throwable {
-                        xs.fromXML("<" + org.hamcrest.core.AllOf.class.getCanonicalName() + " />");
-                    };
-                });
+                () -> xs.fromXML("<" + org.hamcrest.core.AllOf.class.getCanonicalName() + " />"));
     }
 
     @Test

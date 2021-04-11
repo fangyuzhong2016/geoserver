@@ -23,7 +23,7 @@ import org.geoserver.gwc.layer.GeoServerTileLayer;
 import org.geoserver.ogcapi.APIException;
 import org.geoserver.ogcapi.AbstractCollectionDocument;
 import org.geoserver.ogcapi.CollectionExtents;
-import org.geoserver.ogcapi.QueryablesDocument;
+import org.geoserver.ogcapi.Queryables;
 import org.geoserver.ogcapi.StyleDocument;
 import org.geoserver.wms.WMS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
@@ -44,7 +44,6 @@ import org.springframework.http.HttpStatus;
 @JsonPropertyOrder({"id", "title", "description", "extent", "links", "styles"})
 public class TiledCollectionDocument extends AbstractCollectionDocument<TileLayer> {
     static final Logger LOGGER = Logging.getLogger(TiledCollectionDocument.class);
-    public static final String DEFAULT_STYLE_NAME = "_";
     WMS wms;
     TileLayer layer;
     List<StyleDocument> styles = new ArrayList<>();
@@ -130,7 +129,9 @@ public class TiledCollectionDocument extends AbstractCollectionDocument<TileLaye
                     } else {
                         // layer group? no named styles for the moment
                         this.styles.add(
-                                new StyleDocument(DEFAULT_STYLE_NAME, "The layer default style"));
+                                new StyleDocument(
+                                        StyleDocument.DEFAULT_STYLE_NAME,
+                                        "The layer default style"));
                     }
                 }
             } else {
@@ -139,7 +140,8 @@ public class TiledCollectionDocument extends AbstractCollectionDocument<TileLaye
                     this.styles.add(new StyleDocument(style, "The layer default style"));
                 } else {
                     this.styles.add(
-                            new StyleDocument(DEFAULT_STYLE_NAME, "The layer default style"));
+                            new StyleDocument(
+                                    StyleDocument.DEFAULT_STYLE_NAME, "The layer default style"));
                 }
             }
 
@@ -148,7 +150,7 @@ public class TiledCollectionDocument extends AbstractCollectionDocument<TileLaye
                 this.queryable = true;
                 addLinksFor(
                         "ogc/tiles/collections/" + id + "/queryables",
-                        QueryablesDocument.class,
+                        Queryables.class,
                         "Collection queryables as ",
                         "queryables",
                         null,

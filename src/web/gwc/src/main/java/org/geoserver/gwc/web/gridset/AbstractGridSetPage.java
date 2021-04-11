@@ -214,8 +214,7 @@ abstract class AbstractGridSetPage extends GeoServerSecuredPage {
 
     void computeBounds() {
         // perform manual processing of the required fields
-        CoordinateReferenceSystem coordSys;
-        coordSys = crs.getModelObject();
+        CoordinateReferenceSystem coordSys = crs.getModelObject();
         if (coordSys == null) {
             bounds.error(
                     new StringResourceModel("AbstractGridsetPage.computeBounds.crsNotSet")
@@ -269,8 +268,7 @@ abstract class AbstractGridSetPage extends GeoServerSecuredPage {
             }
         }
 
-        PropertyModel<ReferencedEnvelope> boundsModel;
-        boundsModel = new PropertyModel<>(model, "bounds");
+        PropertyModel<ReferencedEnvelope> boundsModel = new PropertyModel<>(model, "bounds");
 
         EnvelopePanel panel = new UpdatingEnvelopePanel("bounds", boundsModel);
         panel.setRequired(true);
@@ -362,6 +360,7 @@ abstract class AbstractGridSetPage extends GeoServerSecuredPage {
             add(metersPerUnit);
         }
 
+        @Override
         protected void onSRSUpdated(String srs, AjaxRequestTarget target) {
             target.add(units);
             target.add(metersPerUnit);

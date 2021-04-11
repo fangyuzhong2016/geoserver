@@ -178,23 +178,19 @@ public class DefaultTileLayerCatalogTest {
         AtomicBoolean hasBeenDeleted = new AtomicBoolean(false);
 
         catalog.addListener(
-                new TileLayerCatalogListener() {
-
-                    @Override
-                    public void onEvent(String layerId, Type type) {
-                        switch (type) {
-                            case CREATE:
-                                hasBeenCreated.set(true);
-                                break;
-                            case DELETE:
-                                hasBeenDeleted.set(true);
-                                break;
-                            case MODIFY:
-                                hasBeenModified.set(true);
-                                break;
-                            default:
-                                break;
-                        }
+                (layerId, type) -> {
+                    switch (type) {
+                        case CREATE:
+                            hasBeenCreated.set(true);
+                            break;
+                        case DELETE:
+                            hasBeenDeleted.set(true);
+                            break;
+                        case MODIFY:
+                            hasBeenModified.set(true);
+                            break;
+                        default:
+                            break;
                     }
                 });
 
@@ -205,7 +201,7 @@ public class DefaultTileLayerCatalogTest {
                 "<org.geoserver.gwc.layer.GeoServerTileLayerInfoImpl><id>id1</id><name>originalname</name></org.geoserver.gwc.layer.GeoServerTileLayerInfoImpl>",
                 "UTF-8");
 
-        int timeout = 1000;
+        int timeout = 60000; // allow for slow machines, won't make the test slower on fast ones
         waitForFlag(hasBeenCreated, timeout);
         GeoServerTileLayerInfo info = catalog.getLayerById("id1");
         assertEquals("originalname", info.getName());

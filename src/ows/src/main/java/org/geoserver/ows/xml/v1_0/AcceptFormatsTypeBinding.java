@@ -37,6 +37,7 @@ public class AcceptFormatsTypeBinding extends AbstractComplexBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return OWS.ACCEPTFORMATSTYPE;
     }
@@ -48,7 +49,8 @@ public class AcceptFormatsTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
-    public Class getType() {
+    @Override
+    public Class<AcceptFormatsType> getType() {
         return AcceptFormatsType.class;
     }
 
@@ -59,6 +61,7 @@ public class AcceptFormatsTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         AcceptFormatsType acceptFormats = owsfactory.createAcceptFormatsType();
         @SuppressWarnings("unchecked")

@@ -27,6 +27,7 @@ import org.geoserver.catalog.LayerInfo;
 import org.geoserver.data.test.SystemTestData;
 import org.geoserver.wps.WPSTestSupport;
 import org.geotools.coverage.grid.GridCoverage2D;
+import org.geotools.data.DataUtilities;
 import org.geotools.data.Query;
 import org.geotools.data.crs.ForceCoordinateSystemFeatureResults;
 import org.geotools.data.simple.SimpleFeatureCollection;
@@ -150,21 +151,17 @@ public class ImportProcessTest extends WPSTestSupport {
         try {
             Future<?> future =
                     executor.submit(
-                            new Runnable() {
-
-                                @Override
-                                public void run() {
-                                    importer.execute(
-                                            testFeatureCollection,
-                                            null,
-                                            SystemTestData.CITE_PREFIX,
-                                            SystemTestData.CITE_PREFIX,
-                                            "Buildings2",
-                                            null,
-                                            null,
-                                            null,
-                                            listener);
-                                }
+                            () -> {
+                                importer.execute(
+                                        testFeatureCollection,
+                                        null,
+                                        SystemTestData.CITE_PREFIX,
+                                        SystemTestData.CITE_PREFIX,
+                                        "Buildings2",
+                                        null,
+                                        null,
+                                        null,
+                                        listener);
                             });
             // cancel the import
             listener.setTask(new SimpleInternationalString("Test message"));
@@ -230,16 +227,13 @@ public class ImportProcessTest extends WPSTestSupport {
 
         FilterFactory ff = CommonFactoryFinder.getFilterFactory(null);
 
-        SimpleFeatureIterator fi =
-                fs.getFeatures(ff.equals(ff.property("FID"), ff.literal("113"))).features();
-        SimpleFeature f = fi.next();
-        fi.close();
+        SimpleFeature f =
+                DataUtilities.first(
+                        fs.getFeatures(ff.equals(ff.property("FID"), ff.literal("113"))));
         assertEquals("113", f.getAttribute("FID"));
         assertEquals("123 Main Street", f.getAttribute("ADDRESS"));
 
-        fi = fs.getFeatures(ff.equals(ff.property("FID"), ff.literal("114"))).features();
-        f = fi.next();
-        fi.close();
+        f = DataUtilities.first(fs.getFeatures(ff.equals(ff.property("FID"), ff.literal("114"))));
         assertEquals("114", f.getAttribute("FID"));
         assertEquals("215 Main Street", f.getAttribute("ADDRESS"));
     }

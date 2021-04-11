@@ -99,6 +99,7 @@ public class LegacyServiceExceptionHandler extends ServiceExceptionHandler {
         this.contentType = contentType;
     }
 
+    @Override
     public void handleServiceException(ServiceException exception, Request request) {
         String tab = "   ";
         StringBuffer sb = new StringBuffer();
@@ -157,7 +158,7 @@ public class LegacyServiceExceptionHandler extends ServiceExceptionHandler {
 
             if (geoServer.getSettings().isVerboseExceptions()) {
                 ByteArrayOutputStream stackTrace = new ByteArrayOutputStream();
-                exception.printStackTrace(new PrintStream(stackTrace));
+                exception.printStackTrace(new PrintStream(stackTrace)); // NOPMD
 
                 sb.append("\nDetails:\n");
                 sb.append(ResponseUtils.encodeXML(new String(stackTrace.toByteArray())));

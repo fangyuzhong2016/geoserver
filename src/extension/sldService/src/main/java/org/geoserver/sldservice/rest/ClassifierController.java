@@ -60,8 +60,6 @@ import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.image.util.ImageUtilities;
 import org.geotools.styling.ChannelSelection;
 import org.geotools.styling.ColorMap;
-import org.geotools.styling.ColorMapEntry;
-import org.geotools.styling.ColorMapEntryImpl;
 import org.geotools.styling.FeatureTypeStyle;
 import org.geotools.styling.NamedLayer;
 import org.geotools.styling.RasterSymbolizer;
@@ -85,7 +83,6 @@ import org.opengis.feature.type.PropertyDescriptor;
 import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory2;
 import org.opengis.filter.PropertyIsBetween;
-import org.opengis.filter.expression.Literal;
 import org.opengis.filter.spatial.BBOX;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.operation.TransformException;
@@ -446,57 +443,19 @@ public class ClassifierController extends BaseSLDServiceController {
                         && colorMap.getColorMapEntries().length > 1;
         builder.applyColorRamp(colorMap, ramp, skipFirstEntry, reverse);
 
-        // check for single valued colormaps
-        if (colorMap.getColorMapEntries().length == 1) {
-            adaptSingleValueColorMap(image, colorMap);
-        }
-
         // wrap the colormap into a raster symbolizer and rule
         RasterSymbolizer rasterSymbolizer = SF.createRasterSymbolizer();
         rasterSymbolizer.setColorMap(colorMap);
         if (bandSelected) {
             SelectedChannelType grayChannel =
                     SF.createSelectedChannelType(String.valueOf(selectedBand), null);
-            ChannelSelection channelSelection =
-                    SF.createChannelSelection(new SelectedChannelType[] {grayChannel});
+            ChannelSelection channelSelection = SF.createChannelSelection(grayChannel);
             rasterSymbolizer.setChannelSelection(channelSelection);
         }
 
         Rule rule = SF.createRule();
         rule.symbolizers().add(rasterSymbolizer);
         return Collections.singletonList(rule);
-    }
-
-    private void adaptSingleValueColorMap(RenderedImage image, ColorMap colorMap) {
-        // force it to be visible, depending on the method the first entry might be
-        // transparent
-        ColorMapEntry cm0 = colorMap.getColorMapEntry(0);
-        cm0.setOpacity(FF.literal(1));
-
-        // should always be a literal, just covering for possible future changes
-        if (cm0.getQuantity() instanceof Literal) {
-            // wrap it between two values that are slightly below and above
-            Float value = cm0.getQuantity().evaluate(null, Float.class);
-            if (Float.isInfinite(value)) {
-                // all must be the same color, switch to ramp mode
-                colorMap.setType(ColorMap.TYPE_RAMP);
-            } else {
-                int intBits = Float.floatToIntBits(value);
-                ColorMapEntry cm1 = new ColorMapEntryImpl();
-                cm1.setQuantity(FF.literal(Float.intBitsToFloat(intBits + 1)));
-                cm0.setQuantity(FF.literal(Float.intBitsToFloat(intBits - 1)));
-
-                cm1.setColor(cm0.getColor());
-                cm1.setLabel(cm0.getLabel());
-                cm1.setOpacity(cm0.getOpacity());
-
-                colorMap.addColorMapEntry(cm1);
-                colorMap.setType(ColorMap.TYPE_INTERVALS);
-            }
-        } else {
-            // make it formally valid, but the value match will not really not work
-            colorMap.setType(ColorMap.TYPE_VALUES);
-        }
     }
 
     /** Returns the selected band */
@@ -813,7 +772,8 @@ public class ClassifierController extends BaseSLDServiceController {
         /**
          * @see com.thoughtworks.xstream.converters.ConverterMatcher#canConvert(java .lang.Class)
          */
-        public boolean canConvert(Class clazz) {
+        @Override
+        public boolean canConvert(@SuppressWarnings("rawtypes") Class clazz) {
             return RulesList.class.isAssignableFrom(clazz)
                     || JSONObject.class.isAssignableFrom(clazz);
         }
@@ -823,6 +783,7 @@ public class ClassifierController extends BaseSLDServiceController {
          *     com.thoughtworks.xstream.io.HierarchicalStreamWriter,
          *     com.thoughtworks.xstream.converters.MarshallingContext)
          */
+        @Override
         public void marshal(
                 Object value, HierarchicalStreamWriter writer, MarshallingContext context) {
 
@@ -899,6 +860,7 @@ public class ClassifierController extends BaseSLDServiceController {
          * @see
          *     com.thoughtworks.xstream.converters.Converter#unmarshal(com.thoughtworks.xstream.io.HierarchicalStreamReader,com.thoughtworks.xstream.converters.UnmarshallingContext)
          */
+        @Override
         public Object unmarshal(HierarchicalStreamReader arg0, UnmarshallingContext arg1) {
             // TODO Auto-generated method stub
             return null;

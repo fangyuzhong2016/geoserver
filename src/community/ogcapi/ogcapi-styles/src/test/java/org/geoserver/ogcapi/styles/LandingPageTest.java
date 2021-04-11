@@ -103,6 +103,9 @@ public class LandingPageTest extends StylesTestSupport {
         assertEquals(
                 "http://localhost:8080/geoserver/ogc/styles/api?f=text%2Fhtml",
                 document.select("#htmlApiLink").attr("href"));
+        assertEquals(
+                "http://localhost:8080/geoserver/ogc/styles/conformance?f=text%2Fhtml",
+                document.select("#htmlConformanceLink").attr("href"));
     }
 
     void checkJSONLandingPage(DocumentContext json) {
@@ -132,9 +135,9 @@ public class LandingPageTest extends StylesTestSupport {
         assertJSONList(
                 json,
                 "links[?(@.href =~ /.*ogc\\/styles\\/conformance.*/)].rel",
-                Link.REL_CONFORMANCE,
-                Link.REL_CONFORMANCE,
-                Link.REL_CONFORMANCE);
+                Link.REL_CONFORMANCE_URI,
+                Link.REL_CONFORMANCE_URI,
+                Link.REL_CONFORMANCE_URI);
         // check collection links
         assertJSONList(
                 json,

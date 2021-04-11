@@ -1,3 +1,4 @@
+<#global pagecrumbs="<li class='breadcrumb-item'><a href='"+serviceLink("")+"'>Home</a></li><li class='breadcrumb-item active'>Collections</li>">
 <#include "common-header.ftl">
        <h2>GeoServer Image Mosaics Collections</h2>
        <p>This document lists all the image collections available in the Images service.<br/>

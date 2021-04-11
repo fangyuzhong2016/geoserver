@@ -15,7 +15,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -305,13 +304,10 @@ public class Importer implements DisposableBean, ApplicationListener {
             // fallback
             TreeSet<ImportContext> sorted =
                     new TreeSet<>(
-                            new Comparator<ImportContext>() {
-                                @Override
-                                public int compare(ImportContext o1, ImportContext o2) {
-                                    Date d1 = o1.getUpdated();
-                                    Date d2 = o2.getUpdated();
-                                    return -1 * d1.compareTo(d2);
-                                }
+                            (o1, o2) -> {
+                                Date d1 = o1.getUpdated();
+                                Date d2 = o2.getUpdated();
+                                return -1 * d1.compareTo(d2);
                             });
             Iterators.addAll(sorted, contextStore.iterator());
             return sorted.iterator();
@@ -943,7 +939,6 @@ public class Importer implements DisposableBean, ApplicationListener {
                     try {
                         directory.archive(getArchiveFile(context));
                     } catch (Exception ioe) {
-                        ioe.printStackTrace();
                         // this is not a critical operation, so don't make the whole thing fail
                         LOGGER.log(Level.WARNING, "Error archiving", ioe);
                     }
@@ -1774,6 +1769,7 @@ public class Importer implements DisposableBean, ApplicationListener {
         }
     }
 
+    @Override
     public void destroy() throws Exception {
         asynchronousJobs.shutdown();
         contextStore.destroy();

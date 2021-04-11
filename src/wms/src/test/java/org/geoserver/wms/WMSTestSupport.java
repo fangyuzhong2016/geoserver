@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.logging.Level;
 import javax.imageio.ImageIO;
 import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilder;
@@ -217,8 +218,8 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
                 catalog.getFeatureTypeByName(layerName.getPrefix(), layerName.getLocalPart());
         Layer layer = null;
         if (info != null) {
-            FeatureSource<? extends FeatureType, ? extends Feature> featureSource;
-            featureSource = info.getFeatureSource(null, null);
+            FeatureSource<? extends FeatureType, ? extends Feature> featureSource =
+                    info.getFeatureSource(null, null);
 
             layer = new FeatureLayer(featureSource, style);
         } else {
@@ -326,6 +327,7 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
          * @author Andrea Aime - TOPP
          */
         class EmptyResolver implements org.xml.sax.EntityResolver {
+            @Override
             public InputSource resolveEntity(String publicId, String systemId)
                     throws org.xml.sax.SAXException, IOException {
                 StringReader reader =
@@ -372,6 +374,7 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
             Frame frame = new Frame(frameName);
             frame.addWindowListener(
                     new WindowAdapter() {
+                        @Override
                         public void windowClosing(WindowEvent e) {
                             e.getWindow().dispose();
                         }
@@ -379,6 +382,7 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
 
             Panel p = new Panel(null) { // no layout manager so it respects
                         // setSize
+                        @Override
                         public void paint(Graphics g) {
                             g.drawImage(image, 0, 0, this);
                         }
@@ -392,7 +396,7 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
             try {
                 Thread.sleep(timeOut);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                LOGGER.log(Level.WARNING, "", e);
             }
 
             frame.dispose();
@@ -402,7 +406,7 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
     /**
      * Performs some checks on an image response assuming the image is a png.
      *
-     * @see #checkImage(MockHttpServletResponse, String)
+     * @see #checkImage(MockHttpServletResponse, String, int, int)
      */
     protected void checkImage(MockHttpServletResponse response) {
         checkImage(response, "image/png", -1, -1);
@@ -433,7 +437,7 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
                 assertEquals(height, image.getHeight());
             }
         } catch (Throwable t) {
-            t.printStackTrace();
+            LOGGER.log(Level.WARNING, "", t);
             fail("Could not read image returned from GetMap:" + t.getLocalizedMessage());
         }
     }
@@ -518,7 +522,7 @@ public abstract class WMSTestSupport extends GeoServerSystemTestSupport {
         if (!p.getValidationErrors().isEmpty()) {
             for (Exception exception : p.getValidationErrors()) {
                 SAXParseException ex = (SAXParseException) exception;
-                System.out.println(
+                LOGGER.warning(
                         ex.getLineNumber() + "," + ex.getColumnNumber() + " -" + ex.toString());
             }
             fail("Document did not validate.");

@@ -11,8 +11,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
@@ -61,6 +61,7 @@ public class KvpUtils {
             return regExp;
         }
 
+        @Override
         public String toString() {
             return getRegExp();
         }
@@ -86,6 +87,7 @@ public class KvpUtils {
     /** Delimeter for outer value lists in the KVPs */
     public static final Tokenizer OUTER_DELIMETER =
             new Tokenizer("\\)\\(") {
+                @Override
                 public List<String> readFlat(final String rawList) {
                     List<String> list = new ArrayList<>(super.readFlat(rawList));
                     final int len = list.size();
@@ -344,6 +346,10 @@ public class KvpUtils {
      * @return
      */
     public static KvpMap<String, String> toStringKVP(Map<String, ?> kvp) {
+        if (kvp == null) {
+            return null;
+        }
+
         KvpMap<String, String> result = new KvpMap<>();
         for (Map.Entry<String, ?> entry : kvp.entrySet()) {
             if (entry.getValue() instanceof String || entry.getValue() == null) {
@@ -610,7 +616,7 @@ public class KvpUtils {
 
         String queryString = path.substring(index + 1);
         StringTokenizer st = new StringTokenizer(queryString, "&");
-        Map<String, Object> result = new HashMap<>();
+        Map<String, Object> result = new LinkedHashMap<>();
         while (st.hasMoreTokens()) {
             String token = st.nextToken();
             String[] keyValuePair;

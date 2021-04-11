@@ -5,6 +5,8 @@
  */
 package org.geoserver.wms.map;
 
+import static org.geoserver.template.TemplateUtils.FM_VERSION;
+
 import freemarker.ext.beans.BeansWrapper;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
@@ -70,8 +72,7 @@ public abstract class AbstractOpenLayersMapOutputFormat implements GetMapOutputF
      *   <li>transparency = supported
      * </ol>
      */
-    static MapProducerCapabilities CAPABILITIES =
-            new MapProducerCapabilities(true, false, true, true, null);
+    static MapProducerCapabilities CAPABILITIES = new MapProducerCapabilities(true, true, true);
 
     /**
      * Set of parameters that we can ignore, since they are not part of the OpenLayers WMS request
@@ -97,7 +98,7 @@ public abstract class AbstractOpenLayersMapOutputFormat implements GetMapOutputF
     static {
         cfg = TemplateUtils.getSafeConfiguration();
         cfg.setClassForTemplateLoading(AbstractOpenLayersMapOutputFormat.class, "");
-        BeansWrapper bw = new BeansWrapper();
+        BeansWrapper bw = new BeansWrapper(FM_VERSION);
         bw.setExposureLevel(BeansWrapper.EXPOSE_PROPERTIES_ONLY);
         cfg.setObjectWrapper(bw);
     }
@@ -110,6 +111,7 @@ public abstract class AbstractOpenLayersMapOutputFormat implements GetMapOutputF
     }
 
     /** @see GetMapOutputFormat#produceMap(WMSMapContent) */
+    @Override
     public RawMap produceMap(WMSMapContent mapContent) throws ServiceException, IOException {
         try {
             // create the template
@@ -338,6 +340,7 @@ public abstract class AbstractOpenLayersMapOutputFormat implements GetMapOutputF
         return ((w > h) ? w : h) / 256;
     }
 
+    @Override
     public MapProducerCapabilities getCapabilities(String format) {
         return CAPABILITIES;
     }

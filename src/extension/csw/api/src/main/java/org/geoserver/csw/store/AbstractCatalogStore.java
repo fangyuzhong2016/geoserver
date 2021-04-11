@@ -24,7 +24,6 @@ import org.geotools.data.Transaction;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.NameImpl;
 import org.opengis.feature.Feature;
-import org.opengis.feature.FeatureVisitor;
 import org.opengis.feature.Property;
 import org.opengis.feature.type.AttributeDescriptor;
 import org.opengis.feature.type.FeatureType;
@@ -76,22 +75,18 @@ public abstract class AbstractCatalogStore implements CatalogStore {
         final Set<String> values = new HashSet<>();
         getRecords(q, Transaction.AUTO_COMMIT, rd)
                 .accepts(
-                        new FeatureVisitor() {
-
-                            @Override
-                            public void visit(Feature feature) {
-                                Property prop = (Property) property.evaluate(feature);
-                                if (prop != null)
-                                    try {
-                                        values.add(
-                                                new String(
-                                                        ((String) prop.getValue())
-                                                                .getBytes("ISO-8859-1"),
-                                                        "UTF-8"));
-                                    } catch (UnsupportedEncodingException e) {
-                                        throw new RuntimeException(e);
-                                    }
-                            }
+                        feature -> {
+                            Property prop = (Property) property.evaluate(feature);
+                            if (prop != null)
+                                try {
+                                    values.add(
+                                            new String(
+                                                    ((String) prop.getValue())
+                                                            .getBytes("ISO-8859-1"),
+                                                    "UTF-8"));
+                                } catch (UnsupportedEncodingException e) {
+                                    throw new RuntimeException(e);
+                                }
                         },
                         null);
 
@@ -104,7 +99,6 @@ public abstract class AbstractCatalogStore implements CatalogStore {
     @Override
     public FeatureCollection<FeatureType, Feature> getRecords(
             Query q, Transaction t, RecordDescriptor rdOutput) throws IOException {
-        RecordDescriptor rd;
         Name typeName = null;
         if (q.getTypeName() == null) {
             typeName = CSWRecordDescriptor.RECORD_DESCRIPTOR.getName();
@@ -113,7 +107,7 @@ public abstract class AbstractCatalogStore implements CatalogStore {
         } else {
             typeName = new NameImpl(q.getTypeName());
         }
-        rd = descriptorByType.get(typeName);
+        RecordDescriptor rd = descriptorByType.get(typeName);
 
         if (rd == null) {
             throw new IOException(q.getTypeName() + " is not a supported type");

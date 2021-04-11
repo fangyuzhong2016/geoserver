@@ -12,10 +12,15 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.geotools.util.logging.Logging;
 import org.junit.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 public class LRUAuthenticationCacheTest extends BaseAuthenticationCacheTest {
+
+    static final Logger LOGGER = Logging.getLogger(LRUAuthenticationCacheTest.class);
 
     @Test
     public void testLRUCache() {
@@ -36,19 +41,19 @@ public class LRUAuthenticationCacheTest extends BaseAuthenticationCacheTest {
     public void testAuthenticationKey() {
         AuthenticationCacheKey key11 = new AuthenticationCacheKey("f1", "k1");
         assertEquals(key11, key11);
-        assertTrue(key11.hashCode() != 0);
+        assertNotEquals(key11.hashCode(), 0);
 
         AuthenticationCacheKey key12 = new AuthenticationCacheKey("f1", "k2");
         assertNotEquals(key11, key12);
-        assertFalse(key11.hashCode() == key12.hashCode());
+        assertNotEquals(key11.hashCode(), key12.hashCode());
 
         AuthenticationCacheKey key21 = new AuthenticationCacheKey("f2", "k1");
         assertNotEquals(key11, key21);
-        assertFalse(key11.hashCode() == key21.hashCode());
+        assertNotEquals(key11.hashCode(), key21.hashCode());
 
         AuthenticationCacheKey key22 = new AuthenticationCacheKey("f12", "k2");
         assertNotEquals(key11, key22);
-        assertFalse(key11.hashCode() == key22.hashCode());
+        assertNotEquals(key11.hashCode(), key22.hashCode());
     }
 
     @Test
@@ -57,7 +62,7 @@ public class LRUAuthenticationCacheTest extends BaseAuthenticationCacheTest {
         UsernamePasswordAuthenticationToken t1 =
                 new UsernamePasswordAuthenticationToken("user1", "password1");
         AuthenticationCacheEntry entry1 = new AuthenticationCacheEntry(t1, 10, 10);
-        assertTrue(entry1.hashCode() != 0);
+        assertNotEquals(entry1.hashCode(), 0);
         assertEquals(t1.hashCode(), entry1.hashCode());
         assertEquals(entry1, entry1);
 
@@ -103,7 +108,7 @@ public class LRUAuthenticationCacheTest extends BaseAuthenticationCacheTest {
         try {
             Thread.sleep(milliSecs);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.WARNING, "", e);
         }
     }
 

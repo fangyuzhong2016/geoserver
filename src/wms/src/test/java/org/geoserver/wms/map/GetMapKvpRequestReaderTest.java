@@ -66,6 +66,7 @@ import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.styling.Style;
 import org.geotools.util.DateRange;
 import org.geotools.util.logging.Logging;
+import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 import org.opengis.filter.FilterFactory;
 import org.opengis.filter.Id;
@@ -120,6 +121,7 @@ public class GetMapKvpRequestReaderTest extends KvpRequestReaderTestSupport {
         GeoServerLoader.setLegacy(false);
     }
 
+    @Override
     protected void setUpInternal() throws Exception {
         super.setUpInternal();
 
@@ -385,7 +387,7 @@ public class GetMapKvpRequestReaderTest extends KvpRequestReaderTestSupport {
         assertNotNull(request.getCQLFilter());
         assertEquals(1, request.getCQLFilter().size());
 
-        PropertyIsEqualTo filter = (PropertyIsEqualTo) request.getCQLFilter().get(0);
+        assertThat(request.getCQLFilter().get(0), CoreMatchers.instanceOf(PropertyIsEqualTo.class));
     }
 
     @Test
@@ -914,7 +916,6 @@ public class GetMapKvpRequestReaderTest extends KvpRequestReaderTestSupport {
             request = reader.read(request, parseKvp(raw), caseInsensitiveKvp(raw));
             fail("This should have thrown an exception because of the non existent layer");
         } catch (ServiceException e) {
-            e.printStackTrace();
             assertEquals("RemoteOWSFailure", e.getCode());
         }
     }
@@ -1271,20 +1272,16 @@ public class GetMapKvpRequestReaderTest extends KvpRequestReaderTestSupport {
 
     private HttpHandler createLongResponseHandler() {
         HttpHandler handler =
-                new HttpHandler() {
-
-                    @Override
-                    public void handle(com.sun.net.httpserver.HttpExchange t) throws IOException {
-                        try {
-                            t.sendResponseHeaders(200, 5000000000l);
-                            TimeUnit.SECONDS.sleep(4);
-                            OutputStream outputStream = t.getResponseBody();
-                            outputStream.write("This is a bad style".getBytes());
-                            outputStream.flush();
-                            outputStream.close();
-                        } catch (InterruptedException e) {
-                            LOG.log(Level.INFO, e.getMessage(), e);
-                        }
+                t -> {
+                    try {
+                        t.sendResponseHeaders(200, 5000000000l);
+                        TimeUnit.SECONDS.sleep(4);
+                        OutputStream outputStream = t.getResponseBody();
+                        outputStream.write("This is a bad style".getBytes());
+                        outputStream.flush();
+                        outputStream.close();
+                    } catch (InterruptedException e) {
+                        LOG.log(Level.INFO, e.getMessage(), e);
                     }
                 };
         return handler;

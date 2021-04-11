@@ -109,6 +109,7 @@ public class GetFeatureWithLockTypeBinding extends AbstractComplexBinding {
     }
 
     /** @generated */
+    @Override
     public QName getTarget() {
         return WFS.GETFEATUREWITHLOCKTYPE;
     }
@@ -120,7 +121,8 @@ public class GetFeatureWithLockTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
-    public Class getType() {
+    @Override
+    public Class<GetFeatureWithLockType> getType() {
         return GetFeatureWithLockType.class;
     }
 
@@ -131,6 +133,7 @@ public class GetFeatureWithLockTypeBinding extends AbstractComplexBinding {
      *
      * @generated modifiable
      */
+    @Override
     public Object parse(ElementInstance instance, Node node, Object value) throws Exception {
         GetFeatureWithLockType getFeatureWithLock = wfsfactory.createGetFeatureWithLockType();
 

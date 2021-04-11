@@ -9,6 +9,7 @@ import java.sql.Connection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.logging.Level;
 import javax.sql.DataSource;
 import org.geoserver.data.test.SystemTestData;
 import org.geoserver.test.AbstractAppSchemaTestSupport;
@@ -81,8 +82,7 @@ public abstract class AbstractDataReferenceWfsTest extends AbstractAppSchemaTest
             if (skipOnFailure) {
                 // disable the test
                 fixture = null;
-                // leave some trace of the swallowed exception
-                e.printStackTrace();
+                LOGGER.log(Level.SEVERE, "", e);
             } else {
                 // do not swallow the exception
                 throw e;
@@ -113,12 +113,11 @@ public abstract class AbstractDataReferenceWfsTest extends AbstractAppSchemaTest
                 try {
                     available = isOnline();
                 } catch (Throwable t) {
-                    System.out.println(
-                            "Skipping "
-                                    + fixtureId
-                                    + " tests, resources not available: "
-                                    + t.getMessage());
-                    t.printStackTrace();
+                    LOGGER.log(
+                            Level.WARNING,
+                            "Skipping " + fixtureId + " tests, resources not available.",
+                            t);
+
                     available = Boolean.FALSE;
                 }
                 online.put(fixtureId, available);
@@ -127,6 +126,7 @@ public abstract class AbstractDataReferenceWfsTest extends AbstractAppSchemaTest
         }
     }
 
+    @SuppressWarnings("PMD.CloseResource")
     private Boolean isOnline() {
         try {
             DataSource dataSource = setup.getDataSource();

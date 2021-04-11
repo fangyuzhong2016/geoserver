@@ -87,7 +87,7 @@ public abstract class ActivityChartBasePanel extends Panel {
                                 ((GeoServerApplication) getApplication())
                                         .getBeanOfType(Monitor.class);
 
-                        Date[] range = new Date[] {from, to};
+                        Date[] range = {from, to};
 
                         chartImage.setImageResource(queryAndRenderChart(monitor, range));
                         target.add(chartImage);
@@ -155,6 +155,7 @@ public abstract class ActivityChartBasePanel extends Panel {
 
         HashMap<RegularTimePeriod, Integer> data = new HashMap<>();
 
+        @Override
         public void visit(RequestData r, Object... aggregates) {
             RegularTimePeriod period = getTimePeriod(r.getStartTime());
             Integer count = data.get(period);

@@ -68,6 +68,7 @@ class FeatureInfoStylePreprocessor extends SymbolizerFilteringVisitor {
         this.defaultGeometryExpression = ff.property("");
     }
 
+    @Override
     public void visit(org.geotools.styling.TextSymbolizer ts) {
         pages.push(null);
         addGeometryExpression(ts.getGeometry(), geometriesOnTextSymbolizer);
@@ -216,7 +217,7 @@ class FeatureInfoStylePreprocessor extends SymbolizerFilteringVisitor {
         geometriesOnLineSymbolizer.removeAll(geometriesOnPolygonSymbolizer);
         for (Expression geom : geometriesOnLineSymbolizer) {
             Object result = geom.evaluate(schema);
-            Class geometryType = getTargetGeometryType(result);
+            Class<?> geometryType = getTargetGeometryType(result);
             if (Polygon.class.isAssignableFrom(geometryType)
                     || MultiPolygon.class.isAssignableFrom(geometryType)) {
                 // we know it's a polygon type, but there is no polygon symbolizer, add one
@@ -242,7 +243,7 @@ class FeatureInfoStylePreprocessor extends SymbolizerFilteringVisitor {
         geometriesOnTextSymbolizer.removeAll(geometriesOnPointSymbolizer);
         for (Expression geom : geometriesOnTextSymbolizer) {
             Object result = geom.evaluate(schema);
-            Class geometryType = getTargetGeometryType(result);
+            Class<?> geometryType = getTargetGeometryType(result);
             if (Polygon.class.isAssignableFrom(geometryType)
                     || MultiPolygon.class.isAssignableFrom(geometryType)) {
                 copy.symbolizers().add(sb.createPolygonSymbolizer());
@@ -300,7 +301,7 @@ class FeatureInfoStylePreprocessor extends SymbolizerFilteringVisitor {
         return extra;
     }
 
-    private Class getTargetGeometryType(Object descriptor) {
+    private Class<?> getTargetGeometryType(Object descriptor) {
         if (!(descriptor instanceof GeometryDescriptor)) {
             // we don't know what this will be, we probably evaluated a filter function
             return Geometry.class;

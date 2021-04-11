@@ -53,13 +53,10 @@ class UnconfiguredCachedLayersProvider extends GeoServerDataProvider<TileLayer> 
 
                 @Override
                 public Comparator<TileLayer> getComparator() {
-                    return new Comparator<TileLayer>() {
-                        @Override
-                        public int compare(TileLayer o1, TileLayer o2) {
-                            GWCIconFactory.CachedLayerType r1 = getPropertyValue(o1);
-                            GWCIconFactory.CachedLayerType r2 = getPropertyValue(o2);
-                            return r1.compareTo(r2);
-                        }
+                    return (o1, o2) -> {
+                        GWCIconFactory.CachedLayerType r1 = getPropertyValue(o1);
+                        GWCIconFactory.CachedLayerType r2 = getPropertyValue(o2);
+                        return r1.compareTo(r2);
                     };
                 }
             };
@@ -209,6 +206,7 @@ class UnconfiguredCachedLayersProvider extends GeoServerDataProvider<TileLayer> 
     }
 
     /** @see org.geoserver.web.wicket.GeoServerDataProvider#newModel(java.lang.Object) */
+    @Override
     public IModel<TileLayer> newModel(final TileLayer tileLayer) {
         return new UnconfiguredTileLayerDetachableModel(tileLayer.getName());
     }

@@ -35,6 +35,7 @@ public class DDSMapResponse extends RenderedImageMapResponse {
         super(MIME_TYPE, wms);
     }
 
+    @Override
     public void formatImageOutputStream(
             RenderedImage img, OutputStream os, WMSMapContent mapContent)
             throws ServiceException, IOException {
@@ -91,6 +92,6 @@ public class DDSMapResponse extends RenderedImageMapResponse {
     @Override
     public MapProducerCapabilities getCapabilities(String outputFormat) {
         // FIXME Become more capable
-        return new MapProducerCapabilities(false, false, false, true, null);
+        return new MapProducerCapabilities(false, false, true);
     }
 }

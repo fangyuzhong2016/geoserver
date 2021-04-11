@@ -59,10 +59,12 @@ public class WPSXStreamLoader extends XStreamServiceLoader<WPSInfo> {
         super(resourceLoader, "wps");
     }
 
+    @Override
     public Class<WPSInfo> getServiceClass() {
         return WPSInfo.class;
     }
 
+    @Override
     protected WPSInfo createServiceFromScratch(GeoServer gs) {
         WPSInfo wps = new WPSInfoImpl();
         wps.setName("WPS");
@@ -173,7 +175,7 @@ public class WPSXStreamLoader extends XStreamServiceLoader<WPSInfo> {
     public static class NameConverter extends AbstractSingleValueConverter {
 
         @Override
-        public boolean canConvert(Class type) {
+        public boolean canConvert(@SuppressWarnings("rawtypes") Class type) {
             return Name.class.isAssignableFrom(type);
         }
 
@@ -208,7 +210,7 @@ public class WPSXStreamLoader extends XStreamServiceLoader<WPSInfo> {
         }
 
         @Override
-        public boolean canConvert(Class clazz) {
+        public boolean canConvert(@SuppressWarnings("rawtypes") Class clazz) {
             return ProcessGroupInfoImpl.class == clazz;
         }
 
@@ -259,7 +261,7 @@ public class WPSXStreamLoader extends XStreamServiceLoader<WPSInfo> {
         }
 
         @Override
-        public boolean canConvert(Class type) {
+        public boolean canConvert(@SuppressWarnings("rawtypes") Class type) {
             return NumberRange.class.isAssignableFrom(type);
         }
 
@@ -308,7 +310,7 @@ public class WPSXStreamLoader extends XStreamServiceLoader<WPSInfo> {
             super(mapper);
         }
 
-        public WPSCollectionConverter(Mapper mapper, Class type) {
+        public WPSCollectionConverter(Mapper mapper, Class<?> type) {
             super(mapper, type);
         }
 

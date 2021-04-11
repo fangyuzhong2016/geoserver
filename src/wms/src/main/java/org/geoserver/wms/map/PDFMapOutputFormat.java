@@ -45,7 +45,7 @@ public class PDFMapOutputFormat extends AbstractMapOutputFormat {
      * </ol>
      */
     private static MapProducerCapabilities CAPABILITIES =
-            new MapProducerCapabilities(false, false, false, true, null);
+            new MapProducerCapabilities(false, false, true);
 
     public static class PDFMap extends org.geoserver.wms.WebMap {
 
@@ -61,6 +61,7 @@ public class PDFMapOutputFormat extends AbstractMapOutputFormat {
     }
 
     /** @see org.geoserver.wms.GetMapOutputFormat#produceMap(org.geoserver.wms.WMSMapContent) */
+    @Override
     public PDFMap produceMap(final WMSMapContent mapContent) throws ServiceException, IOException {
 
         PDFMap result = new PDFMap(mapContent);
@@ -72,6 +73,7 @@ public class PDFMapOutputFormat extends AbstractMapOutputFormat {
         return result;
     }
 
+    @Override
     public MapProducerCapabilities getCapabilities(String format) {
         return CAPABILITIES;
     }

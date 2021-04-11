@@ -25,14 +25,21 @@ import org.springframework.stereotype.Component;
 
 /**
  * Support class that locates the templates based on the current response and eventual {@link
- * LocalWorkspace}
+ * LocalWorkspace}.
+ *
+ * <p>Located in workspace using service landingPage prefix, or obtained from jar:
+ *
+ * <ul>
+ *   <li>ogc/features/landingPage.ftl
+ * </ul>
  */
 @Component
 public class FreemarkerTemplateSupport {
 
-    private static final Map<Class, Configuration> configurationCache = new SoftValueHashMap<>(10);
+    private static final Map<Class<?>, Configuration> configurationCache =
+            new SoftValueHashMap<>(10);
 
-    private final GeoServerResourceLoader resoureLoader;
+    private final GeoServerResourceLoader resourceLoader;
 
     ClassTemplateLoader rootLoader = new ClassTemplateLoader(FreemarkerTemplateSupport.class, "");
 
@@ -40,20 +47,30 @@ public class FreemarkerTemplateSupport {
             new DirectTemplateFeatureCollectionFactory();
 
     public FreemarkerTemplateSupport(GeoServerResourceLoader loader) {
-        this.resoureLoader = loader;
+        this.resourceLoader = loader;
     }
 
     /**
      * Returns the template for the specified feature type. Looking up templates is pretty
-     * expensive, so we cache templates by feture type and template.
+     * expensive, so we cache templates by feature type and template.
      */
     public Template getTemplate(ResourceInfo resource, String templateName, Class<?> clazz)
             throws IOException {
         GeoServerTemplateLoader templateLoader =
-                new GeoServerTemplateLoader(clazz, resoureLoader) {
+                new GeoServerTemplateLoader(clazz, resourceLoader) {
                     @Override
                     public Object findTemplateSource(String path) throws IOException {
-                        Object source = super.findTemplateSource(path);
+                        Object source = null;
+
+                        APIService service = clazz.getAnnotation(APIService.class);
+                        if (service != null) {
+                            source = super.findTemplateSource(service.landingPage() + "/" + path);
+                        }
+
+                        if (source == null) {
+                            source = super.findTemplateSource(path);
+                        }
+
                         if (source == null) {
                             source = rootLoader.findTemplateSource(path);
 
@@ -86,7 +103,7 @@ public class FreemarkerTemplateSupport {
         }
     }
 
-    Configuration getTemplateConfiguration(Class clazz) {
+    Configuration getTemplateConfiguration(Class<?> clazz) {
         return configurationCache.computeIfAbsent(
                 clazz,
                 k -> {
@@ -108,7 +125,7 @@ public class FreemarkerTemplateSupport {
     public void processTemplate(
             ResourceInfo resource,
             String templateName,
-            Class referenceClass,
+            Class<?> referenceClass,
             Map<String, Object> model,
             Writer writer)
             throws IOException {
@@ -132,7 +149,7 @@ public class FreemarkerTemplateSupport {
     public String processTemplate(
             ResourceInfo resource,
             String templateName,
-            Class referenceClass,
+            Class<?> referenceClass,
             Map<String, Object> model)
             throws IOException {
         StringWriter sw = new StringWriter();

@@ -16,7 +16,6 @@ import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.wicket.Component;
-import org.apache.wicket.Page;
 import org.apache.wicket.WicketRuntimeException;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.attributes.AjaxCallListener;
@@ -125,10 +124,12 @@ public class DemoRequestsPage extends GeoServerBasePage {
                         reqFileNameModel,
                         demoList,
                         new ChoiceRenderer<String>() {
+                            @Override
                             public String getIdValue(String obj, int index) {
                                 return obj;
                             }
 
+                            @Override
                             public Object getDisplayValue(String obj) {
                                 return obj;
                             }
@@ -222,21 +223,14 @@ public class DemoRequestsPage extends GeoServerBasePage {
         password.setRequired(false);
         demoRequestsForm.add(password);
 
-        final ModalWindow responseWindow;
-
-        responseWindow = new ModalWindow("responseWindow");
+        final ModalWindow responseWindow = new ModalWindow("responseWindow");
         add(responseWindow);
 
         // responseWindow.setPageMapName("demoResponse");
         responseWindow.setCookieName("demoResponse");
 
         responseWindow.setPageCreator(
-                new ModalWindow.PageCreator() {
-
-                    public Page createPage() {
-                        return new DemoRequestResponse(requestModel);
-                    }
-                });
+                (ModalWindow.PageCreator) () -> new DemoRequestResponse(requestModel));
 
         demoRequestsForm.add(
                 new AjaxSubmitLink("submit", demoRequestsForm) {

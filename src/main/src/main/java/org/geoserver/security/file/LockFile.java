@@ -38,16 +38,8 @@ public class LockFile {
             throw new IOException("Cannot lock a not existing file: " + file.path());
         }
         lockFile = file.parent().get(lockFileTarget.name() + ".lock");
-        Runtime.getRuntime()
-                .addShutdownHook(
-                        new Thread(
-                                new Runnable() { // remove on shutdown
-
-                                    @Override
-                                    public void run() {
-                                        lockFile.delete();
-                                    }
-                                }));
+        // remove on shutdown
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> lockFile.delete()));
     }
 
     /** return true if a write lock is hold by this file watcher */
@@ -108,7 +100,7 @@ public class LockFile {
             // find some network info
             try {
                 hostname = InetAddress.getLocalHost().getHostName();
-                InetAddress addrs[] = InetAddress.getAllByName(hostname);
+                InetAddress[] addrs = InetAddress.getAllByName(hostname);
                 for (InetAddress addr : addrs) {
                     if (!addr.isLoopbackAddress() && addr.isSiteLocalAddress())
                         ip = addr.getHostAddress();

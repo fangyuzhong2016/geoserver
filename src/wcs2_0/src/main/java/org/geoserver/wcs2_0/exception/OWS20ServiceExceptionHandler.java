@@ -77,6 +77,7 @@ public class OWS20ServiceExceptionHandler extends ServiceExceptionHandler {
     }
 
     /** Writes out an OWS ExceptionReport document. */
+    @Override
     public void handleServiceException(ServiceException exception, Request request) {
         LOGGER.warning("OWS20SEH: handling " + exception);
 
@@ -205,7 +206,7 @@ public class OWS20ServiceExceptionHandler extends ServiceExceptionHandler {
             // exception.
             sb.append("\nDetails:\n");
             ByteArrayOutputStream trace = new ByteArrayOutputStream();
-            exception.printStackTrace(new PrintStream(trace));
+            exception.printStackTrace(new PrintStream(trace)); // NOPMD
             sb.append(new String(trace.toByteArray()));
         }
 

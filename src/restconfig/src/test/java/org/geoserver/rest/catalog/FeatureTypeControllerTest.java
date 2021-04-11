@@ -83,13 +83,13 @@ public class FeatureTypeControllerTest extends CatalogRESTTestSupport {
 
         String xml = "<featureType><name>pdsa</name><store>pds</store></featureType>";
 
-        MockHttpServletResponse response;
         String ws1FetureTypesPath =
                 BASEPATH + "/workspaces/" + ws1 + "/datastores/pds/featuretypes";
         String ws2FeatureTypesPath =
                 BASEPATH + "/workspaces/" + ws2 + "/datastores/pds/featuretypes";
 
-        response = postAsServletResponse(ws1FetureTypesPath, xml, "text/xml");
+        MockHttpServletResponse response =
+                postAsServletResponse(ws1FetureTypesPath, xml, "text/xml");
         assertEquals(201, response.getStatus());
 
         response = postAsServletResponse(ws2FeatureTypesPath, xml, "text/xml");
@@ -324,17 +324,14 @@ public class FeatureTypeControllerTest extends CatalogRESTTestSupport {
 
     @Test
     public void testGetAsHTML() throws Exception {
-        Document dom =
-                getAsDOM(
-                        BASEPATH
-                                + "/workspaces/sf/datastores/sf/featuretypes/PrimitiveGeoFeature.html");
+        getAsDOM(BASEPATH + "/workspaces/sf/datastores/sf/featuretypes/PrimitiveGeoFeature.html");
     }
 
     @Test
     public void testGetAllAsHTML() throws Exception {
         addPropertyDataStore(true);
 
-        String dom = getAsString(BASEPATH + "/workspaces/gs/datastores/pds/featuretypes.xml");
+        getAsString(BASEPATH + "/workspaces/gs/datastores/pds/featuretypes.xml");
 
         // System.out.println(dom);
     }

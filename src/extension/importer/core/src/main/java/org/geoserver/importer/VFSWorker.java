@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -88,6 +89,7 @@ public class VFSWorker {
                          * @see
                          *     org.apache.commons.vfs2.FileSelector#traverseDescendents(org.apache.commons.vfs2.FileSelectInfo)
                          */
+                        @Override
                         public boolean traverseDescendents(FileSelectInfo folderInfo)
                                 throws Exception {
                             return true;
@@ -97,6 +99,7 @@ public class VFSWorker {
                          * @see
                          *     org.apache.commons.vfs2.FileSelector#includeFile(org.apache.commons.vfs2.FileSelectInfo)
                          */
+                        @Override
                         public boolean includeFile(FileSelectInfo fileInfo) throws Exception {
                             File folder = archiveFile.getParentFile();
                             String name = fileInfo.getFile().getName().getFriendlyURI();
@@ -127,7 +130,7 @@ public class VFSWorker {
                             + names);
             return names;
         } catch (FileSystemException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "", e);
         }
         return Collections.emptyList();
     }
@@ -205,10 +208,12 @@ public class VFSWorker {
         IOFileFilter fileFilter =
                 new IOFileFilter() {
 
+                    @Override
                     public boolean accept(File dir, String name) {
                         return fileNameFilter.accept(dir, name);
                     }
 
+                    @Override
                     public boolean accept(File file) {
                         return fileNameFilter.accept(file.getParentFile(), file.getName());
                     }

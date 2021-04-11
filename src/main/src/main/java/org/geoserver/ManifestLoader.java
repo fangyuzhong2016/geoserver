@@ -52,9 +52,9 @@ public class ManifestLoader {
 
     private static Pattern resourceNameRegex;
 
-    private static String resourceAttributeExclusions[];
+    private static String[] resourceAttributeExclusions;
 
-    private static String versionAttributeInclusions[];
+    private static String[] versionAttributeInclusions;
 
     private static ClassLoader classLoader;
 
@@ -228,7 +228,7 @@ public class ManifestLoader {
                             .toString();
             geoserverPath = geoserverPath + "!/META-INF/MANIFEST.MF";
 
-            Class geoserver_class = GeoServer.class;
+            Class<GeoServer> geoserver_class = GeoServer.class;
             Manifest manifest = ManifestLoader.getManifest(geoserver_class);
             if (manifest != null) {
                 model.add(
@@ -255,7 +255,7 @@ public class ManifestLoader {
                             .toString();
             path = path + "!/META-INF/MANIFEST.MF";
 
-            Class geoserver_class = GeoTools.class;
+            Class<GeoTools> geoserver_class = GeoTools.class;
             Manifest manifest = ManifestLoader.getManifest(geoserver_class);
 
             if (manifest != null) {
@@ -287,7 +287,7 @@ public class ManifestLoader {
                             .toString();
             path = path + "!/META-INF/MANIFEST.MF";
 
-            Class geoserver_class = Class.forName("org.geowebcache.GeoWebCache");
+            Class<?> geoserver_class = Class.forName("org.geowebcache.GeoWebCache");
             Manifest manifest = ManifestLoader.getManifest(geoserver_class);
             if (manifest != null) {
                 model.add(
@@ -688,7 +688,7 @@ public class ManifestLoader {
                             int i = 0;
                             while (i < include.length) {
                                 // split key in original_key:replace_key
-                                String key[] = include[i++].split(":");
+                                String[] key = include[i++].split(":");
                                 if (attrName.matches(key[0]) == true) {
                                     ret.put(
                                             key.length > 1 ? key[1] : key[0],

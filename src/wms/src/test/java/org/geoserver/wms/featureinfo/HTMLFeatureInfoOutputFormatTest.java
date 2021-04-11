@@ -47,11 +47,11 @@ import org.geoserver.wms.WMSTestSupport;
 import org.geotools.data.DataUtilities;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
+import org.hamcrest.CoreMatchers;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.function.ThrowingRunnable;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockServletContext;
@@ -217,17 +217,11 @@ public class HTMLFeatureInfoOutputFormatTest extends WMSTestSupport {
         IOException e =
                 Assert.assertThrows(
                         IOException.class,
-                        new ThrowingRunnable() {
-
-                            @Override
-                            public void run() throws Throwable {
-                                outputFormat.write(fcType, getFeatureInfoRequest, outStream);
-                            }
-                        });
-        System.out.println(e.getMessage());
+                        () -> outputFormat.write(fcType, getFeatureInfoRequest, outStream));
         assertThat(
-                "Bad Message",
-                e.getMessage().contains("Error occurred processing content template content.ftl"));
+                e.getMessage(),
+                CoreMatchers.containsString(
+                        "Error occurred processing content template content.ftl"));
     }
 
     /**
@@ -318,13 +312,10 @@ public class HTMLFeatureInfoOutputFormatTest extends WMSTestSupport {
             request.setQueryLayers(((i % 2) == 0) ? layers1 : layers2);
             final FeatureCollectionType type = (((i % 2) == 0) ? type1 : type2);
             tasks.add(
-                    new Callable<String>() {
-                        @Override
-                        public String call() throws Exception {
-                            ByteArrayOutputStream output = new ByteArrayOutputStream();
-                            format.write(type, request, output);
-                            return new String(output.toByteArray());
-                        }
+                    () -> {
+                        ByteArrayOutputStream output = new ByteArrayOutputStream();
+                        format.write(type, request, output);
+                        return new String(output.toByteArray());
                     });
         }
         ExecutorService executor = Executors.newFixedThreadPool(8);

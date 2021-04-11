@@ -20,22 +20,26 @@ public class StringValidatable implements IValidatable<String> {
         this.value = value;
     }
 
+    @Override
     public void error(IValidationError error) {
         errors.add(error);
     }
 
+    @Override
     public String getValue() {
         return value;
     }
 
+    @Override
     public boolean isValid() {
-        return errors.size() == 0;
+        return errors.isEmpty();
     }
 
     public List<IValidationError> getErrors() {
         return errors;
     }
 
+    @Override
     public IModel<String> getModel() {
         return null;
     }

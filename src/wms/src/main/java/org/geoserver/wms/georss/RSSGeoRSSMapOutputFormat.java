@@ -25,7 +25,7 @@ public class RSSGeoRSSMapOutputFormat implements GetMapOutputFormat {
     private static String MIME_TYPE = "application/rss+xml";
 
     static final MapProducerCapabilities RSS_CAPABILITIES =
-            new MapProducerCapabilities(false, false, false, true, null);
+            new MapProducerCapabilities(false, false, true);
 
     /** format names/aliases */
     public static final Set<String> FORMAT_NAMES;
@@ -44,16 +44,19 @@ public class RSSGeoRSSMapOutputFormat implements GetMapOutputFormat {
     }
 
     /** @see org.geoserver.wms.GetMapOutputFormat#getMimeType() */
+    @Override
     public String getMimeType() {
         return MIME_TYPE;
     }
 
     /** @see GetMapProducer#getOutputFormatNames() */
+    @Override
     public Set<String> getOutputFormatNames() {
         return FORMAT_NAMES;
     }
 
     /** @see org.geoserver.wms.GetMapOutputFormat#produceMap(org.geoserver.wms.WMSMapContent) */
+    @Override
     public XMLTransformerMap produceMap(WMSMapContent map) throws ServiceException, IOException {
 
         RSSGeoRSSTransformer tx = new RSSGeoRSSTransformer(wms);
@@ -79,6 +82,7 @@ public class RSSGeoRSSMapOutputFormat implements GetMapOutputFormat {
         return result;
     }
 
+    @Override
     public MapProducerCapabilities getCapabilities(String format) {
         return RSS_CAPABILITIES;
     }

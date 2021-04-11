@@ -50,12 +50,15 @@ public abstract class BaseFeatureKvpRequestReader extends WFSKvpRequestReader {
     protected final QNameKvpParser qNameParser;
 
     public BaseFeatureKvpRequestReader(
-            Class requestBean, GeoServer geoServer, FilterFactory filterFactory) {
+            Class<?> requestBean, GeoServer geoServer, FilterFactory filterFactory) {
         this(requestBean, WfsFactory.eINSTANCE, geoServer, filterFactory);
     }
 
     public BaseFeatureKvpRequestReader(
-            Class requestBean, EFactory factory, GeoServer geoServer, FilterFactory filterFactory) {
+            Class<?> requestBean,
+            EFactory factory,
+            GeoServer geoServer,
+            FilterFactory filterFactory) {
         super(requestBean, factory);
         this.catalog = geoServer.getCatalog();
         this.geoServer = geoServer;
@@ -71,6 +74,7 @@ public abstract class BaseFeatureKvpRequestReader extends WFSKvpRequestReader {
      * Reads the commons elements to GetFeature, GetFeatureWithLock, LockFeature (typenames,
      * filters, namespaces)
      */
+    @Override
     public Object read(Object request, Map<String, Object> kvp, Map<String, Object> rawKvp)
             throws Exception {
         request = super.read(request, kvp, rawKvp);
@@ -232,8 +236,7 @@ public abstract class BaseFeatureKvpRequestReader extends WFSKvpRequestReader {
 
     @SuppressWarnings("unchecked")
     private List<List<QName>> getTypeNames(Map<String, Object> kvp) {
-        List<List<QName>> typeNames;
-        typeNames = (List) kvp.get("typeName");
+        List<List<QName>> typeNames = (List) kvp.get("typeName");
         if (typeNames == null) {
             typeNames = (List) kvp.get("typeNames");
         }

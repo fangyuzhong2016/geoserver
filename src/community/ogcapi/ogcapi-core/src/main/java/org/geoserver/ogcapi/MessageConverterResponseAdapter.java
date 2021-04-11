@@ -36,11 +36,11 @@ public class MessageConverterResponseAdapter<T>
         implements HttpMessageConverter<T>, ApplicationContextAware {
 
     protected final Class<T> valueClass;
-    protected final Class responseBinding;
+    protected final Class<?> responseBinding;
     protected List<Response> responses;
     protected List<MediaType> supportedMediaTypes;
 
-    public MessageConverterResponseAdapter(Class<T> valueClass, Class responseBinding) {
+    public MessageConverterResponseAdapter(Class<T> valueClass, Class<?> responseBinding) {
         this.valueClass = valueClass;
         this.responseBinding = responseBinding;
     }
@@ -104,17 +104,20 @@ public class MessageConverterResponseAdapter<T>
         Operation op = result != null ? getOperation(result, dr) : originalOperation;
         return responses
                 .stream()
-                .filter(r -> getMediaTypeStream(r).anyMatch(mt -> mediaType.isCompatibleWith(mt)))
-                .filter(r -> r.canHandle(op))
+                .filter(
+                        r ->
+                                getMediaTypeStream(r).anyMatch(mt -> mediaType.isCompatibleWith(mt))
+                                        || (r.canHandle(op) && r.getBinding().isInstance(result)))
                 .findFirst();
     }
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        Predicate<Response> predicate = getResponseFilterPredicate();
         this.responses =
                 GeoServerExtensions.extensions(Response.class, applicationContext)
                         .stream()
-                        .filter(getResponseFilterPredicate())
+                        .filter(predicate)
                         .collect(Collectors.toList());
         this.supportedMediaTypes =
                 this.responses

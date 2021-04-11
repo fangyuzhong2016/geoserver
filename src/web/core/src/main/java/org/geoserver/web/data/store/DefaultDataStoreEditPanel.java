@@ -126,8 +126,7 @@ public class DefaultDataStoreEditPanel extends StoreEditPanel {
                         String paramName = item.getDefaultModelObjectAsString();
                         ParamInfo paramMetadata = paramsMetadata.get(paramName);
 
-                        Component inputComponent;
-                        inputComponent =
+                        Component inputComponent =
                                 getInputComponent("parameterPanel", paramsModel, paramMetadata);
 
                         String description = paramMetadata.getTitle();
@@ -232,7 +231,7 @@ public class DefaultDataStoreEditPanel extends StoreEditPanel {
 
             // AF: Disable Validator if GeoServer Env Parametrization is enabled!
             if (paramName.equalsIgnoreCase("url")) {
-                if (gsEnvironment == null || !GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
+                if (gsEnvironment == null || !GeoServerEnvironment.allowEnvParametrization()) {
                     fc.add(new FileExistsValidator());
                 }
             }
@@ -243,7 +242,7 @@ public class DefaultDataStoreEditPanel extends StoreEditPanel {
             // absolute and bye bye data dir portability
 
             // AF: Disable Binding if GeoServer Env Parametrization is enabled!
-            if (gsEnvironment == null || !GeoServerEnvironment.ALLOW_ENV_PARAMETRIZATION) {
+            if (gsEnvironment == null || !GeoServerEnvironment.allowEnvParametrization()) {
                 if (binding != null
                         && !String.class.equals(binding)
                         && !File.class.equals(binding)

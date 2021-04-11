@@ -55,7 +55,7 @@ public final class TIFFMapResponse extends RenderedImageMapResponse {
      * </ol>
      */
     private static MapProducerCapabilities CAPABILITIES =
-            new MapProducerCapabilities(true, false, true, true, null);
+            new MapProducerCapabilities(true, true, true);
 
     /**
      * Creates a {@link GetMapProducer} to encode the {@link RenderedImage} generated in <code>
@@ -75,6 +75,7 @@ public final class TIFFMapResponse extends RenderedImageMapResponse {
      * @throws ServiceException not really.
      * @throws IOException if the image writing fails.
      */
+    @Override
     @SuppressWarnings("PMD.CloseResource") // just a wrapper, actual output managed by servlet
     public void formatImageOutputStream(
             RenderedImage image, OutputStream outStream, WMSMapContent mapContent)

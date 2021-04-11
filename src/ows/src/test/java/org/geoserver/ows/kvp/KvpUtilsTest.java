@@ -10,6 +10,7 @@ import static org.junit.Assert.assertArrayEquals;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import org.geoserver.ows.util.KvpMap;
 import org.geoserver.ows.util.KvpUtils;
 import org.junit.Assert;
 import org.junit.Test;
@@ -34,6 +35,12 @@ public class KvpUtilsTest {
     }
 
     @Test
+    public void testNullKvp() {
+        KvpMap<String, String> result = KvpUtils.toStringKVP(null);
+        Assert.assertNull(result);
+    }
+
+    @Test
     public void testStarNestedString() {
         List result = KvpUtils.readNested("*");
         Assert.assertEquals(1, result.size());
@@ -42,11 +49,9 @@ public class KvpUtilsTest {
 
     @Test
     public void testWellKnownTokenizers() {
-        String[] expected;
-        List actual;
 
-        expected = new String[] {"1", "2", "3", ""};
-        actual = KvpUtils.readFlat("1,2,3,", KvpUtils.INNER_DELIMETER);
+        String[] expected = {"1", "2", "3", ""};
+        List actual = KvpUtils.readFlat("1,2,3,", KvpUtils.INNER_DELIMETER);
         assertKvp(expected, actual);
 
         expected = new String[] {"abc", "def", ""};
@@ -76,10 +81,9 @@ public class KvpUtilsTest {
 
     @Test
     public void testRadFlatUnkownDelimiter() {
-        List actual;
 
-        final String[] expected = new String[] {"1", "2", "3", ""};
-        actual = KvpUtils.readFlat("1^2^3^", "\\^");
+        final String[] expected = {"1", "2", "3", ""};
+        List actual = KvpUtils.readFlat("1^2^3^", "\\^");
         assertKvp(expected, actual);
 
         actual = KvpUtils.readFlat("1-2-3-", "-");
@@ -133,19 +137,19 @@ public class KvpUtilsTest {
         try {
             KvpUtils.escapedTokens(null, ',');
             Assert.fail("Expected IllegalArgumentException.");
-        } catch (IllegalArgumentException e) {;
+        } catch (IllegalArgumentException e) {
         }
 
         try {
             KvpUtils.escapedTokens("", '\\');
             Assert.fail("Expected IllegalArgumentException.");
-        } catch (IllegalArgumentException e) {;
+        } catch (IllegalArgumentException e) {
         }
 
         try {
             KvpUtils.escapedTokens("\\", '\\');
             Assert.fail("Expected IllegalArgumentException.");
-        } catch (IllegalArgumentException e) {;
+        } catch (IllegalArgumentException e) {
         }
     }
 
@@ -166,13 +170,13 @@ public class KvpUtilsTest {
         try {
             KvpUtils.unescape(null);
             Assert.fail("Expected IllegalArgumentException.");
-        } catch (IllegalArgumentException e) {;
+        } catch (IllegalArgumentException e) {
         }
 
         try {
             KvpUtils.unescape("\\");
             Assert.fail("Expected IllegalArgumentException.");
-        } catch (IllegalArgumentException e) {;
+        } catch (IllegalArgumentException e) {
         }
     }
 

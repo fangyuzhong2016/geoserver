@@ -62,8 +62,8 @@ import org.opengis.referencing.operation.MathTransform;
  */
 public class UpdateElementHandler extends AbstractTransactionElementHandler {
 
-    static final Map<String, Class> GML_PROPERTIES_BINDINGS =
-            new HashMap<String, Class>() {
+    static final Map<String, Class<?>> GML_PROPERTIES_BINDINGS =
+            new HashMap<String, Class<?>>() {
                 {
                     put("name", String.class);
                     put("description", String.class);
@@ -87,6 +87,7 @@ public class UpdateElementHandler extends AbstractTransactionElementHandler {
         super(gs);
     }
 
+    @Override
     public void checkValidity(TransactionElement element, Map<QName, FeatureTypeInfo> typeInfos)
             throws WFSTransactionException {
 
@@ -137,7 +138,7 @@ public class UpdateElementHandler extends AbstractTransactionElementHandler {
                     if (getInfo().isCiteCompliant()) {
                         // was it a common GML property that we don't have backing storage for?
                         String namespace = name.getNamespaceURI();
-                        Class binding = GML_PROPERTIES_BINDINGS.get(name.getLocalPart());
+                        Class<?> binding = GML_PROPERTIES_BINDINGS.get(name.getLocalPart());
                         if (GML_NAMESPACES.contains(namespace) && binding != null) {
                             // the hack is here, CITE tests want us to report that updating with an
                             // un-parseable KML point
@@ -190,6 +191,7 @@ public class UpdateElementHandler extends AbstractTransactionElementHandler {
         }
     }
 
+    @Override
     public void execute(
             TransactionElement element,
             TransactionRequest request,
@@ -330,8 +332,7 @@ public class UpdateElementHandler extends AbstractTransactionElementHandler {
                 if ((request.getLockId() != null)
                         && store instanceof FeatureLocking
                         && (request.isReleaseActionSome())) {
-                    SimpleFeatureLocking locking;
-                    locking = (SimpleFeatureLocking) store;
+                    SimpleFeatureLocking locking = (SimpleFeatureLocking) store;
                     locking.unLockFeatures(filter);
                 }
             }
@@ -394,13 +395,15 @@ public class UpdateElementHandler extends AbstractTransactionElementHandler {
     }
 
     /** @see org.geoserver.wfs.TransactionElementHandler#getElementClass() */
-    public Class getElementClass() {
+    @Override
+    public Class<Update> getElementClass() {
         return Update.class;
     }
 
     /**
      * @see org.geoserver.wfs.TransactionElementHandler#getTypeNames(org.eclipse.emf.ecore.EObject)
      */
+    @Override
     public QName[] getTypeNames(TransactionRequest request, TransactionElement element)
             throws WFSTransactionException {
         return new QName[] {element.getTypeName()};
